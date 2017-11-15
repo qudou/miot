@@ -5,13 +5,12 @@ $_().imports({
         css: "* { -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }\
               input { -webkit-user-select: text; } \
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
-              #index > * { width: 100%; }",
+              #index > * { width: 100%; height: 100%; }",
         xml: "<ViewStack id='index'>\
                 <Verify id='verify'/>\
                 <Service id='service'/>\
                 <Login id='login'/>\
                 <Content id='content'/>\
-                <Client id='client'/>\
               </ViewStack>",
         fun: function (sys, items, opts) {
             var msg = xmlplus.startup("/musicbox/tools/Message").value();
@@ -21,27 +20,27 @@ $_().imports({
         }
     },
     Verify: {
-        xml: "<Mask id='check' xmlns='/tools'/>",
+        xml: "<Overlay id='verify' xmlns='verify'/>",
         fun: function (sys, items, opts) {
             var o = {
                 username: localStorage.getItem("username"),
                 password: localStorage.getItem("password")
             };
-            setTimeout(function () {
+            setTimeout(e => {
                 if (o.username && o.password) {
-                    sys.check.trigger("switch", ["service", o]);
+                    sys.verify.trigger("switch", ["service", o]);
                 } else {
-                    sys.check.trigger("switch", "login");
+                    sys.verify.trigger("switch", "login");
                 }
             }, 0);
         }
     },
     Service: {
-        xml: "<Mask id='service' xmlns='/tools'/>",
+        xml: "<Overlay id='service' xmlns='verify'/>",
         fun: function (sys, items, opts) {
-            let client;
+            let client,
                 clientId = "x827ex27795f",
-                url = "ws://192.168.0.118:8000";
+                url = "ws://192.168.0.135:8000";
             this.on("show", (e, key, config) => {
                 client = mqtt.connect(url, config);
                 client.on("connect", e => {
@@ -89,9 +88,7 @@ $_().imports({
         }
     },
     Content: {
-        css: "#content, #stack > * { height: 100%; overflow: auto; }\
-              #stack { height: 100%; }\
-              #about { margin: 0; box-sizing: border-box; }",
+        css: "#overlay, #stack, #client, #stack > * { width: 100%; height: 100%; }",
         xml: "<div id='content' xmlns:i='content'>\
                 <i:Overlay id='overlay'/>\
                 <ViewStack id='stack'>\
@@ -99,6 +96,7 @@ $_().imports({
                     <i:Room id='room'/>\
                     <i:About id='about'/>\
                 </ViewStack>\
+                <i:Client id='client'/>\
                 <i:Footer id='footer'/>\
               </div>",
         map: { defer: "about" },
@@ -107,40 +105,6 @@ $_().imports({
                 e.stopPropagation();
                 sys.stack.trigger("switch", page, false);
             });
-        }
-    },
-    Client: {
-        css: "#client, #client > * { height: 100%; }",
-        xml: "<div id='client'/>",
-        fun: function (sys, items, opts) {
-            let table = {};
-            this.on("publish", (e, topic, payload) => {
-                e.stopPropagation();
-                this.notify("publish", [opts._id, {topic: topic, data: payload}]);
-            });
-            function loadClient(data) {
-                require([`/parts/${data.class}/index.js`], e => {
-                    let Client = `//${data.class}/Client`;
-                    xp.hasComponent(Client).map.msgscope = true;
-                    register(data._id, sys.client.append(Client, data));
-                });
-            }
-            this.watch("open-part", (e, data) => {
-                sys.client.trigger("switch", "client");
-                loadClient(opts = data);
-            });
-            this.on("close", e => {
-                e.stopPropagation();
-                sys.client.first().remove();
-                sys.client.unwatch(opts._id).trigger("switch", "content");
-            }, false);
-            function register(_id, client) {
-                sys.client.watch(_id, (e, data, topic) => {
-                    if ( data.online == false )
-                        return sys.client.trigger("close");
-                    client.notify(topic, [data]);
-                });
-            }
         }
     },
     ViewStack: {
@@ -160,6 +124,34 @@ $_().imports({
             });
             return Object.defineProperty({}, "selected", { get: function() {return ptr;}});
         }
+    }
+});
+
+$_("verify").imports({
+    Overlay: {
+        css: "#overlay { position: fixed; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,.4); z-index: 13000; visibility: hidden; opacity: 0; -webkit-transition-duration: .4s; transition-duration: .4s; }\
+              #visible { visibility: visible; opacity: 1; }",
+        xml: "<div id='overlay'>\
+                <Loader/>\
+              </div>",
+        fun: function (sys, items, opts) {
+            function show() {
+                sys.overlay.addClass("#visible");
+            }
+            function hide() {
+                sys.overlay.removeClass("#visible");
+            }
+            return { show: show, hide: hide };
+        }
+    },
+    Loader: {
+        css: "#preloader { position: absolute; left: 50%; top: 50%; padding: 8px; margin-left: -25px; margin-top: -25px; background: rgba(0, 0, 0, 0.8); z-index: 13500; border-radius: 5px; }\
+              #spinner { display: block; width: 34px; height: 34px; background-position: 50%; background-size: 100%; background-repeat: no-repeat; -webkit-animation: $spin 1s steps(12, end) infinite; animation: $spin 1s steps(12, end) infinite; background-image: url(\"data:image/svg+xml;charset=utf-8,%3Csvg%20viewBox%3D'0%200%20120%20120'%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20xmlns%3Axlink%3D'http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink'%3E%3Cdefs%3E%3Cline%20id%3D'l'%20x1%3D'60'%20x2%3D'60'%20y1%3D'7'%20y2%3D'27'%20stroke%3D'%23fff'%20stroke-width%3D'11'%20stroke-linecap%3D'round'%2F%3E%3C%2Fdefs%3E%3Cg%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.27'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.27'%20transform%3D'rotate(30%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.27'%20transform%3D'rotate(60%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.27'%20transform%3D'rotate(90%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.27'%20transform%3D'rotate(120%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.27'%20transform%3D'rotate(150%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.37'%20transform%3D'rotate(180%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.46'%20transform%3D'rotate(210%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.56'%20transform%3D'rotate(240%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.66'%20transform%3D'rotate(270%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.75'%20transform%3D'rotate(300%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.85'%20transform%3D'rotate(330%2060%2C60)'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E\"); }\
+              @-webkit-keyframes $spin { 100% { -webkit-transform: rotate(360deg); } }\
+              @keyframes $spin { 100% { transform: rotate(360deg); } }",
+        xml: "<div id='preloader'>\
+                <span id='spinner'/>\
+              </div>"
     }
 });
 
@@ -239,10 +231,10 @@ $_("login").imports({
     Submit: {
         xml: "<Button id='submit' label='登录'/>",
         fun: function (sys, items, opts) {
-            this.on("start", function ( e, o ) {
+            this.on("start", (e, o) => {
                 localStorage.setItem("username", o.name);
                 localStorage.setItem("password", o.pass);
-                sys.submit.trigger("switch", ["service", {username: o.name, password: o.pass}]);
+                this.trigger("switch", ["service", {username: o.name, password: o.pass}]);
             });
         }
     },
@@ -273,8 +265,7 @@ $_("login").imports({
 
 $_("content").imports({
     Overlay: {
-        css: "#overlay { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,.4); z-index: 13000; visibility: hidden; opacity: 0; -webkit-transition-duration: .4s; transition-duration: .4s; }\
-              #visible { visibility: visible; opacity: 1; }",
+        map: { extend: {"from": "../verify/Overlay", fun: 'r'} },
         xml: "<div id='overlay'/>",
         fun: function (sys, items, opts) {
             this.watch("show-overlay", e => {
@@ -287,13 +278,13 @@ $_("content").imports({
     },
     Home: {
         css: "#home { padding: 12px; background: url(/img/background.jpg) no-repeat; background-size:100% 100%; }\
-              #rooms { max-height: calc(100% - 130px); }",
+              #rooms { max-height: calc(100% - 130px); overflow: auto; }",
         xml: "<div id='home' xmlns:i='home'>\
                 <i:Header id='header' for='home'/>\
                 <i:Title id='title'/>\
                 <i:Homelist id='homelist'/>\
                 <i:Rooms id='rooms'/>\
-              </div>", 
+              </div>",
         fun: function (sys, items, opts) {
             var homes = {};
             this.watch("list-rooms", (e, rooms) => {
@@ -310,7 +301,7 @@ $_("content").imports({
     },
     Room: {
         css: "#room { padding: 12px; background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
-              #parts { max-height: calc(100% - 130px); }",
+              #parts { max-height: calc(100% - 130px); overflow: auto; }",
         xml: "<div id='room' xmlns:i='room'>\
                 <i:Header id='header' for='room'/>\
                 <i:Title id='title'/>\
@@ -334,6 +325,7 @@ $_("content").imports({
     About: {
         css: "#about { height: 100%; text-align: center; overflow-y: auto; display: -ms-flexbox; display: -webkit-flex; display: flex; -ms-flex-align: center; -webkit-align-items: center; -webkit-box-align: center; align-items: center; }\
               #logo { width: 160px; }\
+              #about { margin: 0; box-sizing: border-box; }\
               #content > * { margin: 0 0 .5em; }",
         xml: "<div id='about'>\
                 <div id='content' class='container'>\
@@ -342,6 +334,46 @@ $_("content").imports({
                     <div>北海流形物联科技有限公司</div>\
                 </div>\
               </div>"
+    },
+    Client: {
+        css: "#client { -webkit-transition-duration: .3s; transition-duration: .3s; position: fixed; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
+              #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}\
+              #client > * { width: 100%; height: 100%; overflow: auto; }",
+        xml: "<div id='client'>\
+                <Overlay id='overlay' xmlns='/verify'/>\
+              </div>",
+        fun: function (sys, items, opts) {
+            let table = {};
+            this.on("publish", (e, topic, payload) => {
+                e.stopPropagation();
+                this.notify("publish", [opts._id, {topic: topic, data: payload}]);
+            });
+            function loadClient(data) {
+                require([`/parts/${data.class}/index.js`], e => {
+                    let Client = `//${data.class}/Client`;
+                    xp.hasComponent(Client).map.msgscope = true;
+                    register(data._id, sys.client.append(Client, data));
+                    items.overlay.hide();
+                });
+            }
+            this.watch("open-part", (e, data) => {
+                items.overlay.show();
+                sys.client.addClass("#modal-in");
+                loadClient(opts = data);
+            });
+            this.on("close", e => {
+                e.stopPropagation();
+                sys.client.last().remove();
+                sys.client.unwatch(opts._id).removeClass("#modal-in");
+            }, false);
+            function register(_id, client) {
+                sys.client.watch(_id, (e, data, topic) => {
+                    if ( data.online == false )
+                        return sys.client.trigger("close");
+                    client.notify(topic, [data]);
+                });
+            }
+        }
     },
     Footer: {
         xml: "<i:Tabbar id='nav' xmlns:i='footer'>\
@@ -405,7 +437,7 @@ $_("content/home").imports({
         }
     },
     Rooms: {
-        css: "#rooms { display: flex; overflow: auto; flex-wrap: wrap; }\
+        css: "#rooms { display: flex; overflow: hidden; flex-wrap: wrap; }\
               #rooms > * { margin: 4px }",
         xml: "<div id='rooms'/>",
         fun: function (sys, items, opts) {
@@ -508,7 +540,7 @@ $_("content/home/header").imports({
 
 $_("content/home/list").imports({
     List: {
-        css: "#list { -webkit-transition-duration: .3s; transition-duration: .3s; position: absolute; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; overflow: auto; -webkit-overflow-scrolling: touch; }\
+        css: "#list { -webkit-transition-duration: .3s; transition-duration: .3s; position: fixed; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
               #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}",
         xml: "<div id='list'>\
                 <Group id='group'/>\
@@ -747,33 +779,6 @@ $_("content/footer/icon").imports({
 });
 
 $_("tools").imports({
-    Mask: {
-        css: "#overlay { position: fixed; left: 0; top: 0; width: 100%; height: 100%; z-index: 13000; -webkit-transition-duration: .4s; transition-duration: .4s; }",
-        xml: "<div id='overlay'>\
-                <Loader/>\
-              </div>",
-        fun: function (sys, items, opts) {
-            var count = 1;
-            function show(val) {
-                count = (val === undefined ? 1 : val);
-                sys.overlay.show();
-            }
-            function hide() {
-                count--;
-                if ( count === 0 ) sys.overlay.hide();
-            }
-            return { show: show, hide: hide };
-        }
-    },
-    Loader: {
-        css: "#preloader { position: absolute; left: 50%; top: 50%; padding: 8px; margin-left: -25px; margin-top: -25px; background: rgba(0, 0, 0, 0.8); z-index: 13500; border-radius: 5px; }\
-              #spinner { display: block; width: 34px; height: 34px; background-position: 50%; background-size: 100%; background-repeat: no-repeat; -webkit-animation: $spin 1s steps(12, end) infinite; animation: $spin 1s steps(12, end) infinite; background-image: url(\"data:image/svg+xml;charset=utf-8,%3Csvg%20viewBox%3D'0%200%20120%20120'%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20xmlns%3Axlink%3D'http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink'%3E%3Cdefs%3E%3Cline%20id%3D'l'%20x1%3D'60'%20x2%3D'60'%20y1%3D'7'%20y2%3D'27'%20stroke%3D'%23fff'%20stroke-width%3D'11'%20stroke-linecap%3D'round'%2F%3E%3C%2Fdefs%3E%3Cg%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.27'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.27'%20transform%3D'rotate(30%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.27'%20transform%3D'rotate(60%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.27'%20transform%3D'rotate(90%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.27'%20transform%3D'rotate(120%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.27'%20transform%3D'rotate(150%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.37'%20transform%3D'rotate(180%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.46'%20transform%3D'rotate(210%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.56'%20transform%3D'rotate(240%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.66'%20transform%3D'rotate(270%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.75'%20transform%3D'rotate(300%2060%2C60)'%2F%3E%3Cuse%20xlink%3Ahref%3D'%23l'%20opacity%3D'.85'%20transform%3D'rotate(330%2060%2C60)'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E\"); }\
-              @-webkit-keyframes $spin { 100% { -webkit-transform: rotate(360deg); } }\
-              @keyframes $spin { 100% { transform: rotate(360deg); } }",
-        xml: "<div id='preloader'>\
-                <span id='spinner'/>\
-              </div>"
-    },
     Message: {
         css: "#message { position: fixed; top: 16px; left: 0; width: 100%; }\
               #message { z-index: 99999; display: none; height: 36px; line-height: 36px; text-align: center; }\

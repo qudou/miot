@@ -1,7 +1,7 @@
 const xmlplus = require("xmlplus");
 const viewId = "x827ex27795f";
 
-xmlplus("mqtt-iot", function (xp, $_, t) {
+xmlplus("mqtt-iot", (xp, $_, t) => {
 
 $_().imports({
     Index: {
@@ -88,6 +88,97 @@ $_().imports({
                     default:;
                 }
             });
+        }
+    }
+});
+
+$("signin").imports({
+    Validate: {
+        xml: "<main id='top' xmlns:s='/sqlite'>\
+                <s:Sqlite id='sqlite'/>\
+                <Crypto id='crypto'/>\
+                <InputCheck id='check'/>\
+              </main>",
+        fun: function ( sys, items, opts ) {
+            this.on("enter", function( e, o ) {
+                e.stopPropagation();
+                if ( !items.check("u", o.body.name) || !items.check("p", o.body.pass) ) {
+                    o.data = {code: -1, desc: "用户名或密码有误"};
+                    return this.trigger("reply", [o, -1]);
+                }
+                checkName(o);
+            });
+            function checkName( o ) {
+                var stmt = "SELECT * FROM users WHERE name='" + o.body.name + "' limit 1";
+                items.sqlite.all(stmt, function(err, rows) {
+                    if ( err ) { throw err; }
+                    if ( rows.length )
+                        return checkPass(o, rows[0]);
+                    o.data = {code: -1, desc: "用户不存在"};
+                    sys.top.trigger("reply", [o, -1]);
+                });
+            }
+            function checkPass( o, record ) {
+                var pass = items.crypto.encrypt(o.body.pass, record.salt);
+                if ( pass == record.pass ) {
+                    o.user = record.id;
+                    o.data = {code: 0, desc: "登录成功"};
+                    sys.top.trigger("next", o);
+                } else {
+                    o.data = {code: -1, desc: "密码有误"};
+                    sys.top.trigger("reply", [o, -1]);
+                }
+            }
+        }
+    },
+    Signin: {
+        xml: "<main xmlns:i='//xmlweb/session'>\
+                <i:Cookie id='cookie'/>\
+                <i:Session id='session'/>\
+              </main>",
+        fun: function ( sys, items, opts ) {
+            var table = {};
+            this.on("enter", function( e, o ) {
+                items.session.destroy(table[o.user]);
+                table[o.user] = items.session.generate(o.user);
+                o.res.setHeader("Set-Cookie", [items.cookie.serialize("ssid", table[o.user])]);
+                o.data = {code: 0, desc: "登录成功"};
+                this.trigger("reply", o);
+            });
+        }
+    },
+    InputCheck: {
+        fun: function ( sys, items, opts ) {
+            var ureg = /^[A-Z0-9]{6,}$/i,
+                ereg = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i;
+            var table = { u: user, p: pass, e: email };
+            function user( v ) {
+                return v.length <= 32 && ureg.test(v);
+            }
+            function pass( v ) {
+                return 6 <= v.length && v.length <= 16 
+            }
+            function email( v ) {
+                return v.length <= 32 && ereg.test(v);
+            }
+            function check( key, value ) {
+                return typeof value == "string" && table[key](value);
+            }
+            return check;
+        }
+    },
+    Crypto: {
+        opt: { keySize: 512/32, iterations: 32 },
+        map: { format: { "int": "keySize iterations" } },
+        fun: function ( sys, items, opts ) {
+            var cryptoJS = require("crypto-js");
+            function encrypt(plaintext, salt) {
+                return cryptoJS.PBKDF2(plaintext, salt, opts).toString();
+            }
+            function salt() {
+                return cryptoJS.lib.WordArray.random(128/8).toString();
+            }
+            return { encrypt: encrypt, salt: salt };
         }
     }
 });

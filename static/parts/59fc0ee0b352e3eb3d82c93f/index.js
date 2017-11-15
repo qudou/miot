@@ -1,10 +1,9 @@
-const ID = "59fc0ee0b352e3eb3d82c93f";
 
-xmlplus(ID, function (xp, $_, t) {
+xmlplus("59fc0ee0b352e3eb3d82c93f", (xp, $_, t) => {
 
 $_().imports({
     Client: {
-        css: "#client { margin: 0 16px 16px; }\
+        css: "#client { padding: 0 16px 16px; background: #FFF; }\
               #client button { width: 80px; text-align: center; margin: 10px; }",
         xml: "<div id='client' xmlns:i='client'>\
                 <i:Header id='header'/>\
