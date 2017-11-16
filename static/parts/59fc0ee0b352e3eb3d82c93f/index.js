@@ -1,5 +1,7 @@
+const PATH = document.getElementsByTagName('script')[0].src.split('/');
+const ClassID = PATH[PATH.length - 2];
 
-xmlplus("59fc0ee0b352e3eb3d82c93f", (xp, $_, t) => {
+xmlplus(ClassID, (xp, $_, t) => {
 
 $_().imports({
     Client: {

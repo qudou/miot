@@ -88,9 +88,8 @@ $_().imports({
         }
     },
     Content: {
-        css: "#overlay, #stack, #client, #stack > * { width: 100%; height: 100%; }",
+        css: "#stack, #client, #stack > * { width: 100%; height: 100%; }",
         xml: "<div id='content' xmlns:i='content'>\
-                <i:Overlay id='overlay'/>\
                 <ViewStack id='stack'>\
                     <i:Home id='home'/>\
                     <i:Room id='room'/>\
@@ -264,18 +263,6 @@ $_("login").imports({
 });
 
 $_("content").imports({
-    Overlay: {
-        map: { extend: {"from": "../verify/Overlay", fun: 'r'} },
-        xml: "<div id='overlay'/>",
-        fun: function (sys, items, opts) {
-            this.watch("show-overlay", e => {
-                sys.overlay.addClass("#visible");
-            });
-            this.watch("hide-overlay", e => {
-                sys.overlay.removeClass("#visible");
-            });
-        }
-    },
     Home: {
         css: "#home { padding: 12px; background: url(/img/background.jpg) no-repeat; background-size:100% 100%; }\
               #rooms { max-height: calc(100% - 130px); overflow: auto; }",
@@ -338,9 +325,10 @@ $_("content").imports({
     Client: {
         css: "#client { -webkit-transition-duration: .3s; transition-duration: .3s; position: fixed; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
               #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}\
-              #client > * { width: 100%; height: 100%; overflow: auto; }",
+              #client > * { width: 100%; height: 100%; }",
         xml: "<div id='client'>\
                 <Overlay id='overlay' xmlns='/verify'/>\
+                <div id='instance'/>\
               </div>",
         fun: function (sys, items, opts) {
             let table = {};
@@ -358,12 +346,11 @@ $_("content").imports({
             }
             this.watch("open-part", (e, data) => {
                 items.overlay.show();
-                sys.client.addClass("#modal-in");
+                sys.client.addClass("#modal-in").last().remove();
                 loadClient(opts = data);
             });
             this.on("close", e => {
                 e.stopPropagation();
-                sys.client.last().remove();
                 sys.client.unwatch(opts._id).removeClass("#modal-in");
             }, false);
             function register(_id, client) {
@@ -402,7 +389,7 @@ $_("content/home").imports({
         fun: function (sys, items, opts) {
             sys.list.on("touchend", e => {
                 let line = sys.line.text();
-                line == "在线" && this.notify("show-overlay").notify("show-" + opts['for'] + "list");
+                line == "在线" && this.notify("show-" + opts['for'] + "list");
             });
             this.watch("online", e => sys.line.text("在线"));
             this.watch("offline", e => sys.line.text("离线"));
@@ -419,21 +406,19 @@ $_("content/home").imports({
             this.watch("list-homes", (e, homes) => {
                 var tmp, selected;
                 sys.homelist.children().call("remove");
-                homes.data.forEach(function(item) {
+                homes.data.forEach(item => {
                     item.key = "home";
                     tmp = sys.homelist.append("list/Item", item);
                     item._id == checked._id && (selected = tmp);
                 });
                 (selected || sys.homelist.first()).trigger("touchend");
             });
-            this.watch("show-homelist", function () {
-                items.homelist.addClass("#modal-in");
-            });
             sys.homelist.on("touchend", "*", function (e) {
                 checked = this.data("data");
-                this.trigger("checked", true).notify("hide-overlay");
-                items.homelist.removeClass("#modal-in").notify("open-home", this.data("data"));
+                this.trigger("checked", true);
+                items.homelist.hide().notify("open-home", this.data("data"));
             });
+            this.watch("show-homelist", items.homelist.show);
         }
     },
     Rooms: {
@@ -543,17 +528,30 @@ $_("content/home/list").imports({
         css: "#list { -webkit-transition-duration: .3s; transition-duration: .3s; position: fixed; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
               #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}",
         xml: "<div id='list'>\
+                <Overlay id='overlay'/>\
                 <Group id='group'/>\
                 <Cancel id='cancel'/>\
               </div>",
         map: { appendTo: "group" },
         fun: function (sys, items, opts) {
-            sys.cancel.on("touchend", e => {
-                e.stopPropagation();
-                sys.list.removeClass("#modal-in").notify("hide-overlay");;
-            });
-            return sys.list;
+            function show() {
+                items.overlay.show();
+                return sys.list.addClass("#modal-in");
+            }
+            function hide(e) {
+                e && e.stopPropagation();
+                items.overlay.hide();
+                return sys.list.removeClass("#modal-in");
+            }
+            sys.cancel.on("touchend", hide);
+            sys.overlay.on("touchend", hide);
+            document.body.appendChild(sys.overlay.elem());
+            return { show: show, hide: hide };
         }
+    },
+    Overlay: {
+        map: { extend: {"from": "/verify/Overlay"} },
+        xml: "<div id='overlay'/>"
     },
     Item: {
         css: "#item { cursor: pointer; height: 57px; line-height: 57px; font-size: 20px; color: #007aff; white-space: normal; text-overflow: ellipsis; }\
@@ -611,14 +609,12 @@ $_("content/room").imports({
                 });
                 (selected || sys.roomlist.first()).trigger("touchend");
             });
-            this.watch("show-roomlist", e => {
-                items.roomlist.addClass("#modal-in");
-            });
             sys.roomlist.on("touchend", "*", function (e) {
                 checked = this.data("data");
-                this.trigger("checked", true).notify("hide-overlay");
-                items.roomlist.removeClass("#modal-in").notify("open-room", this.data("data"));
+                this.trigger("checked", true);
+                items.roomlist.hide().notify("open-room", this.data("data"));
             });
+            this.watch("show-roomlist", items.roomlist.show);
         }
     },
     Parts: {
