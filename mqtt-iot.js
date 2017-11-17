@@ -92,97 +92,6 @@ $_().imports({
     }
 });
 
-$("signin").imports({
-    Validate: {
-        xml: "<main id='top' xmlns:s='/sqlite'>\
-                <s:Sqlite id='sqlite'/>\
-                <Crypto id='crypto'/>\
-                <InputCheck id='check'/>\
-              </main>",
-        fun: function ( sys, items, opts ) {
-            this.on("enter", function( e, o ) {
-                e.stopPropagation();
-                if ( !items.check("u", o.body.name) || !items.check("p", o.body.pass) ) {
-                    o.data = {code: -1, desc: "用户名或密码有误"};
-                    return this.trigger("reply", [o, -1]);
-                }
-                checkName(o);
-            });
-            function checkName( o ) {
-                var stmt = "SELECT * FROM users WHERE name='" + o.body.name + "' limit 1";
-                items.sqlite.all(stmt, function(err, rows) {
-                    if ( err ) { throw err; }
-                    if ( rows.length )
-                        return checkPass(o, rows[0]);
-                    o.data = {code: -1, desc: "用户不存在"};
-                    sys.top.trigger("reply", [o, -1]);
-                });
-            }
-            function checkPass( o, record ) {
-                var pass = items.crypto.encrypt(o.body.pass, record.salt);
-                if ( pass == record.pass ) {
-                    o.user = record.id;
-                    o.data = {code: 0, desc: "登录成功"};
-                    sys.top.trigger("next", o);
-                } else {
-                    o.data = {code: -1, desc: "密码有误"};
-                    sys.top.trigger("reply", [o, -1]);
-                }
-            }
-        }
-    },
-    Signin: {
-        xml: "<main xmlns:i='//xmlweb/session'>\
-                <i:Cookie id='cookie'/>\
-                <i:Session id='session'/>\
-              </main>",
-        fun: function ( sys, items, opts ) {
-            var table = {};
-            this.on("enter", function( e, o ) {
-                items.session.destroy(table[o.user]);
-                table[o.user] = items.session.generate(o.user);
-                o.res.setHeader("Set-Cookie", [items.cookie.serialize("ssid", table[o.user])]);
-                o.data = {code: 0, desc: "登录成功"};
-                this.trigger("reply", o);
-            });
-        }
-    },
-    InputCheck: {
-        fun: function ( sys, items, opts ) {
-            var ureg = /^[A-Z0-9]{6,}$/i,
-                ereg = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i;
-            var table = { u: user, p: pass, e: email };
-            function user( v ) {
-                return v.length <= 32 && ureg.test(v);
-            }
-            function pass( v ) {
-                return 6 <= v.length && v.length <= 16 
-            }
-            function email( v ) {
-                return v.length <= 32 && ereg.test(v);
-            }
-            function check( key, value ) {
-                return typeof value == "string" && table[key](value);
-            }
-            return check;
-        }
-    },
-    Crypto: {
-        opt: { keySize: 512/32, iterations: 32 },
-        map: { format: { "int": "keySize iterations" } },
-        fun: function ( sys, items, opts ) {
-            var cryptoJS = require("crypto-js");
-            function encrypt(plaintext, salt) {
-                return cryptoJS.PBKDF2(plaintext, salt, opts).toString();
-            }
-            function salt() {
-                return cryptoJS.lib.WordArray.random(128/8).toString();
-            }
-            return { encrypt: encrypt, salt: salt };
-        }
-    }
-});
-
 $_("mongo").imports({
     Mongoose: {
         fun: function (sys, items, opts) {
@@ -239,6 +148,254 @@ $_("mongo").imports({
                 online: {type: Boolean}                     
             });
             return items.mongoose.model('Part',PartSchema);
+        }
+    }
+});
+
+$("homes").imports({
+    Mapping: {
+        fun: function ( sys, items, opts ) {
+            this.on("enter", function( e, o ) {
+                e.target.trigger("next", [o, o.args.action]);
+            });
+        }
+    },
+    Select: {
+        xml: "<i:Sqlite id='sqlite' xmlns:i='/sqlite'/>",
+        fun: function ( sys, items, opts ) {
+            var select = "SELECT * FROM project WHERE user=";
+            this.on("enter", function( e, r ) {
+                items.sqlite.all(select + r.user, function(err, data) {
+                    if ( err ) { throw err; }
+                    r.data = data;
+                    sys.sqlite.trigger("reply", r);
+                });
+            });
+        }
+    },
+    Insert: {
+        xml: "<main id='top' xmlns:v='validate' xmlns:i='/sqlite'>\
+                <i:Sqlite id='sqlite'/>\
+                <v:Insert id='validate'/>\
+              </main>",
+        fun: function ( sys, items, opts ) {
+            var fs = require("fs"),
+                project = "INSERT INTO project(user,name) VALUES(?,?)",
+                namespace = "INSERT INTO namespace(name,parent,project) VALUES(?,-1,?)";
+            function mkdir( r ) {
+                var folder = "static/res/" + r.rowid;
+                fs.mkdir(folder, function ( err ) {
+                    if ( err ) throw err;
+                    r.data = { rowid: r.rowid };
+                    sys.top.trigger("reply", r);
+                })
+            }
+            sys.validate.on("success", function ( e, r ) {
+                var stmt = items.sqlite.prepare(project);
+                stmt.run(r.user, r.body.name, function( err ) {
+                    if ( err ) throw err;
+                    r.rowid = this.lastID;
+                    stmt = items.sqlite.prepare(namespace);
+                    stmt.run(r.body.name, this.lastID, function( err ) {
+                        if ( err ) throw err;
+                        mkdir(r);
+                    });
+                });
+            });
+            this.on("enter", items.validate);
+        }
+    },
+    Delete: {
+        xml: "<main id='top' xmlns:v='validate' xmlns:i='/sqlite'>\
+                <i:Sqlite id='sqlite'/>\
+                <v:Delete id='validate'/>\
+              </main>",
+        fun: function ( sys, items, opts ) {
+            var rimraf = require("rimraf"),
+                remove = "DELETE FROM project WHERE id=? AND user=?";
+            function rmdir( r ) {
+                var folder = "static/res/" + r.body.id;
+                rimraf(folder, function ( err ) {
+                    if ( err ) throw err;
+                    sys.top.trigger("reply", r);
+                });
+            }
+            sys.validate.on("success", function( e, r ) {
+                var stmt = items.sqlite.prepare(remove);
+                stmt.run(r.body.id, r.user, function ( err ) {
+                    if ( err ) throw err;
+                    this.changes ? rmdir(r) : sys.top.trigger("reply", [r, -1]);
+                });
+            });
+            this.on("enter", items.validate);
+        } 
+    },
+    Update: {
+        xml: "<main xmlns:v='validate' xmlns:i='/sqlite'>\
+                <i:Sqlite id='sqlite'/>\
+                <v:Update id='validate'/>\
+              </main>",
+        fun: function ( sys, items, opts ) {
+            var update = "UPDATE project SET name=?, env=?, theme=? WHERE id=? AND user=?";
+            sys.validate.on("success", function( e, r ) {
+                var stmt = items.sqlite.prepare(update);
+                stmt.run(r.body.name, r.body.env, r.body.theme, r.body.id, r.user, function( err ) {
+                    if ( err ) throw err;
+                    this.changes ? next(r) : sys.sqlite.trigger("reply", [r, -1]);
+                });
+            });
+            var namespace = "UPDATE namespace SET name=? WHERE parent=-1 AND project=?";
+            function next( r ) {
+                var stmt = items.sqlite.prepare(namespace);
+                stmt.run(r.body.name, r.body.id, function ( err ) {
+                    if ( err ) throw err;
+                    sys.sqlite.trigger("reply", r);
+                });
+            }
+            this.on("enter", items.validate);
+        }
+    }
+});
+
+$("sqlite").imports({
+    Sqlite: {
+        fun: function ( sys, items, opts ) {
+            var sqlite = require("sqlite3").verbose(),
+                db = new sqlite.Database("data.db");
+			db.exec("VACUUM");
+            db.exec("PRAGMA foreign_keys = ON");
+            return db;
+        }
+    },
+    Prepare: {
+        fun: function ( sys, items, opts ) {
+            function prepare( stmt ) {
+                var args = [].slice.call(arguments).slice(1);
+                args.forEach(function ( item ) {
+                    stmt = stmt.replace("?", typeof item == "string" ? '"' + item + '"' : item);
+                });
+                return stmt;
+            }
+            return prepare;
+        }
+    }
+});
+
+$("mosca").imports({
+    Mosca: {
+        xml: "<main id='mosca'/>",
+        opt: { port: 3000, http: { port: 8000, bundle: true, static: "./static" } },
+        fun: function (sys, items, opts) {
+            let first = this.first(),
+                table = this.find("./*[@id]").hash(),
+                mosca = require('mosca'),
+                server = new mosca.Server(opts);
+            this.on("next", (e, d, next) => {
+                d.ptr[0] = table[next] || d.ptr[0].next();
+                d.ptr[0] ? d.ptr[0].trigger("enter", d, false) : this.trigger("reject", d);
+            });
+            this.watch("reply", (e, d) => {
+                delete d.ptr;
+                server.publish({topic: d.sid, payload: d, qos: 1, retain: false});
+            });
+            this.on("reject", (e, d) => {
+                delete d.ptr;
+                server.publish({topic: d.sid, payload: d, qos: 1, retain: false});
+            });
+            server.on('subscribed', (topic, client) => {
+                update(topic, true);
+                topic == viewId && this.notify("mongo", ["query", {table: 'homes'}]);
+            });
+            server.on('unsubscribed', (topic, client) => {
+                update(topic, false);
+            });
+            server.on('published', (packet, client) => {
+                if ( packet.topic == "server" ) {
+                    let d = JSON.parse(packet.payload.toString());
+                    first.trigger("enter", {topic: d.topic, req: d.req, ptr:[first]}, false);
+                }
+            });
+            server.on('ready', () => {
+                server.authenticate = (client, user, pwd, callback) => callback(null, user == "qudouo");
+                this.notify("mongo", ["update", {table: "parts", where: {}, data: {online: false}}]);
+                console.log('Mosca server is up and running');
+            });
+        }
+    }
+});
+
+$("parts").imports({
+    Update: {
+        xml: "<main xmlns:v='validate' xmlns:i='/sqlite'>\
+                <i:Sqlite id='sqlite'/>\
+                <v:Update id='validate'/>\
+              </main>",
+        fun: function (sys, items, opts) {
+            let SELECT = "SELECT * FROM parts WHERE id=",
+                UPDATE = "UPDATE parts SET name=?, room=?, class=?, online=? WHERE id=?";
+            this.on("enter" (e, r) => {
+                xp.extend(r.body, await select(r.body.id));
+                items.validate(e, d);
+            });
+            sys.validate.on("success", async (e, r) => {
+                let d = r.body,
+                    stmt = items.sqlite.prepare(update);
+                stmt.run(d.name, d.room, d.class, d.online, function (err) {
+                    if ( err ) throw err;
+                    r.body.code = this.changes;
+                    sys.sqlite.trigger("reply", r);
+                });
+            });
+            function select(partId) {
+                return new Promise((resolve, reject) => {
+                    items.sqlite.all(SELECT + partId, (err, data) => {
+                        if ( err ) { throw err; }
+                        resolve(data);
+                    });
+                });
+            }
+        }
+    }
+});
+
+$("parts/validate").imports({
+    Validate: {
+        fun: function ( sys, items, opts ) {
+            function id( value ) {
+                return xp.isNumeric(value) && /^\d+$/.test(value + "");
+            }
+            function name( value ) {
+                return typeof value == "string" && /^[a-z_][a-z0-9_]*$/i.test(value);
+            }
+            return { id: id, name: name };
+        }
+    },
+    Insert: {
+        xml: "<i:Validate id='validate' xmlns:i='.'/>",
+        fun: function ( sys, items, opts ) {
+            function validate( e, r ) {
+                items.validate.name(r.body.name) ? sys.validate.trigger("success", r, false) : sys.validate.trigger("reply", [r, -1]);
+            }
+            return validate;
+        }
+    },
+    Delete: {
+        xml: "<i:Validate id='validate' xmlns:i='.'/>",
+        fun: function ( sys, items, opts ) {
+            function validate( e, r ) {
+                items.validate.id(r.body.id) ? sys.validate.trigger("success", r, false) : sys.validate.trigger("reply", [r, -1]);
+            }
+            return validate;
+        }
+    },
+    Update: {
+        xml: "<Validate id='validate'/>",
+        fun: function ( sys, items, opts ) {
+            var check = items.validate;
+            return function (e, r) {
+                r.code = check.id(r.body.id) && check.name(r.body.name) ? 0 : -1;
+                sys.validate.trigger(r.code == 0 ? "success" : "reply", r);
+            };
         }
     }
 });
