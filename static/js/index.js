@@ -88,7 +88,8 @@ $_().imports({
         }
     },
     Content: {
-        css: "#stack, #client, #stack > * { width: 100%; height: 100%; }",
+        css: "#stack { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
+              #stack, #client, #stack > * { width: 100%; height: 100%; }",
         xml: "<div id='content' xmlns:i='content'>\
                 <ViewStack id='stack'>\
                     <i:Home id='home'/>\
@@ -100,7 +101,7 @@ $_().imports({
               </div>",
         map: { defer: "about" },
         fun: function (sys, items, opts) {
-            sys.footer.on("switch", function (e, page) {
+            sys.footer.on("switch", (e, page) => {
                 e.stopPropagation();
                 sys.stack.trigger("switch", page, false);
             });
@@ -179,7 +180,7 @@ $_("login").imports({
         }
     },
     Logo: {
-        css: "#logo { fill: #148FB1; }",
+        css: "#logo { fill: #148FB1; background: none; border: none; }",
         xml: "<svg id='logo' viewBox='0 0 1024 1024' width='200' height='200' class='img-thumbnail'>\
                 <path d='M880 688c-32 0-57.6 9.6-83.2 25.6l-99.2-96c28.8-35.2 48-83.2 48-134.4 0-57.6-22.4-108.8-60.8-147.2l80-80c16 9.6 32 12.8 51.2 12.8C876.8 272 928 220.8 928 160c0-60.8-51.2-112-112-112C755.2 48 704 99.2 704 160c0 19.2 6.4 38.4 12.8 54.4l-86.4 86.4c-28.8-16-64-25.6-102.4-25.6-51.2 0-99.2 19.2-137.6 51.2L307.2 240C313.6 224 320 208 320 192c0-60.8-51.2-112-112-112C147.2 80 96 131.2 96 192c0 60.8 51.2 112 112 112 22.4 0 41.6-6.4 60.8-16l86.4 83.2c-22.4 32-32 70.4-32 112 0 35.2 9.6 70.4 25.6 99.2l-70.4 70.4c-28.8-19.2-60.8-32-99.2-32C80 624 0 704 0 800s80 176 176 176S352 896 352 800c0-38.4-12.8-73.6-32-99.2l64-64c38.4 38.4 89.6 60.8 147.2 60.8 44.8 0 86.4-12.8 118.4-35.2l105.6 102.4C742.4 780.8 736 806.4 736 832c0 80 64 144 144 144s144-64 144-144S960 688 880 688z'/>\
               </svg>"
@@ -264,7 +265,7 @@ $_("login").imports({
 
 $_("content").imports({
     Home: {
-        css: "#home { padding: 12px; background: url(/img/background.jpg) no-repeat; background-size:100% 100%; }\
+        css: "#home { padding: 12px; }\
               #rooms { max-height: calc(100% - 130px); overflow: auto; }",
         xml: "<div id='home' xmlns:i='home'>\
                 <i:Header id='header' for='home'/>\
@@ -287,7 +288,7 @@ $_("content").imports({
         }
     },
     Room: {
-        css: "#room { padding: 12px; background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
+        css: "#room { padding: 12px; }\
               #parts { max-height: calc(100% - 130px); overflow: auto; }",
         xml: "<div id='room' xmlns:i='room'>\
                 <i:Header id='header' for='room'/>\
@@ -313,12 +314,12 @@ $_("content").imports({
         css: "#about { height: 100%; text-align: center; overflow-y: auto; display: -ms-flexbox; display: -webkit-flex; display: flex; -ms-flex-align: center; -webkit-align-items: center; -webkit-box-align: center; align-items: center; }\
               #logo { width: 160px; }\
               #about { margin: 0; box-sizing: border-box; }\
+              #content h2 { font-weight: bold; color: #148FB1; }\
               #content > * { margin: 0 0 .5em; }",
         xml: "<div id='about'>\
                 <div id='content' class='container'>\
                     <Logo id='logo' xmlns='/login'/>\
-                    <div>MQTT-IOT</div>\
-                    <div>北海流形物联科技有限公司</div>\
+                    <h2>MQTT-IOT</h2>\
                 </div>\
               </div>"
     },
@@ -534,7 +535,10 @@ $_("content/home/list").imports({
               </div>",
         map: { appendTo: "group" },
         fun: function (sys, items, opts) {
+            let height, body = document.body;
             function show() {
+                height = getComputedStyle(body, "").getPropertyValue("height");
+                sys.group.css("max-height", `${parseFloat(height) - 81}px`);
                 items.overlay.show();
                 return sys.list.addClass("#modal-in");
             }
@@ -545,7 +549,7 @@ $_("content/home/list").imports({
             }
             sys.cancel.on("touchend", hide);
             sys.overlay.on("touchend", hide);
-            document.body.appendChild(sys.overlay.elem());
+            body.appendChild(sys.overlay.elem());
             return { show: show, hide: hide };
         }
     },
@@ -575,7 +579,7 @@ $_("content/home/list").imports({
         }
     },
     Group: {
-        css: "#group { margin: 8px; position: relative; border-radius: 13px; overflow: hidden; -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0); }",
+        css: "#group { overflow: auto; margin: 8px; position: relative; border-radius: 13px; overflow: hidden; -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0); }",
         xml: "<div id='group'/>"
     },
     Cancel: {
