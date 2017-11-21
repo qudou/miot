@@ -26,7 +26,7 @@ $_().imports({
             this.on("reply", (e, d) => {
                 let topic = d.ssid;
                 delete d.ptr; delete d.ssid;
-                server.publish({topic: topic, payload: JSON.stringify(d), qos: 1});
+                server.publish({topic: topic, payload: JSON.stringify(d), qos: 1, retain: false});
             });
             this.on("reject", (e, d) => {
                 d.code = -1;
