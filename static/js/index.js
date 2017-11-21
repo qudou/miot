@@ -39,8 +39,8 @@ $_().imports({
         xml: "<Overlay id='service' xmlns='verify'/>",
         fun: function (sys, items, opts) {
             let client,
-                clientId = "x827ex27795f",
-                url = "ws://192.168.0.135:8000";
+                clientId = "00000",
+                url = "ws://t-store.cn:8000";
             this.on("show", (e, key, config) => {
                 client = mqtt.connect(url, config);
                 client.on("connect", e => {
@@ -55,7 +55,7 @@ $_().imports({
                 client.on("message", (topic, payload) => {
                     payload = JSON.parse(payload.toString());
                     if ( payload.sid == undefined )
-                        return this.notify(payload.topic, [payload.data]);
+                        return this.notify(payload.topic, [payload.data, payload]);
                     this.notify(payload.sid, [payload.data, payload.topic]);
                 });
                 client.on("close", e => this.notify("offline"));
@@ -275,15 +275,15 @@ $_("content").imports({
               </div>",
         fun: function (sys, items, opts) {
             var homes = {};
-            this.watch("list-rooms", (e, rooms) => {
-                homes[rooms.where.home] = rooms;
+            this.watch("/rooms/select", (e, rooms, d) => {
+                if (!d) return;
+                homes[d.body.homeId] = rooms;
             });
             this.watch("open-home", (e, home) => {
                 sys.title.text(home.name);
-                if ( homes[home._id] )
-                    return this.notify("list-rooms", homes[home._id]);
-                let data = {table: "rooms", where: {home: home._id}};
-                this.notify("publish", ['server', {topic: "query", data: data}]);
+                if ( homes[home.id] )
+                    return this.notify("/rooms/select", [homes[home.id]]);
+                this.notify("publish", ['server', {topic: "/rooms/select", body: {homeId: home.id}}]);
             }).watch("offline", e => homes = {});
         }
     },
@@ -298,15 +298,15 @@ $_("content").imports({
               </div>", 
         fun: function (sys, items, opts) {
             var rooms = {};
-            this.watch("list-parts", (e, parts) => {
-                rooms[parts.where.room] = parts;
+            this.watch("/parts/select", (e, parts, d) => {
+                if (!d) return;
+                rooms[d.body.roomId] = parts;
             });
             this.watch("open-room", (e, room) => {
                 sys.title.text(room.name);
-                if ( rooms[room._id] )
-                    return this.notify("list-parts", rooms[room._id]);
-                let data = {table: "parts", where: {room: room._id}};
-                this.notify("publish", ['server', {topic: "query", data: data}]);
+                if ( rooms[room.id] )
+                    return this.notify("/parts/select", [rooms[room.id]]);
+                this.notify("publish", ['server', {topic: "/parts/select", body: {roomId: room.id}}]);
             }).watch("offline", e => rooms = {});
         }
     },
@@ -335,13 +335,13 @@ $_("content").imports({
             let table = {};
             this.on("publish", (e, topic, payload) => {
                 e.stopPropagation();
-                this.notify("publish", [opts._id, {topic: topic, data: payload}]);
+                this.notify("publish", [opts.id, {topic: topic, data: payload}]);
             });
             function loadClient(data) {
                 require([`/parts/${data.class}/index.js`], e => {
                     let Client = `//${data.class}/Client`;
                     xp.hasComponent(Client).map.msgscope = true;
-                    register(data._id, sys.client.append(Client, data));
+                    register(data.id, sys.client.append(Client, data));
                     items.overlay.hide();
                 });
             }
@@ -352,10 +352,10 @@ $_("content").imports({
             });
             this.on("close", e => {
                 e.stopPropagation();
-                sys.client.unwatch(opts._id).removeClass("#modal-in");
+                sys.client.unwatch(opts.id).removeClass("#modal-in");
             }, false);
-            function register(_id, client) {
-                sys.client.watch(_id, (e, data, topic) => {
+            function register(id, client) {
+                sys.client.watch(id, (e, data, topic) => {
                     if ( data.online == false )
                         return sys.client.trigger("close");
                     client.notify(topic, [data]);
@@ -404,13 +404,14 @@ $_("content/home").imports({
         xml: "<i:List id='homelist' xmlns:i='list'/>",
         fun: function (sys, items, opts) {
             var checked = {};
-            this.watch("list-homes", (e, homes) => {
+            this.watch("/homes/select", (e, homes) => {
                 var tmp, selected;
                 sys.homelist.children().call("remove");
-                homes.data.forEach(item => {
+                homes.forEach(item => {
                     item.key = "home";
-                    tmp = sys.homelist.append("list/Item", item);
-                    item._id == checked._id && (selected = tmp);
+                    tmp = sys.homelist.append("list/Item");
+                    tmp.value().init(item);
+                    item.id == checked.id && (selected = tmp);
                 });
                 (selected || sys.homelist.first()).trigger("touchend");
             });
@@ -427,15 +428,15 @@ $_("content/home").imports({
               #rooms > * { margin: 4px }",
         xml: "<div id='rooms'/>",
         fun: function (sys, items, opts) {
-            this.watch("list-rooms", (e, rooms) => {
+            this.watch("/rooms/select", (e, rooms) => {
                 var item, list = sys.rooms.children();
-                for ( i = 0; i < rooms.data.length; i++ ) {
-                    item = rooms.data[i];
+                for ( i = 0; i < rooms.length; i++ ) {
+                    item = rooms[i];
                     item.online = true;
                     list[i] || list.push(sys.rooms.append("Thumbnail"));
                     list[i].unwatch(list[i].attr("_id"));
                     list[i].data("data", item).trigger("data", item, false);
-                    list[i].watch(item._id, listener).attr("_id", item._id).show();
+                    list[i].watch(item.id + '', listener).attr("_id", item.id + '').show();
                 }
                 for ( var k = i; k < list.length; k++ )
                     list[k].unwatch(list[i].attr("_id")).hide();
@@ -467,7 +468,7 @@ $_("content/home").imports({
             this.on("data",  (e, payload) => {
                 var data = e.currentTarget.data("data");
                 xp.extend(data, payload);
-                items.icon(data._id, data.icon);
+                items.icon(data.id, data.icon);
                 sys.label.text(data.name);
                 sys.thumbnail[data.online ? 'addClass' : 'removeClass']("#active");
             });
@@ -571,11 +572,13 @@ $_("content/home/list").imports({
                 </label>\
               </div>",
         fun: function (sys, items, opts) {
-            this.data("data", opts);
-            sys.span.text(opts.name);
-            sys.input.attr("name", opts.key);
-            sys.input.prop("value", opts.name);
             this.on("checked", (e, value) => sys.input.prop("checked", value));
+            return { init: data => {
+                this.data("data", data);
+                sys.span.text(data.name);
+                sys.input.attr("name", data.key);
+                sys.input.prop("value", data.name);
+            }};
         }
     },
     Group: {
@@ -603,13 +606,14 @@ $_("content/room").imports({
         xml: "<i:List id='roomlist' xmlns:i='../home/list'/>",
         fun: function (sys, items, opts) {
             var checked = {};
-            this.watch("list-rooms", (e, rooms) => {
+            this.watch("/rooms/select", (e, rooms) => {
                 var tmp, selected;
                 sys.roomlist.children().call("remove");
-                rooms.data.forEach(item => {
+                rooms.forEach(item => {
                     item.key = "room";
-                    tmp = sys.roomlist.append("../home/list/Item", item);
-                    item._id == checked._id && (selected = tmp);
+                    tmp = sys.roomlist.append("../home/list/Item");
+                    tmp.value().init(item);
+                    item.id == checked.id && (selected = tmp);
                 });
                 (selected || sys.roomlist.first()).trigger("touchend");
             });
@@ -626,14 +630,14 @@ $_("content/room").imports({
               #parts > * { margin: 4px }",
         xml: "<div id='parts'/>",
         fun: function (sys, items, opts) {
-            this.watch("list-parts", (e, parts) => {
+            this.watch("/parts/select", (e, parts) => {
                 var item, list = sys.parts.children();
-                for ( i = 0; i < parts.data.length; i++ ) {
-                    item = parts.data[i];
+                for ( i = 0; i < parts.length; i++ ) {
+                    item = parts[i];
                     list[i] || list.push(sys.parts.append("Thumbnail"));
                     list[i].unwatch(list[i].attr("_id"));
                     list[i].data("data", item).trigger("data", item, false);
-                    list[i].watch(item._id, listener).attr("_id", item._id).show();
+                    list[i].watch(item.id + '', listener).attr("_id", item.id + '').show();
                 }
                 for ( var k = i; k < list.length; k++ )
                     list[k].unwatch(list[i].attr("_id")).hide();

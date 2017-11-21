@@ -9,7 +9,8 @@ $_().imports({
                 <Homes id='homes'/>\
                 <Rooms id='rooms'/>\
                 <Parts id='parts'/>\
-              </Mosca>"
+              </Mosca>",
+        map: { share: "sqlite/Sqlite" }
     },
     Mosca: {
         xml: "<Parts id='parts' xmlns='mosca'/>",
@@ -20,11 +21,12 @@ $_().imports({
                 server = new require('mosca').Server(opts);
             this.on("next", (e, d, next) => {
                 d.ptr[0] = table[next] || d.ptr[0].next();
-                d.ptr[0] ? d.ptr[0].trigger("enter", d, 0) : this.trigger("reject", d);
+                d.ptr[0] ? d.ptr[0].trigger("enter", d, false) : this.trigger("reject", d);
             });
             this.on("reply", (e, d) => {
-                delete d.ptr;
-                server.publish({topic: d.ssid, payload: d, qos: 1, retain: 0});
+                let topic = d.ssid;
+                delete d.ptr; delete d.ssid;
+                server.publish({topic: topic, payload: JSON.stringify(d), qos: 1});
             });
             this.on("reject", (e, d) => {
                 d.code = -1;
@@ -39,13 +41,13 @@ $_().imports({
                 if ( packet.topic == "server" ) {
                     let data = JSON.parse(packet.payload + '');
                     data.ptr = [first];
-                    first.trigger("enter", data, 0);
+                    first.trigger("enter", data, false);
                 }
             });
             server.on('subscribed', (topic, client) => {
                 if (topic == viewId) {
                     items.parts.update(topic, 1);
-                    first.trigger("enter", {ssid: topic, topic: "/homes/select", ptr:[first]}, 0);
+                    first.trigger("enter", {ssid: topic, topic: "/homes/select", ptr:[first]}, false);
                 }
             });
             server.on('unsubscribed', (topic, client) => items.parts.update(topic, 0));
@@ -79,16 +81,16 @@ $_("mosca").imports({
                 table = this.find("./*[@id]").hash();
             this.on("enter", (e, d, next) => {
                 d.ptr.unshift(first);
-                first.trigger("enter", d, 0);
+                first.trigger("enter", d, false);
             });
             this.on("next", (e, d, next) => {
                 if ( e.target == sys.flow ) return;
                 e.stopPropagation();
                 if ( next == null ) {
                     d.ptr[0] = d.ptr[0].next();
-                    d.ptr[0] ? d.ptr[0].trigger("enter", d, 0) : this.trigger("reject", [d, next]);
+                    d.ptr[0] ? d.ptr[0].trigger("enter", d, false) : this.trigger("reject", [d, next]);
                 } else if ( table[next] ) {
-                    (d.ptr[0] = table[next]).trigger("enter", d, 0);
+                    (d.ptr[0] = table[next]).trigger("enter", d, false);
                 } else {
                     this.trigger("reject", [d, next]);
                 }
@@ -143,15 +145,15 @@ $_("mosca").imports({
             let UPDATE = "UPDATE parts SET online=? WHERE id=?";
             function update(partId, online) {
                 let stmt = items.sqlite.prepare(UPDATE);
-                stmt.run(d.online, d.id, err => {
-                    if ( err ) throw err;
+                stmt.run(online, partId, err => {
+                    if (err) throw err;
                 });
             }
             let UPDATE_ALL = "UPDATE parts SET online=?";
             function updateAll(online) {
                 let stmt = items.sqlite.prepare(UPDATE_ALL);
                 stmt.run(online, err => {
-                    if ( err ) throw err;
+                    if (err) throw err;
                 });
             }
             return { update: update, updateAll: updateAll };
@@ -168,7 +170,7 @@ $_("homes").imports({
                 items.sqlite.all(SELECT, (err, data) => {
                     if (err) { throw err; }
                     d.data = data;
-                    sys.sqlite.trigger("reply", d);
+                    this.trigger("reply", d);
                 });
             });
         }
