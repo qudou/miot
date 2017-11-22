@@ -1,17 +1,17 @@
 {
-  "name": "mqtt-iot",
+  "name": "miot",
   "version": "1.0.0",
   "dependencies": {
     "xmlplus": "^1.5.12"
   },
   "description": "An IOT platform based on MQTT.",
-  "main": "mqtt-iot.js",
+  "main": "miot.js",
   "scripts": {},
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/qudou/mqtt-iot.git"
+    "url": "git+https://github.com/qudou/miot.git"
   },
-  "homepage": "https://github.com/qudou/mqtt-iot",
+  "homepage": "https://github.com/qudou/miot",
   "keywords": [
     "mqtt",
     "iot"
