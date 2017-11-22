@@ -1,4 +1,4 @@
-xmlplus("musicbox", function (xp, $_, t) {
+xmlplus("miot", function (xp, $_, t) {
 
 $_().imports({
     Index: {
@@ -13,7 +13,7 @@ $_().imports({
                 <Content id='content'/>\
               </ViewStack>",
         fun: function (sys, items, opts) {
-            var msg = xmlplus.startup("/musicbox/tools/Message").value();
+            var msg = xmlplus.startup("/miot/tools/Message").value();
             this.on("message", function (e, type, message) {
                 msg[type](message);
             });
@@ -281,7 +281,7 @@ $_("content").imports({
             });
             this.watch("open-home", (e, home) => {
                 sys.title.text(home.name);
-                if ( homes[home.id] )
+                if (homes[home.id])
                     return this.notify("/rooms/select", [homes[home.id]]);
                 this.notify("publish", ['server', {topic: "/rooms/select", body: {homeId: home.id}}]);
             }).watch("offline", e => homes = {});
@@ -304,7 +304,7 @@ $_("content").imports({
             });
             this.watch("open-room", (e, room) => {
                 sys.title.text(room.name);
-                if ( rooms[room.id] )
+                if (rooms[room.id])
                     return this.notify("/parts/select", [rooms[room.id]]);
                 this.notify("publish", ['server', {topic: "/parts/select", body: {roomId: room.id}}]);
             }).watch("offline", e => rooms = {});
@@ -401,7 +401,7 @@ $_("content/home").imports({
         xml: "<h3 id='title'/>"
     },
     HomeList: {
-        xml: "<i:List id='homelist' xmlns:i='list'/>",
+        xml: "<List id='homelist' xmlns='list'/>",
         fun: function (sys, items, opts) {
             var checked = {};
             this.watch("/homes/select", (e, homes) => {
@@ -480,7 +480,7 @@ $_("content/home").imports({
         fun: function (sys, items, opts) {
             let iPath, icon = sys.icon;
             return (id, path) => {
-                let iconPath = `//musicbox/content/room/icon/${path}`;
+                let iconPath = `//miot/content/room/icon/${path}`;
                 if ( !xp.hasComponent(iconPath) )
                     iconPath = "icon/Default";
                 if ( iPath != iconPath ) {
@@ -603,7 +603,7 @@ $_("content/room").imports({
         map: { extend: {"from": "../home/Title"} }
     },
     RoomList: {
-        xml: "<i:List id='roomlist' xmlns:i='../home/list'/>",
+        xml: "<List id='roomlist' xmlns='../home/list'/>",
         fun: function (sys, items, opts) {
             var checked = {};
             this.watch("/rooms/select", (e, rooms) => {
@@ -667,7 +667,7 @@ $_("content/room").imports({
             return (id, path) => {
                 let iconPath = `//${id}/${path}`;
                 if ( !xp.hasComponent(iconPath) )
-                    iconPath = `//musicbox/content/room/icon/${path}`;
+                    iconPath = `//miot/content/room/icon/${path}`;
                 if ( !xp.hasComponent(iconPath) )
                     iconPath = "icon/Unknow";
                 if ( iPath != iconPath ) {
