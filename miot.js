@@ -1,7 +1,7 @@
 const viewId = "00000";
 const xmlplus = require("xmlplus");
 
-xmlplus("mqtt-iot", (xp, $_, t) => {
+xmlplus("miot", (xp, $_, t) => {
 
 $_().imports({
     Index: {
@@ -287,4 +287,4 @@ $_("sqlite").imports({
     }
 });
 
-}).startup("//mqtt-iot/Index");
+}).startup("//miot/Index");
