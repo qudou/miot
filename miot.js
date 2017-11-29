@@ -1,7 +1,7 @@
 const ClientId = "00000";
 const xmlplus = require("xmlplus");
 
-xmlplus("miot", (xp, $_, t) => {
+xmlplus("miot", (xp, $_) => {
 
 $_().imports({
     Index: {
@@ -43,7 +43,7 @@ $_().imports({
                 console.log("Mosca server is up and running");
             });
             server.on('published', (packet, client) => {
-                if ( packet.topic == "server" ) {
+                if (packet.topic == "server") {
                     let data = JSON.parse(packet.payload + '');
                     data.ptr = [first];
                     first.trigger("enter", data, false);
@@ -65,7 +65,7 @@ $_().imports({
                 publish(ClientId, {ssid: topic, data: {online: 0}});
             });
             function publish(topic, payload) {
-                server.publish({topic: ClientId, payload: JSON.stringify(payload), qos: 1, retain: false});
+                server.publish({topic: topic, payload: JSON.stringify(payload), qos: 1, retain: false});
             }
         }
     },
