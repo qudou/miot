@@ -35,21 +35,21 @@ $_().imports({
                 d.code = -1;
                 this.trigger("reply", d);
             });
-            server.on('ready', () => {
+            server.on("ready", () => {
                 items.parts.updateAll(0);
                 server.authenticate = async (client, user, pass, callback) => {
                     callback(null, await items.login(user, pass+''));
                 };;
                 console.log("Mosca server is up and running");
             });
-            server.on('published', (packet, client) => {
+            server.on("published", (packet, client) => {
                 if (packet.topic == "server") {
                     let data = JSON.parse(packet.payload + '');
                     data.ptr = [first];
                     first.trigger("enter", data, false);
                 }
             });
-            server.on('subscribed', async (topic, client) => {
+            server.on("subscribed", async (topic, client) => {
                 if (topic == ClientId) {
                     items.parts.update(topic, 1);
                     return first.trigger("enter", {ssid: topic, topic: "/homes/select", ptr:[first]});
