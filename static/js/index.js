@@ -39,6 +39,7 @@ $_().imports({
         }
     },
     Service: {
+        css: "#service { visibility: visible; opacity: 1; }",
         xml: "<Overlay id='service' xmlns='verify'/>",
         fun: function (sys, items, opts) {
             let client = null;
@@ -106,7 +107,7 @@ $_().imports({
                 e.stopPropagation();
                 sys.stack.trigger("switch", page, false);
             });
-            this.on("show", () => sys.stack.trigger("switch", "home"));
+            this.on("show", () => this.notify("switch-page", "home"));
         }
     },
     ViewStack: {
