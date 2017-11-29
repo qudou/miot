@@ -5,48 +5,17 @@ xmlplus("miot", (xp, $_, t) => {
 
 $_().imports({
     Index: {
-        xml: "<Mosca xmlns:i='mosca'>\
+        xml: "<Mosca id='index'>\
                 <Homes id='homes'/>\
                 <Rooms id='rooms'/>\
                 <Parts id='parts'/>\
               </Mosca>",
         map: { share: "sqlite/Sqlite" }
     },
-    Signin: {
-        xml: "<main id='signin' xmlns:i='signin'>\
-                <Sqlite id='sqlite' xmlns='/sqlite'/>\
-                <i:Crypto id='crypto'/>\
-                <i:InputCheck id='check'/>\
-              </main>",
-        fun: function (sys, items, opts) {
-            function checkName(name, pass) {
-                return new Promise((resolve, reject) => {
-                    var stmt = "SELECT * FROM users WHERE name='" + name + "' limit 1";
-                    items.sqlite.all(stmt, (err, rows) => {
-                        if ( err ) { throw err; }
-                        resolve(!!rows.length && checkPass(pass, rows[0]));
-                    });
-                });
-            }
-            function checkPass(pass, record) {
-                return items.crypto.encrypt(pass, record.salt) == record.pass;
-            }
-            return async (name, pass) => {
-                return items.check("u", name) && items.check("p", pass) && await checkName(name, pass);
-            };
-        }
-    },
-    Signup: {
-        xml: "<i:Flow xmlns:i='mosca' xmlns:s='signup'>\
-                <i:Router id='router' url='/signup'/>\
-                <s:Validate id='validate'/>\
-                <s:Register id='register'/>\
-              </i:Flow>"
-    },
     Mosca: {
         xml: "<main id='mosca' xmlns:i='mosca'>\
                 <i:Parts id='parts'/>\
-                <Signin id='signin'/>\
+                <i:Login id='login'/>\
               </main>",
         opt: { port: 3000, http: { port: 8000, bundle: true, static: "./static" } },
         fun: function (sys, items, opts) {
@@ -60,7 +29,7 @@ $_().imports({
             this.on("reply", (e, d) => {
                 let topic = d.ssid;
                 delete d.ptr; delete d.ssid;
-                server.publish({topic: topic, payload: JSON.stringify(d), qos: 1, retain: false});
+                publish(topic, d);
             });
             this.on("reject", (e, d) => {
                 d.code = -1;
@@ -69,7 +38,7 @@ $_().imports({
             server.on('ready', () => {
                 items.parts.updateAll(0);
                 server.authenticate = async (client, user, pass, callback) => {
-                    callback(null, await items.signin(user, pass+''));
+                    callback(null, await items.login(user, pass+''));
                 };;
                 console.log("Mosca server is up and running");
             });
@@ -80,20 +49,24 @@ $_().imports({
                     first.trigger("enter", data, false);
                 }
             });
-            server.on('subscribed', (topic, client) => {
-                items.parts.update(topic, 1);
+            server.on('subscribed', async (topic, client) => {
                 if (topic == ClientId) {
-                    first.trigger("enter", {ssid: topic, topic: "/homes/select", ptr:[first]}, false);
-                } else {
-                    let payload = { ssid: topic, data: {online: 1} };
-                    server.publish({topic: ClientId, payload: JSON.stringify(payload), qos: 1, retain: false});
+                    items.parts.update(topic, 1);
+                    return first.trigger("enter", {ssid: topic, topic: "/homes/select", ptr:[first]});
+                }
+                let part = await items.parts.select(topic)
+                if (part.length) {
+                    items.parts.update(topic, 1);
+                    publish(ClientId, {ssid: topic, data: {online: 1}});
                 }
             });
             server.on('unsubscribed', (topic, client) => {
                 items.parts.update(topic, 0);
-                let payload = { ssid: topic, data: {online: 0} };
-                server.publish({topic: ClientId, payload: JSON.stringify(payload), qos: 1, retain: false});
+                publish(ClientId, {ssid: topic, data: {online: 0}});
             });
+            function publish(topic, payload) {
+                server.publish({topic: ClientId, payload: JSON.stringify(payload), qos: 1, retain: false});
+            }
         }
     },
     Homes: {
@@ -112,6 +85,13 @@ $_().imports({
         xml: "<i:Flow xmlns:i='mosca' xmlns:p='parts'>\
                 <i:Router id='router' url='/parts/:action'/>\
                 <p:Select id='select'/>\
+              </i:Flow>"
+    },
+    Signup: {
+        xml: "<i:Flow xmlns:i='mosca' xmlns:s='signup'>\
+                <i:Router id='router' url='/signup'/>\
+                <s:Validate id='validate'/>\
+                <s:Register id='register'/>\
               </i:Flow>"
     }
 });
@@ -182,9 +162,42 @@ $_("mosca").imports({
             };
         }
     },
+    Login: {
+        xml: "<main id='login' xmlns:i='login'>\
+                <Sqlite id='sqlite' xmlns='/sqlite'/>\
+                <i:Crypto id='crypto'/>\
+                <i:InputCheck id='check'/>\
+              </main>",
+        fun: function (sys, items, opts) {
+            function checkName(name, pass) {
+                return new Promise((resolve, reject) => {
+                    var stmt = "SELECT * FROM users WHERE name='" + name + "' limit 1";
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if ( err ) { throw err; }
+                        resolve(!!rows.length && checkPass(pass, rows[0]));
+                    });
+                });
+            }
+            function checkPass(pass, record) {
+                return items.crypto.encrypt(pass, record.salt) == record.pass;
+            }
+            return async (name, pass) => {
+                return items.check("u", name) && items.check("p", pass) && await checkName(name, pass);
+            };
+        }
+    },
     Parts: {
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
+            let SELECT = "SELECT * FROM parts WHERE id=";
+            function select(partId) {
+                return new Promise((resolve, reject) => {
+                    items.sqlite.all(SELECT + partId, (err, data) => {
+                        if ( err ) { throw err; }
+                        resolve(data);
+                    });
+                });
+            }
             let UPDATE = "UPDATE parts SET online=? WHERE id=?";
             function update(partId, online) {
                 let stmt = items.sqlite.prepare(UPDATE);
@@ -199,12 +212,12 @@ $_("mosca").imports({
                     if (err) throw err;
                 });
             }
-            return { update: update, updateAll: updateAll };
+            return { select: select, update: update, updateAll: updateAll };
         }
     }
 });
 
-$_("signin").imports({
+$_("mosca/login").imports({
     InputCheck: {
         fun: function (sys, items, opts) {
             var ureg = /^[A-Z0-9]{6,}$/i,
@@ -243,7 +256,7 @@ $_("signin").imports({
 
 $_("sinup").imports({
     Validate: {
-        xml: "<main id='top' xmlns:h='/login' xmlns:s='/sqlite'>\
+        xml: "<main id='top' xmlns:h='/mosca/login' xmlns:s='/sqlite'>\
                 <s:Sqlite id='sqlite'/>\
                 <h:InputCheck id='check'/>\
               </main>",
