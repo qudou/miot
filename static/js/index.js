@@ -49,10 +49,6 @@ $_().imports({
                     console.log("connected to " + Server);
                     this.trigger("switch", "content").notify("online");
                 });
-                client.on("error", error => {
-                    client.end();
-                    this.trigger("switch", "login");
-                });
                 client.on("message", (topic, payload) => {
                     payload = JSON.parse(payload.toString());
                     if ( payload.ssid == undefined )
@@ -60,6 +56,13 @@ $_().imports({
                     this.notify(payload.ssid, [payload.data, payload.topic]);
                 });
                 client.on("close", e => this.notify("offline"));
+                client.on("error", error => this.notify("logout"));
+            });
+            this.watch("logout", () => {
+                client.end();
+                localStorage.setItem("username", "");
+                localStorage.setItem("password", "");
+                this.trigger("switch", "login");
             });
             this.watch("publish", (e, topic, payload = {}) => {
                 payload.ssid = ClientId;
@@ -87,8 +90,7 @@ $_().imports({
         }
     },
     Content: {
-        css: "#stack { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
-              #stack, #client, #stack > * { width: 100%; height: 100%; }",
+        css: "#stack, #client, #stack > * { width: 100%; height: 100%; }",
         xml: "<div id='content' xmlns:i='content'>\
                 <ViewStack id='stack'>\
                     <i:Home id='home'/>\
@@ -104,6 +106,7 @@ $_().imports({
                 e.stopPropagation();
                 sys.stack.trigger("switch", page, false);
             });
+            this.on("show", () => sys.stack.trigger("switch", "home"));
         }
     },
     ViewStack: {
@@ -112,16 +115,16 @@ $_().imports({
             var args, children = this.children(),
                 table = children.call("hide").hash(),
                 ptr = table[opts.index] || children[0];
-            if (ptr) ptr = ptr.trigger("show").show();
+            if (ptr) ptr = ptr.trigger("show", null, false).show();
             this.on("switch", function (e, to) {
                 table = this.children().hash();
                 if ( !table[to] || table[to] == ptr ) return;
                 e.stopPropagation();
                 args = [].slice.call(arguments).slice(2);
                 ptr.trigger("hide", [to+''].concat(args)).hide();
-                ptr = table[to].trigger("show", [ptr+''].concat(args)).show();
+                ptr = table[to].trigger("show", [ptr+''].concat(args), false).show();
             });
-            return Object.defineProperty({}, "selected", { get: function() {return ptr;}});
+            return Object.defineProperty({}, "selected", { get: () => {return ptr}});
         }
     }
 });
@@ -179,7 +182,7 @@ $_("login").imports({
         }
     },
     Logo: {
-        css: "#logo { fill: #148FB1; background: none; border: none; }",
+        css: "#logo { fill: currentColor; color: #148FB1; }",
         xml: "<svg id='logo' viewBox='0 0 1024 1024' width='200' height='200' class='img-thumbnail'>\
                 <path d='M880 688c-32 0-57.6 9.6-83.2 25.6l-99.2-96c28.8-35.2 48-83.2 48-134.4 0-57.6-22.4-108.8-60.8-147.2l80-80c16 9.6 32 12.8 51.2 12.8C876.8 272 928 220.8 928 160c0-60.8-51.2-112-112-112C755.2 48 704 99.2 704 160c0 19.2 6.4 38.4 12.8 54.4l-86.4 86.4c-28.8-16-64-25.6-102.4-25.6-51.2 0-99.2 19.2-137.6 51.2L307.2 240C313.6 224 320 208 320 192c0-60.8-51.2-112-112-112C147.2 80 96 131.2 96 192c0 60.8 51.2 112 112 112 22.4 0 41.6-6.4 60.8-16l86.4 83.2c-22.4 32-32 70.4-32 112 0 35.2 9.6 70.4 25.6 99.2l-70.4 70.4c-28.8-19.2-60.8-32-99.2-32C80 624 0 704 0 800s80 176 176 176S352 896 352 800c0-38.4-12.8-73.6-32-99.2l64-64c38.4 38.4 89.6 60.8 147.2 60.8 44.8 0 86.4-12.8 118.4-35.2l105.6 102.4C742.4 780.8 736 806.4 736 832c0 80 64 144 144 144s144-64 144-144S960 688 880 688z'/>\
               </svg>"
@@ -210,11 +213,11 @@ $_("login").imports({
     Pass: {
         xml: "<Input id='pass' value='123456' placeholder='密　码' type='password' maxlength='16'/>",
         fun: function (sys, items, opts) {
-            function error( msg ) {
+            function error(msg) {
                 items.pass.focus();
                 sys.pass.trigger("message", ["error", msg]);
             }
-            this.on("start", function ( e, o ) {
+            this.on("start", (e, o) => {
                 o.pass = items.pass.val();
                 if ( o.pass === "" ) {
                     error("请输入密码");
@@ -264,7 +267,7 @@ $_("login").imports({
 
 $_("content").imports({
     Home: {
-        css: "#home { padding: 12px; }\
+        css: "#home { padding: 12px; background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
               #rooms { max-height: calc(100% - 130px); overflow: auto; }",
         xml: "<div id='home' xmlns:i='home'>\
                 <i:Header id='header' for='home'/>\
@@ -287,7 +290,7 @@ $_("content").imports({
         }
     },
     Room: {
-        css: "#room { padding: 12px; }\
+        css: "#room { padding: 12px; background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
               #parts { max-height: calc(100% - 130px); overflow: auto; }",
         xml: "<div id='room' xmlns:i='room'>\
                 <i:Header id='header' for='room'/>\
@@ -315,12 +318,16 @@ $_("content").imports({
               #about { margin: 0; box-sizing: border-box; }\
               #content h2 { font-weight: bold; color: #148FB1; }\
               #content > * { margin: 0 0 .5em; }",
-        xml: "<div id='about'>\
+        xml: "<div id='about' xmlns:i='/login'>\
                 <div id='content' class='container'>\
-                    <Logo id='logo' xmlns='/login'/>\
+                    <i:Logo id='logo'/>\
                     <h2>MQTT-IOT</h2>\
+                    <i:Button id='logout' label='退出'/>\
                 </div>\
-              </div>"
+              </div>",
+        fun: function (sys, items, opts) {
+            sys.logout.on("touchend", () => this.notify("logout"));
+        }
     },
     Client: {
         css: "#client { -webkit-transition-duration: .3s; transition-duration: .3s; position: fixed; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
