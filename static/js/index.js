@@ -1,3 +1,6 @@
+const ClientId = "00000";
+const Server = "ws://t-store.cn:8000";
+
 xmlplus("miot", function (xp, $_, t) {
 
 $_().imports({
@@ -38,14 +41,12 @@ $_().imports({
     Service: {
         xml: "<Overlay id='service' xmlns='verify'/>",
         fun: function (sys, items, opts) {
-            let client,
-                clientId = "00000",
-                url = "ws://t-store.cn:8000";
+            let client = null;
             this.on("show", (e, key, config) => {
-                client = mqtt.connect(url, config);
+                client = mqtt.connect(Server, config);
                 client.on("connect", e => {
-                    client.subscribe(clientId);
-                    console.log("connected to " + url);
+                    client.subscribe(ClientId);
+                    console.log("connected to " + Server);
                     this.trigger("switch", "content").notify("online");
                 });
                 client.on("error", error => {
@@ -54,19 +55,17 @@ $_().imports({
                 });
                 client.on("message", (topic, payload) => {
                     payload = JSON.parse(payload.toString());
-                    if ( payload.sid == undefined )
+                    if ( payload.ssid == undefined )
                         return this.notify(payload.topic, [payload.data, payload]);
-                    this.notify(payload.sid, [payload.data, payload.topic]);
+                    this.notify(payload.ssid, [payload.data, payload.topic]);
                 });
                 client.on("close", e => this.notify("offline"));
             });
-            this.watch("subscribe", (e, topic) => {
-                client.subscribe(topic, {qos:1});
-            });
             this.watch("publish", (e, topic, payload = {}) => {
-                payload.ssid = clientId;
+                payload.ssid = ClientId;
                 client.publish(topic, JSON.stringify(payload));
             });
+            this.watch("subscribe", (e, topic) => client.subscribe(topic, {qos:1}));
         }
     },
     Login: {
@@ -333,9 +332,9 @@ $_("content").imports({
               </div>",
         fun: function (sys, items, opts) {
             let table = {};
-            this.on("publish", (e, topic, payload) => {
+            this.on("publish", (e, topic, data) => {
                 e.stopPropagation();
-                this.notify("publish", [opts.id, {topic: topic, data: payload}]);
+                this.notify("publish", [opts.id + '', {topic: topic, data: data}]);
             });
             function loadClient(data) {
                 require([`/parts/${data.class}/index.js`], e => {

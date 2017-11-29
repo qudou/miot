@@ -1,4 +1,4 @@
-const viewId = "00000";
+const ClientId = "00000";
 const xmlplus = require("xmlplus");
 
 xmlplus("miot", (xp, $_, t) => {
@@ -12,8 +12,42 @@ $_().imports({
               </Mosca>",
         map: { share: "sqlite/Sqlite" }
     },
+    Signin: {
+        xml: "<main id='signin' xmlns:i='signin'>\
+                <Sqlite id='sqlite' xmlns='/sqlite'/>\
+                <i:Crypto id='crypto'/>\
+                <i:InputCheck id='check'/>\
+              </main>",
+        fun: function (sys, items, opts) {
+            function checkName(name, pass) {
+                return new Promise((resolve, reject) => {
+                    var stmt = "SELECT * FROM users WHERE name='" + name + "' limit 1";
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if ( err ) { throw err; }
+                        resolve(!!rows.length && checkPass(pass, rows[0]));
+                    });
+                });
+            }
+            function checkPass(pass, record) {
+                return items.crypto.encrypt(pass, record.salt) == record.pass;
+            }
+            return async (name, pass) => {
+                return items.check("u", name) && items.check("p", pass) && await checkName(name, pass);
+            };
+        }
+    },
+    Signup: {
+        xml: "<i:Flow xmlns:i='mosca' xmlns:s='signup'>\
+                <i:Router id='router' url='/signup'/>\
+                <s:Validate id='validate'/>\
+                <s:Register id='register'/>\
+              </i:Flow>"
+    },
     Mosca: {
-        xml: "<Parts id='parts' xmlns='mosca'/>",
+        xml: "<main id='mosca' xmlns:i='mosca'>\
+                <i:Parts id='parts'/>\
+                <Signin id='signin'/>\
+              </main>",
         opt: { port: 3000, http: { port: 8000, bundle: true, static: "./static" } },
         fun: function (sys, items, opts) {
             let first = this.first(),
@@ -34,8 +68,10 @@ $_().imports({
             });
             server.on('ready', () => {
                 items.parts.updateAll(0);
-                server.authenticate = (client, user, pwd, cb) => cb(null, user == "qudouo");
-                console.log('Mosca server is up and running');
+                server.authenticate = async (client, user, pass, callback) => {
+                    callback(null, await items.signin(user, pass+''));
+                };;
+                console.log("Mosca server is up and running");
             });
             server.on('published', (packet, client) => {
                 if ( packet.topic == "server" ) {
@@ -45,12 +81,19 @@ $_().imports({
                 }
             });
             server.on('subscribed', (topic, client) => {
-                if (topic == viewId) {
-                    items.parts.update(topic, 1);
+                items.parts.update(topic, 1);
+                if (topic == ClientId) {
                     first.trigger("enter", {ssid: topic, topic: "/homes/select", ptr:[first]}, false);
+                } else {
+                    let payload = { ssid: topic, data: {online: 1} };
+                    server.publish({topic: ClientId, payload: JSON.stringify(payload), qos: 1, retain: false});
                 }
             });
-            server.on('unsubscribed', (topic, client) => items.parts.update(topic, 0));
+            server.on('unsubscribed', (topic, client) => {
+                items.parts.update(topic, 0);
+                let payload = { ssid: topic, data: {online: 0} };
+                server.publish({topic: ClientId, payload: JSON.stringify(payload), qos: 1, retain: false});
+            });
         }
     },
     Homes: {
@@ -157,6 +200,95 @@ $_("mosca").imports({
                 });
             }
             return { update: update, updateAll: updateAll };
+        }
+    }
+});
+
+$_("signin").imports({
+    InputCheck: {
+        fun: function (sys, items, opts) {
+            var ureg = /^[A-Z0-9]{6,}$/i,
+                ereg = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i;
+            var table = { u: user, p: pass, e: email };
+            function user( v ) {
+                return v.length <= 32 && ureg.test(v);
+            }
+            function pass( v ) {
+                return 6 <= v.length && v.length <= 16 
+            }
+            function email( v ) {
+                return v.length <= 32 && ereg.test(v);
+            }
+            function check( key, value ) {
+                return typeof value == "string" && table[key](value);
+            }
+            return check;
+        }
+    },
+    Crypto: {
+        opt: { keySize: 512/32, iterations: 32 },
+        map: { format: { "int": "keySize iterations" } },
+        fun: function (sys, items, opts) {
+            var cryptoJS = require("crypto-js");
+            function encrypt(plaintext, salt) {
+                return cryptoJS.PBKDF2(plaintext, salt, opts).toString();
+            }
+            function salt() {
+                return cryptoJS.lib.WordArray.random(128/8).toString();
+            }
+            return { encrypt: encrypt, salt: salt };
+        }
+    }
+});
+
+$_("sinup").imports({
+    Validate: {
+        xml: "<main id='top' xmlns:h='/login' xmlns:s='/sqlite'>\
+                <s:Sqlite id='sqlite'/>\
+                <h:InputCheck id='check'/>\
+              </main>",
+        fun: function ( sys, items, opts ) {
+            this.on("enter", (e, d) => {
+                e.stopPropagation();
+                if ( items.check("e", d.email) && items.check("u", d.body.name) || items.check("p", d.body.pass) )
+                    return checkName(d);
+                this.trigger("reject", xp.extend(d, {desc: "邮箱、用户名或密码有误"}));
+            });
+            function checkName(d) {
+                var stmt = "SELECT * FROM users WHERE name='" + d.body.name + "' limit 1";
+                items.sqlite.all(stmt, (err, rows) => {
+                    if ( err ) { throw err; }
+                    if ( !rows.length )
+                        return checkEmail(d);
+                    this.trigger("reject", xp.extend(d, {desc: "用户已存在"}));
+                });
+            }
+            function checkEmail(d) {
+                var stmt = "SELECT * FROM users WHERE email='" + d.body.email + "' limit 1";
+                items.sqlite.all(stmt, function(err, rows) {
+                    if ( err ) { throw err; }
+                    if ( !rows.length )
+                        return this.trigger("next", d);
+                    this.trigger("reject", xp.extend(d, {desc: "邮箱已存在"}));
+                });
+            }
+        }
+    },
+    Register: {
+       xml: "<main id='top' xmlns:t='/login' xmlns:i='/sqlite'>\
+                <i:Sqlite id='sqlite'/>\
+                <t:Crypto id='crypto'/>\
+              </main>",
+        fun: function ( sys, items, opts ) {
+            this.on("enter", (e, d) => {
+                var salt = items.crypto.salt(),
+                    pass = items.crypto.encrypt(d.body.pass, salt),
+                    stmt = items.sqlite.prepare("INSERT INTO users (email,name,pass,salt) values(?, ?,?,?)");
+                stmt.run(d.body.email, d.body.name, d.body.pass, salt);
+                stmt.finalize(e => {
+                    this.trigger("reply", xp.extend(d, {desc: "注册成功"}));
+                }); 
+            });
         }
     }
 });
