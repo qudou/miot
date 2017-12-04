@@ -189,7 +189,7 @@ $_("login").imports({
               </svg>"
     },
     User: {
-        xml: "<Input id='user' value='qudouo' placeholder='用户名' maxlength='32'/>",
+        xml: "<Input id='user' placeholder='用户名' maxlength='32'/>",
         fun: function (sys, items, opts) {
             var patt = /^[a-z][a-z0-9_]{5,31}$/i;
             function error( msg ) {
@@ -212,7 +212,7 @@ $_("login").imports({
         }
     },
     Pass: {
-        xml: "<Input id='pass' value='123456' placeholder='密　码' type='password' maxlength='16'/>",
+        xml: "<Input id='pass' placeholder='密　码' type='password' maxlength='16'/>",
         fun: function (sys, items, opts) {
             function error(msg) {
                 items.pass.focus();
