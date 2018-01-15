@@ -1,4 +1,3 @@
-const ClientId = "00000";
 const xmlplus = require("xmlplus");
 
 xmlplus("miot", (xp, $_) => {
@@ -14,55 +13,69 @@ $_().imports({
     },
     Mosca: {
         xml: "<main id='mosca' xmlns:i='mosca'>\
+                <i:Users id='users'/>\
+                <i:Links id='links'/>\
                 <i:Parts id='parts'/>\
-                <i:Login id='login'/>\
+                <i:Authorize id='authorize'/>\
               </main>",
-        opt: { port: 3000, http: { port: 8000, bundle: true, static: "./static" } },
+        opt: { port: 3001, http: { port: 8001, bundle: true, static: "./static" } },
         fun: function (sys, items, opts) {
-            let first = this.first(),
-                table = this.find("./*[@id]").hash(),
-                server = new require('mosca').Server(opts);
+            let first = this.first();
+            let table = this.find("./*[@id]").hash();
+            let server = new require('mosca').Server(opts);
+
             this.on("next", (e, d, next) => {
                 d.ptr[0] = table[next] || d.ptr[0].next();
                 d.ptr[0] ? d.ptr[0].trigger("enter", d, false) : this.trigger("reject", d);
             });
             this.on("reply", (e, d) => {
                 let topic = d.ssid;
-                delete d.ptr; delete d.ssid;
-                publish(topic, d);
+                delete d.ptr; d.ssid = "00000"; publish(topic, d);
             });
             this.on("reject", (e, d) => {
                 d.code = -1;
                 this.trigger("reply", d);
             });
-            server.on("ready", () => {
-                items.parts.updateAll(0);
-                server.authenticate = async (client, user, pass, callback) => {
-                    callback(null, await items.login(user, pass+''));
-                };;
-                console.log("Mosca server is up and running");
+            server.on("ready", async () => {
+                await items.users.offlineAll(), await items.links.offlineAll(), await items.parts.offlineAll();
+                server.authenticate = items.authorize.authenticate;
+                server.authorizeSubscribe = items.authorize.authorizeSubscribe;
+                //server.authorizePublish = items.authorize.authorizePublish;
+                console.log("Mosca server is up and running"); 
             });
-            server.on("published", (packet, client) => {
-                if (packet.topic == "server") {
-                    let data = JSON.parse(packet.payload + '');
+            server.on("published", async (packet, client) => {
+                if (client == undefined || packet.topic !== "00000") return;
+                let data = JSON.parse(packet.payload + '');
+                if (await items.users.isLogin(client.id)) {
                     data.ptr = [first];
                     first.trigger("enter", data, false);
+                } else if (await items.parts.isSubscribed(data.ssid)) {
+                    let users = await items.parts.getUsersByPart(data.ssid);
+                    users.forEach(user => publish(user.name, data));
                 }
             });
             server.on("subscribed", async (topic, client) => {
-                if (topic == ClientId) {
-                    items.parts.update(topic, 1);
-                    return first.trigger("enter", {ssid: topic, topic: "/homes/select", ptr:[first]});
-                }
-                let part = await items.parts.select(topic)
-                if (part.length) {
-                    items.parts.update(topic, 1);
-                    publish(ClientId, {ssid: topic, data: {online: 1}});
+                if (await items.users.isLogin(client.id)) {
+                    first.trigger("enter", {ssid: topic, topic: "/homes/select", ptr:[first]});
+                } else if (await items.parts.canSubscribe(topic)) {
+                    let users = await items.parts.getUsersByPart(topic);
+                    await items.parts.update(topic, 1);
+                    users.forEach(user => publish(user.name, {ssid: topic, data: {online: 1}}));
                 }
             });
-            server.on('unsubscribed', (topic, client) => {
-                items.parts.update(topic, 0);
-                publish(ClientId, {ssid: topic, data: {online: 0}});
+            server.on("unsubscribed", async (topic, client) => {
+                if (await items.parts.isSubscribed(topic)) {
+                    let users = await items.parts.getUsersByPart(topic);
+                    await items.parts.update(topic, 0);
+                    users.forEach(user => publish(user.name, {ssid: topic, data: {online: 0}}));
+                }
+            });
+            server.on("clientDisconnected", async client => {
+                if (await items.users.isLogin(client.id)) {
+                    await items.users.offline(client.id);
+                } else if (await items.links.isLinked(client.id)) {
+                    await items.links.update(client.id, 0);
+                }
             });
             function publish(topic, payload) {
                 server.publish({topic: topic, payload: JSON.stringify(payload), qos: 1, retain: false});
@@ -161,6 +174,40 @@ $_("mosca").imports({
                 return params;
             };
         }
+    }
+});
+
+$_("mosca").imports({
+    Authorize: {
+        xml: "<main id='mosca'>\
+                <Login id='login'/>\
+                <Users id='users'/>\
+                <Links id='links'/>\
+                <Parts id='parts'/>\
+              </main>",
+        fun: function (sys, items, opts) {
+            async function authenticate(client, user, pass, callback) {
+                let answer = false;
+                let key = pass + '';
+                if (pass != undefined) {
+                    answer = await items.login(user, key);
+                    answer && await items.users.online(user, client.id);
+                } else {
+                    answer = await items.links.canLink(client.id);
+                    answer && await items.links.update(client.id, 1);
+                }
+                callback(null, answer);
+            }
+            async function authorizeSubscribe(client, topic, callback) {
+                let answer = await items.users.canSubscribe(client.id, topic) || await items.parts.canSubscribe(topic);
+                callback(null, answer);
+            }
+            async function authorizePublish(client, topic, callback) {
+                // 这里要对校验合法性
+                callback(null, true);
+            }
+            return { authenticate: authenticate, authorizeSubscribe: authorizeSubscribe, authorizePublish: authorizePublish };
+        }
     },
     Login: {
         xml: "<main id='login' xmlns:i='login'>\
@@ -171,9 +218,9 @@ $_("mosca").imports({
         fun: function (sys, items, opts) {
             function checkName(name, pass) {
                 return new Promise((resolve, reject) => {
-                    var stmt = "SELECT * FROM users WHERE name='" + name + "' limit 1";
+                    let stmt = `SELECT * FROM users WHERE name="${name}" AND client='0'`;
                     items.sqlite.all(stmt, (err, rows) => {
-                        if ( err ) { throw err; }
+                        if (err) throw err;
                         resolve(!!rows.length && checkPass(pass, rows[0]));
                     });
                 });
@@ -186,33 +233,148 @@ $_("mosca").imports({
             };
         }
     },
+    Users: {
+        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
+        fun: function (sys, items, opts) {
+            function isLogin(clientId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT * FROM users WHERE client='${clientId}' AND client <> '0'`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(!!data.length);
+                    });
+                });
+            }
+            function canSubscribe(clientId, name) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT * FROM users WHERE client='${clientId}' AND client <> '0' AND name='${name}'`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(!!data.length);
+                    });
+                });
+            }
+            function online(user, clientId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE users SET client=? WHERE name=?");
+                    stmt.run(clientId, user, err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
+                });
+            }
+            function offline(clientId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE users SET client=? WHERE client=? AND client <> '0'");
+                    stmt.run('0', clientId, err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
+                });
+            }
+            function offlineAll() {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE users SET client=?");
+                    stmt.run('0', err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
+                });
+            }
+            return { isLogin: isLogin, canSubscribe: canSubscribe, online: online, offline: offline, offlineAll: offlineAll };
+        }
+    },
+    Links: {
+        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
+        fun: function (sys, items, opts) {
+            function canLink(linkId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT * FROM links WHERE links.id = '${linkId}' AND links.online = 0`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(!!data.length);
+                    });
+                });
+            }
+            function isLinked(linkId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT * FROM links WHERE links.id = '${linkId}' AND links.online = 1`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(!!data.length);
+                    });
+                });
+            }
+            function update(linkId, online) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE links SET online=? WHERE id=?");
+                    stmt.run(online, linkId, err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
+                });
+            }
+            function offlineAll() {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE links SET online=?");
+                    stmt.run(0, err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
+                });
+            }
+            return { canLink: canLink, isLinked: isLinked, update: update, offlineAll: offlineAll };
+        }
+    },
     Parts: {
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
-            let SELECT = "SELECT * FROM parts WHERE id=";
-            function select(partId) {
+            function canSubscribe(partId) {
                 return new Promise((resolve, reject) => {
-                    items.sqlite.all(SELECT + partId, (err, data) => {
-                        if ( err ) { throw err; }
+                    let stmt = `SELECT authorizations.* FROM parts,links,authorizations WHERE authorizations.part='${partId}' AND authorizations.part=parts.id AND parts.online=0 AND parts.link=links.id AND links.online=1`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(!!data.length);
+                    });
+                });
+            }
+            function isSubscribed(partId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT authorizations.* FROM parts,links,authorizations WHERE authorizations.part='${partId}' AND authorizations.part=parts.id AND parts.online=1 AND parts.link=links.id AND links.online=1`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(!!data.length);
+                    });
+                });
+            }
+            function getUsersByPart(partId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT users.name FROM parts,authorizations,rooms,homes,users WHERE parts.id='${partId}' AND parts.id=authorizations.part AND authorizations.room=rooms.id AND rooms.home=homes.id AND homes.user=users.id`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
                         resolve(data);
                     });
                 });
             }
-            let UPDATE = "UPDATE parts SET online=? WHERE id=?";
             function update(partId, online) {
-                let stmt = items.sqlite.prepare(UPDATE);
-                stmt.run(online, partId, err => {
-                    if (err) throw err;
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE id=?");
+                    stmt.run(online, partId, err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
                 });
             }
-            let UPDATE_ALL = "UPDATE parts SET online=?";
-            function updateAll(online) {
-                let stmt = items.sqlite.prepare(UPDATE_ALL);
-                stmt.run(online, err => {
-                    if (err) throw err;
+            function offlineAll() {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE parts SET online=?");
+                    stmt.run(0, err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
                 });
             }
-            return { select: select, update: update, updateAll: updateAll };
+            return { canSubscribe: canSubscribe, isSubscribed: isSubscribed, getUsersByPart: getUsersByPart, update: update, offlineAll: offlineAll };
         }
     }
 });
@@ -342,9 +504,9 @@ $_("parts").imports({
     Select: {
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
-            let SELECT = "SELECT * FROM parts WHERE room=";
             this.on("enter", (e, d) => {
-                items.sqlite.all(SELECT + d.body.roomId, (err, data) => {
+                let stmt = `SELECT parts.* FROM parts,authorizations WHERE authorizations.room=${d.body.roomId} AND authorizations.part=parts.id`;
+                items.sqlite.all(stmt, (err, data) => {
                     if ( err ) { throw err; }
                     d.data = data;
                     this.trigger("reply", d);

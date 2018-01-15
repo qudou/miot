@@ -1,7 +1,6 @@
-const ClientId = "00000";
-const Server = "ws://t-store.cn:8000";
+const Server = "ws://t-store.cn:8001";
 
-xmlplus("miot", function (xp, $_, t) {
+xmlplus("miot", (xp, $_, t) => {
 
 $_().imports({
     Index: {
@@ -46,18 +45,18 @@ $_().imports({
             this.on("show", (e, key, config) => {
                 client = mqtt.connect(Server, config);
                 client.on("connect", e => {
-                    client.subscribe(ClientId);
+                    client.subscribe(config.username);
                     console.log("connected to " + Server);
                     this.trigger("switch", "content").notify("online");
                 });
                 client.on("message", (topic, payload) => {
                     payload = JSON.parse(payload.toString());
-                    if ( payload.ssid == undefined )
+                    if (payload.ssid == "00000")
                         return this.notify(payload.topic, [payload.data, payload]);
                     this.notify(payload.ssid, [payload.data, payload.topic]);
                 });
                 client.on("close", e => this.notify("offline"));
-                client.on("error", error => this.notify("logout"));
+                client.on("error", e => this.notify("logout"));
             });
             this.watch("logout", () => {
                 client.end();
@@ -66,7 +65,7 @@ $_().imports({
                 this.trigger("switch", "login");
             });
             this.watch("publish", (e, topic, payload = {}) => {
-                payload.ssid = ClientId;
+                payload.ssid = localStorage.getItem("username");
                 client.publish(topic, JSON.stringify(payload));
             });
             this.watch("subscribe", (e, topic) => client.subscribe(topic, {qos:1}));
@@ -82,7 +81,7 @@ $_().imports({
               </i:Flow>",
         fun: function (sys, items, opts) {
             function keypress( e ) {
-                if ( e.which === 13 )
+                if (e.which === 13)
                     sys.submit.trigger("touchend");
             }
             sys.user.on("keypress", keypress);
@@ -91,7 +90,8 @@ $_().imports({
         }
     },
     Content: {
-        css: "#stack, #client, #stack > * { width: 100%; height: 100%; }",
+        css: "#content { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
+              #stack, #client, #stack > * { width: 100%; height: 100%; }",
         xml: "<div id='content' xmlns:i='content'>\
                 <ViewStack id='stack'>\
                     <i:Home id='home'/>\
@@ -101,7 +101,6 @@ $_().imports({
                 <i:Client id='client'/>\
                 <i:Footer id='footer'/>\
               </div>",
-        map: { defer: "about" },
         fun: function (sys, items, opts) {
             sys.footer.on("switch", (e, page) => {
                 e.stopPropagation();
@@ -183,7 +182,7 @@ $_("login").imports({
         }
     },
     Logo: {
-        css: "#logo { fill: currentColor; color: #148FB1; }",
+        css: "#logo { fill: currentColor; color: #3388FF; }",
         xml: "<svg id='logo' viewBox='0 0 1024 1024' width='200' height='200' class='img-thumbnail'>\
                 <path d='M880 688c-32 0-57.6 9.6-83.2 25.6l-99.2-96c28.8-35.2 48-83.2 48-134.4 0-57.6-22.4-108.8-60.8-147.2l80-80c16 9.6 32 12.8 51.2 12.8C876.8 272 928 220.8 928 160c0-60.8-51.2-112-112-112C755.2 48 704 99.2 704 160c0 19.2 6.4 38.4 12.8 54.4l-86.4 86.4c-28.8-16-64-25.6-102.4-25.6-51.2 0-99.2 19.2-137.6 51.2L307.2 240C313.6 224 320 208 320 192c0-60.8-51.2-112-112-112C147.2 80 96 131.2 96 192c0 60.8 51.2 112 112 112 22.4 0 41.6-6.4 60.8-16l86.4 83.2c-22.4 32-32 70.4-32 112 0 35.2 9.6 70.4 25.6 99.2l-70.4 70.4c-28.8-19.2-60.8-32-99.2-32C80 624 0 704 0 800s80 176 176 176S352 896 352 800c0-38.4-12.8-73.6-32-99.2l64-64c38.4 38.4 89.6 60.8 147.2 60.8 44.8 0 86.4-12.8 118.4-35.2l105.6 102.4C742.4 780.8 736 806.4 736 832c0 80 64 144 144 144s144-64 144-144S960 688 880 688z'/>\
               </svg>"
@@ -268,7 +267,7 @@ $_("login").imports({
 
 $_("content").imports({
     Home: {
-        css: "#home { padding: 12px; background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
+        css: "#home { padding: 12px; }\
               #rooms { max-height: calc(100% - 130px); overflow: auto; }",
         xml: "<div id='home' xmlns:i='home'>\
                 <i:Header id='header' for='home'/>\
@@ -286,12 +285,12 @@ $_("content").imports({
                 sys.title.text(home.name);
                 if (homes[home.id])
                     return this.notify("/rooms/select", [homes[home.id]]);
-                this.notify("publish", ['server', {topic: "/rooms/select", body: {homeId: home.id}}]);
+                this.notify("publish", ["00000", {topic: "/rooms/select", body: {homeId: home.id}}]);
             }).watch("offline", e => homes = {});
         }
     },
     Room: {
-        css: "#room { padding: 12px; background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
+        css: "#room { padding: 12px; }\
               #parts { max-height: calc(100% - 130px); overflow: auto; }",
         xml: "<div id='room' xmlns:i='room'>\
                 <i:Header id='header' for='room'/>\
@@ -309,26 +308,17 @@ $_("content").imports({
                 sys.title.text(room.name);
                 if (rooms[room.id])
                     return this.notify("/parts/select", [rooms[room.id]]);
-                this.notify("publish", ['server', {topic: "/parts/select", body: {roomId: room.id}}]);
+                this.notify("publish", ["00000", {topic: "/parts/select", body: {roomId: room.id}}]);
             }).watch("offline", e => rooms = {});
         }
     },
     About: {
-        css: "#about { height: 100%; text-align: center; overflow-y: auto; display: -ms-flexbox; display: -webkit-flex; display: flex; -ms-flex-align: center; -webkit-align-items: center; -webkit-box-align: center; align-items: center; }\
-              #logo { width: 160px; }\
-              #about { margin: 0; box-sizing: border-box; }\
-              #content h2 { font-weight: bold; color: #148FB1; }\
-              #content > * { margin: 0 0 .5em; }",
-        xml: "<div id='about' xmlns:i='/login'>\
-                <div id='content' class='container'>\
-                    <i:Logo id='logo'/>\
-                    <h2>MQTT-IOT</h2>\
-                    <i:Button id='logout' label='退出'/>\
-                </div>\
-              </div>",
-        fun: function (sys, items, opts) {
-            sys.logout.on("touchend", () => this.notify("logout"));
-        }
+        css: "#about { padding: 12px; }\
+              #content { height: calc(100% - 88px); }",
+        xml: "<div id='about' xmlns:i='about'>\
+                <i:Header id='header'/>\
+                <i:Content id='content'/>\
+              </div>"
     },
     Client: {
         css: "#client { -webkit-transition-duration: .3s; transition-duration: .3s; position: fixed; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
@@ -359,14 +349,14 @@ $_("content").imports({
             });
             this.on("close", e => {
                 e.stopPropagation();
-                sys.client.unwatch(opts.id).removeClass("#modal-in");
+                sys.client.unwatch(opts.id).unwatch("offline").removeClass("#modal-in");
             }, false);
             function register(id, client) {
                 sys.client.watch(id, (e, data, topic) => {
                     if ( data.online == false )
                         return sys.client.trigger("close");
                     client.notify(topic, [data]);
-                });
+                }).watch("offline", () => sys.client.trigger("close"));
             }
         }
     },
@@ -441,16 +431,11 @@ $_("content/home").imports({
                     item = rooms[i];
                     item.online = true;
                     list[i] || list.push(sys.rooms.append("Thumbnail"));
-                    list[i].unwatch(list[i].attr("_id"));
                     list[i].data("data", item).trigger("data", item, false);
-                    list[i].watch(item.id + '', listener).attr("_id", item.id + '').show();
                 }
                 for ( var k = i; k < list.length; k++ )
-                    list[k].unwatch(list[i].attr("_id")).hide();
+                    list[k].hide();
             });
-            function listener(e, item) {
-                e.currentTarget.trigger("data", item, false);
-            }
             sys.rooms.on("touchend", "*", function (e) {
                 var data = this.data("data");
                 data.online && this.notify("switch-page", "room").notify("open-room", data);
@@ -463,8 +448,9 @@ $_("content/home").imports({
         }
     },
     Thumbnail: {
-        css: "a#thumbnail { padding-top: 4px; padding-bottom: 4px; height: 100%; -webkit-box-pack: justify; -ms-flex-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%; box-sizing: border-box; display: -webkit-box; display: -ms-flexbox; display: -webkit-flex; display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-box-align: center; -ms-flex-align: center; -webkit-align-items: center; align-items: center; overflow: visible; -webkit-box-flex: 1; -ms-flex: 1; -webkit-box-orient: vertical; -moz-box-orient: vertical; -ms-flex-direction: column; -webkit-flex-direction: column; flex-direction: column; color: #929292; -webkit-flex-shrink: 1; -ms-flex: 0 1 auto; flex-shrink: 1; position: relative; white-space: nowrap; text-overflow: ellipsis; text-decoration: none; outline: 0; color: #8C8185; }\
+        css: "a#thumbnail { -webkit-transition: transform 0.3s; padding-top: 4px; padding-bottom: 4px; height: 100%; -webkit-box-pack: justify; -ms-flex-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%; box-sizing: border-box; display: -webkit-box; display: -ms-flexbox; display: -webkit-flex; display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-box-align: center; -ms-flex-align: center; -webkit-align-items: center; align-items: center; overflow: visible; -webkit-box-flex: 1; -ms-flex: 1; -webkit-box-orient: vertical; -moz-box-orient: vertical; -ms-flex-direction: column; -webkit-flex-direction: column; flex-direction: column; color: #929292; -webkit-flex-shrink: 1; -ms-flex: 0 1 auto; flex-shrink: 1; position: relative; white-space: nowrap; text-overflow: ellipsis; text-decoration: none; outline: 0; color: #8C8185; }\
               a#thumbnail { width: 66px; height: 66px; border-radius: 10px; background:rgba(255,255,255,0.8) none repeat scroll; }\
+              a#thumbnail:active { transform: scale(1.1); }\
               #label { margin: 3px 0 0; line-height: 1; display: block; letter-spacing: .01em; font-size: 10px; position: relative; text-overflow: ellipsis; white-space: nowrap; }\
               a#active { color: #FF9501; }",
         xml: "<a id='thumbnail'>\
@@ -475,7 +461,7 @@ $_("content/home").imports({
             this.on("data",  (e, payload) => {
                 var data = e.currentTarget.data("data");
                 xp.extend(data, payload);
-                items.icon(data.id, data.icon);
+                items.icon(data['class']);
                 sys.label.text(data.name);
                 sys.thumbnail[data.online ? 'addClass' : 'removeClass']("#active");
             });
@@ -486,19 +472,14 @@ $_("content/home").imports({
         xml: "<span id='icon'/>",
         fun: function (sys, items, opts) {
             let iPath, icon = sys.icon;
-            return (id, path) => {
-                let iconPath = `//miot/content/room/icon/${path}`;
-                if ( !xp.hasComponent(iconPath) )
-                    iconPath = "icon/Default";
+            return (klass) => {
+                let iconPath = "Default";
                 if ( iPath != iconPath ) {
                     icon = icon.replace(iPath = iconPath).addClass("#icon");
                 }
             };
         }
-    }
-});
-
-$_("content/home/icon").imports({
+    },
     Default: {
         xml: "<svg viewBox='0 0 1024 1024' width='200' height='200'>\
                 <path d='M0 64l256 0 0 896-256 0 0-896Z' p-id='7567'></path><path d='M320 64l704 0 0 256-704 0 0-256Z' p-id='7568'></path><path d='M320 384l704 0 0 576-704 0 0-576Z'/>\
@@ -667,39 +648,32 @@ $_("content/room").imports({
         map: { extend: { "from": "../home/Thumbnail" } }
     },
     Icon: {
-        css: "#icon { fill: currentColor; height: 30px; display: block; width: 30px; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
+        css: "#icon { fill: currentColor; width: 30px; height: 30px; display: block; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
         xml: "<span id='icon'/>",
         fun: function (sys, items, opts) {
             let iPath, icon = sys.icon;
-            return (id, path) => {
-                let iconPath = `//${id}/${path}`;
-                if ( !xp.hasComponent(iconPath) )
-                    iconPath = `//miot/content/room/icon/${path}`;
-                if ( !xp.hasComponent(iconPath) )
-                    iconPath = "icon/Unknow";
-                if ( iPath != iconPath ) {
-                    icon = icon.replace(iPath = iconPath).addClass("#icon");
+            return (klass) => {
+                try {
+                    try_show(klass);
+                } catch(err) {
+                    show("Unknow");
+                }
+                function try_show(klass) {
+                    require([`/parts/${klass}/icon.js`], e => {
+                        let iconPath = `//${klass}/Icon`;
+                        show(xp.hasComponent(iconPath) ? iconPath : "Unknow");
+                    });
+                }
+                function show(iconPath) {
+                    if (iPath != iconPath)
+                        icon = icon.replace(iPath = iconPath).addClass("#icon");
                 }
             };
         }
-    }
-});
-
-$_("content/room/icon").imports({
+    },
     Unknow: {
         xml: "<svg viewBox='0 0 1024 1024' width='200' height='200'>\
                   <path d='M797.75744 438.02624c-11.07968 0-21.95456 0.8192-32.72704 2.56 2.2528-13.6192 3.62496-27.36128 3.62496-41.69728 0-146.47296-118.6816-265.3184-265.29792-265.3184-142.56128 0-258.62144 112.78336-264.62208 254.03392C105.6768 394.38336 0 503.99232 0 638.64832c0 139.10016 112.68096 251.76064 251.82208 251.76064h545.93536C922.64448 890.40896 1024 789.13536 1024 664.18688c0-124.88704-101.35552-226.16064-226.24256-226.16064zM510.27968 808.38656c-22.69184 0-41.14432-18.06336-41.14432-40.30464 0-22.24128 18.39104-40.30464 41.14432-40.30464 22.67136 0 41.14432 18.06336 41.14432 40.30464-0.02048 22.24128-18.41152 40.30464-41.14432 40.30464z m110.46912-228.0448c-8.06912 12.6976-25.1904 29.92128-51.44576 51.77344-13.57824 11.28448-22.03648 20.3776-25.31328 27.29984-3.2768 6.8608-4.8128 19.16928-4.48512 36.90496h-58.5728c-0.12288-8.3968-0.24576-13.5168-0.24576-15.38048 0-18.96448 3.13344-34.52928 9.4208-46.77632 6.26688-12.24704 18.8416-26.0096 37.62176-41.2672 18.78016-15.31904 30.04416-25.31328 33.71008-30.04416 5.632-7.49568 8.51968-15.7696 8.51968-24.73984 0-12.4928-5.05856-23.18336-15.0528-32.1536-9.99424-8.9088-23.57248-13.39392-40.57088-13.39392-16.40448 0-30.12608 4.68992-41.14432 13.96736-11.01824 9.29792-20.50048 29.7984-22.75328 42.496-2.10944 11.9808-59.84256 17.03936-59.14624-7.24992 0.69632-24.28928 13.33248-50.62656 34.97984-69.71392 21.66784-19.08736 50.11456-28.65152 85.2992-28.65152 37.04832 0 66.4576 9.68704 88.3712 29.02016 21.9136 19.3536 32.80896 41.84064 32.80896 67.54304a74.07616 74.07616 0 0 1-12.00128 40.36608z'/>\
-              </svg>"
-    },
-    Lamp: {
-        xml: "<svg viewBox='0 0 1024 1024' width='200' height='200'>\
-                <path d='M224.827 183.45c-11.903-11.902-31.174-11.902-43.076 0-11.903 11.904-11.903 31.174 0 43.077l43.076 43.076c11.902 11.903 31.173 11.903 43.076 0 11.902-11.903 11.902-31.173 0-43.076l-43.076-43.076z m578.314 0l-43.076 43.077c-11.903 11.903-11.903 31.173 0 43.076 11.903 11.903 31.173 11.903 43.076 0l43.076-43.076c11.903-11.903 11.903-31.173 0-43.076-11.903-11.903-31.173-11.903-43.076 0zM148.688 424.338H87.852c-16.814 0-30.417 13.602-30.417 30.417s13.603 30.418 30.417 30.418h60.836c16.815 0 30.418-13.603 30.418-30.418 0-16.815-13.603-30.417-30.418-30.417z m791.427 0H879.28c-16.815 0-30.418 13.602-30.418 30.417s13.603 30.418 30.418 30.418h60.835c16.815 0 30.418-13.603 30.418-30.418 0-16.815-13.603-30.417-30.418-30.417zM483.472 74.249v60.836c0 16.815 13.603 30.418 30.417 30.418 16.815 0 30.418-13.603 30.418-30.418V74.249c0-16.814-13.603-30.417-30.418-30.417-16.814 0-30.417 13.603-30.417 30.417zM300.965 500.286c0-117.703 95.41-213.113 213.113-213.113 117.704 0 213.113 95.41 213.113 213.113 0 117.704-95.41 213.113-213.113 213.113s-213.113-95.41-213.113-213.113z m-60.835 0c0 151.333 122.615 273.949 273.948 273.949 151.333 0 273.949-122.616 273.949-273.949 0-151.332-122.616-273.948-273.949-273.948-151.333 0.189-273.948 122.804-273.948 273.948z m212.924 426.226c0 16.815 13.603 30.418 30.418 30.418h60.835c16.815 0 30.418-13.603 30.418-30.418 0-16.815-13.603-30.418-30.418-30.418h-60.835c-16.815 0-30.418 13.603-30.418 30.418z m-60.836-91.442c0 16.815 13.603 30.418 30.418 30.418h182.695c16.815 0 30.418-13.603 30.418-30.418 0-16.815-13.603-30.418-30.418-30.418H422.636c-16.815 0-30.418 13.603-30.418 30.418z m0 0'/>\
-              </svg>"
-    },
-    Music: {
-        xml: "<svg viewBox='0 0 1024 1024' width='48' height='48'>\
-                <path d='M1002.051291 609.834423C1003.297646 340.26496 785.605486 119.954286 516.036023 118.707931 246.468023 117.461577 26.748343 335.750583 25.503451 605.322971l-0.519314 112.174812 0.01024-1.825646c-0.443246 95.68256 77.070629 168.708389 172.750263 169.151634l17.533806 0.080458 1.569645-339.668115-17.535268-0.080457c-52.308846-0.242834-106.371657 22.724023-138.384823 59.282286 1.813943-245.561051 209.160777-451.423086 454.910537-450.287909 245.72928 1.135177 456.933669 221.668206 456.480183 467.249737-31.67232-36.871314-91.204754-73.097509-143.5136-73.33888l-17.535269-0.08192-1.568182 339.67104 17.535268 0.080458c95.68256 0.443246 173.86496-71.887726 174.306743-167.568823l-0.008777 1.847588 0.516388-112.174811z m-820.389302-33.297554l-1.29024 279.497874c-68.768914-11.30496-124.048823-70.007954-123.724069-140.296777 0.323291-70.239086 56.14592-128.531017 125.014309-139.201097z m662.914194 284.0576l1.278537-276.825235c68.110629 11.196709 125.758903 69.318949 125.437074 138.955337-0.323291 69.592503-58.508434 127.325623-126.715611 137.869898z'/>\
-                <path d='M359.030491 671.901989c-9.887451-0.043886-17.931703 7.924297-17.975588 17.80736l-0.332069 71.561508c-0.045349 9.893303 7.922834 17.936091 17.810286 17.98144 9.878674 0.045349 17.93024-7.922834 17.975589-17.816137l0.330605-71.561509c0.046811-9.884526-7.930149-17.928777-17.808823-17.972662zM416.971337 609.54624c-9.8816-0.045349-17.928777 7.92576-17.974126 17.811749l-0.964022 208.7424c-0.045349 9.877211 7.927223 17.928777 17.810285 17.974125 9.8816 0.045349 17.928777-7.933074 17.972663-17.810285l0.964023-208.740938c0.045349-9.885989-7.92576-17.931703-17.808823-17.977051zM474.335817 672.437394c-9.8816-0.045349-17.927314 7.922834-17.972663 17.805897l-0.53248 115.303863c-0.045349 9.89184 7.92576 17.93024 17.80736 17.975589 9.885989 0.045349 17.93024-7.919909 17.977052-17.808823l0.531017-115.305326c0.045349-9.884526-7.924297-17.925851-17.810286-17.9712zM649.112137 709.02784c-9.884526-0.043886-17.93024 7.927223-17.975588 17.804434l-0.457875 99.42016c-0.045349 9.874286 7.924297 17.931703 17.810286 17.977052s16.679497-7.937463 16.726309-17.811749l0.457874-99.42016c0.046811-9.874286-6.67648-17.922926-16.561006-17.969737zM592.043154 583.51616c-9.883063-0.045349-17.925851 7.924297-17.972663 17.80736l-1.253668 271.371703c-0.043886 9.878674 7.924297 17.93024 17.80736 17.974126 9.885989 0.045349 17.931703-7.931611 17.977051-17.808823l1.252206-271.373166c0.049737-9.8816-7.934537-17.925851-17.810286-17.9712zM534.150583 635.431497c-9.8816-0.043886-17.931703 7.933074-17.977052 17.814674l-0.797257 172.473783c-0.045349 9.872823 7.930149 17.928777 17.813212 17.974126 9.880137 0.046811 17.927314-7.934537 17.9712-17.808823l0.797257-172.475246c0.045349-9.8816-7.927223-17.931703-17.80736-17.978514z'/>\
               </svg>"
     }
 });
@@ -718,6 +692,46 @@ $_("content/room/header").imports({
     },
     Line: {
         map: { extend: {"from": "../../home/header/Line"} }
+    }
+});
+
+$_("content/about").imports({
+    Header: {
+        css: "#header { margin: 0 4px; height: 26px; line-height: 26px; color: white; }\
+              #logout { float: right; margin: 0 0 0 8px; }\
+              #line { float: right; }",
+        xml: "<header id='header' xmlns:i='../home/header'>\
+                <Icon id='about'/>\
+                <Icon id='logout'/>\
+                <i:Line id='line'/>\
+              </header>",
+        fun: function (sys, items, opts) {
+            this.watch("online", e => sys.line.text("在线"));
+            this.watch("offline", e => sys.line.text("离线"));
+            sys.logout.on("touchend", () => this.notify("logout"));
+        }
+    },
+    Content: {
+        css: "#body { height: 100%; text-align: center; overflow-y: auto; display: -ms-flexbox; display: -webkit-flex; display: flex; -ms-flex-align: center; -webkit-align-items: center; -webkit-box-align: center; align-items: center; }\
+              #logo { width: 160px; border-radius: 10px; background: rgba(255,255,255,0.8) none repeat scroll; }\
+              #body { margin: 0; box-sizing: border-box; }\
+              #content > * { margin: 0 0 .5em; }",
+        xml: "<div id='body'>\
+                <div id='content' class='container'>\
+                    <Logo id='logo' xmlns='/login'/>\
+                </div>\
+              </div>"
+    },
+    Icon: {
+        map: { extend: {"from": "../home/header/Icon"} }
+    },
+    About: {
+        map: { extend: {"from": "../footer/icon/About"} }
+    },
+    Logout: {
+        xml: "<svg viewBox='0 0 1024 1024' width='200' height='200'>\
+                <path d='M531.420587 1023.26528C465.257472 1023.26528 401.002197 1010.811989 340.56256 986.125781 282.145195 962.394667 229.756544 928.377685 184.732075 885.029888 139.707605 841.682048 104.374827 791.170859 79.649536 734.965675 54.084779 676.776747 41.111637 614.95104 41.111637 551.215061 41.111637 474.95232 60.533205 399.240619 97.239595 332.161707 132.724992 267.360427 184.274219 210.457259 246.35456 167.623723 263.601237 155.721472 287.563392 159.578667 299.887915 176.146347 312.212395 192.714027 308.282283 215.747157 291.035648 227.575936 238.570667 263.870549 195.034283 311.84704 165.119701 366.546048 133.717035 423.890048 117.805867 486.009685 117.805867 551.215061 117.805867 657.600853 160.846208 757.631403 238.990379 832.828843 317.096405 908.062976 420.957952 949.500544 531.420587 949.500544 641.844992 949.500544 745.744725 908.062976 823.888896 832.828843 902.033067 757.631403 945.035264 657.600853 945.035264 551.215061 945.035264 486.083157 929.16224 423.853355 897.721429 366.546048 867.806848 311.883776 824.23232 263.870549 771.767339 227.649408 754.558848 215.820629 750.552405 192.787499 762.915072 176.219819 775.277739 159.652139 799.201749 155.758208 816.41024 167.697195 878.528768 210.530731 930.154325 267.433899 965.601536 332.235179 1002.346112 399.314048 1021.76768 475.025792 1021.76768 551.288533 1021.76768 615.024512 1008.794539 676.850219 983.191637 735.075883 958.504448 791.281067 923.133525 841.792256 878.109056 885.140096 833.084587 928.487893 780.695936 962.468139 722.278571 986.309461 661.800789 1010.848725 597.583659 1023.26528 531.420587 1023.26528L531.420587 1023.26528 531.420587 1023.26528ZM542.943787 511.026517C521.766997 511.026517 504.596651 494.569045 504.596651 474.144128L504.596651 36.919083C504.596651 16.56768 521.766997 0 542.943787 0 564.120533 0 581.329067 16.56768 581.329067 36.919083L581.329067 474.144128C581.329067 494.569045 564.120533 511.026517 542.943787 511.026517L542.943787 511.026517 542.943787 511.026517Z'/>\
+              </svg>"
     }
 });
 
