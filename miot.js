@@ -18,7 +18,7 @@ $_().imports({
                 <i:Parts id='parts'/>\
                 <i:Authorize id='authorize'/>\
               </main>",
-        opt: { port: 3001, http: { port: 8001, bundle: true, static: "./static" } },
+        opt: { port: 1883, http: { port: 8000, bundle: true, static: "./static" } },
         fun: function (sys, items, opts) {
             let first = this.first();
             let table = this.find("./*[@id]").hash();
