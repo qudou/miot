@@ -1,4 +1,4 @@
-const Server = "ws://t-store.cn:8001";
+const Server = "ws://t-store.cn:8000";
 
 xmlplus("miot", (xp, $_, t) => {
 
