@@ -40,16 +40,19 @@ $_().imports({
                 await items.users.offlineAll(), await items.links.offlineAll(), await items.parts.offlineAll();
                 server.authenticate = items.authorize.authenticate;
                 server.authorizeSubscribe = items.authorize.authorizeSubscribe;
-                //server.authorizePublish = items.authorize.authorizePublish;
+                server.authorizePublish = items.authorize.authorizePublish;
                 console.log("Mosca server is up and running"); 
             });
             server.on("published", async (packet, client) => {
                 if (client == undefined || packet.topic !== "00000") return;
-                let data = JSON.parse(packet.payload + '');
+                let data = {};
+                try {
+                    data = JSON.parse(packet.payload + '');
+                } catch(err) {}
                 if (await items.users.isLogin(client.id)) {
                     data.ptr = [first];
                     first.trigger("enter", data, false);
-                } else if (await items.parts.isSubscribed(data.ssid)) {
+                } else if (await items.parts.canPublish(client.id)) {
                     let users = await items.parts.getUsersByPart(data.ssid);
                     users.forEach(user => publish(user.name, data));
                 }
@@ -70,12 +73,11 @@ $_().imports({
                     users.forEach(user => publish(user.name, {ssid: topic, data: {online: 0}}));
                 }
             });
+            server.on("clientConnected", async client => {
+                await items.users.update(client.id, 1) || await items.links.update(client.id, 1);
+            });
             server.on("clientDisconnected", async client => {
-                if (await items.users.isLogin(client.id)) {
-                    await items.users.offline(client.id);
-                } else if (await items.links.isLinked(client.id)) {
-                    await items.links.update(client.id, 0);
-                }
+                await items.users.update(client.id, 0) || await items.links.update(client.id, 0);
             });
             function publish(topic, payload) {
                 server.publish({topic: topic, payload: JSON.stringify(payload), qos: 1, retain: false});
@@ -187,24 +189,18 @@ $_("mosca").imports({
               </main>",
         fun: function (sys, items, opts) {
             async function authenticate(client, user, pass, callback) {
-                let answer = false;
-                let key = pass + '';
-                if (pass != undefined) {
-                    answer = await items.login(user, key);
-                    answer && await items.users.online(user, client.id);
-                } else {
-                    answer = await items.links.canLink(client.id);
-                    answer && await items.links.update(client.id, 1);
-                }
+                let answer = await items.login(user, pass + '') || await items.links.canLink(client.id);
                 callback(null, answer);
             }
             async function authorizeSubscribe(client, topic, callback) {
                 let answer = await items.users.canSubscribe(client.id, topic) || await items.parts.canSubscribe(topic);
                 callback(null, answer);
             }
-            async function authorizePublish(client, topic, callback) {
-                // 这里要对校验合法性
-                callback(null, true);
+            async function authorizePublish(client, topic, payload, callback) {
+                let userToPart = await items.users.canPublish(client.id, topic);
+                let userToMosca = await items.users.isLogin(client.id);
+                let partToUser = await items.parts.canPublish(client.id);
+                callback(null, userToPart || topic == "00000" && (userToMosca || partToUser));
             }
             return { authenticate: authenticate, authorizeSubscribe: authorizeSubscribe, authorizePublish: authorizePublish };
         }
@@ -216,9 +212,11 @@ $_("mosca").imports({
                 <i:InputCheck id='check'/>\
               </main>",
         fun: function (sys, items, opts) {
+            var cryptoJS = require("crypto-js");
             function checkName(name, pass) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM users WHERE name="${name}" AND client='0'`;
+                    let userId = cryptoJS.MD5(name).toString();
+                    let stmt = `SELECT * FROM users WHERE id="${userId}" AND name="${name}" AND online=0`;
                     items.sqlite.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(!!rows.length && checkPass(pass, rows[0]));
@@ -238,7 +236,7 @@ $_("mosca").imports({
         fun: function (sys, items, opts) {
             function isLogin(clientId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM users WHERE client='${clientId}' AND client <> '0'`;
+                    let stmt = `SELECT * FROM users WHERE id='${clientId}' AND online = 1`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(!!data.length);
@@ -247,41 +245,41 @@ $_("mosca").imports({
             }
             function canSubscribe(clientId, name) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM users WHERE client='${clientId}' AND client <> '0' AND name='${name}'`;
+                    let stmt = `SELECT * FROM users WHERE id='${clientId}' AND online = 1 AND name='${name}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(!!data.length);
                     });
                 });
             }
-            function online(user, clientId) {
+            function canPublish(clientId, topic) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE users SET client=? WHERE name=?");
-                    stmt.run(clientId, user, err => {
+                    let stmt = `SELECT authorizations.* FROM authorizations,rooms,homes WHERE authorizations.part='${topic}' AND authorizations.room = rooms.id AND homes.id = rooms.home AND homes.user = '${clientId}'`;
+                    items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
-                        resolve(true);
+                        resolve(!!data.length);
                     });
                 });
             }
-            function offline(clientId) {
+            function update(userId, online) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE users SET client=? WHERE client=? AND client <> '0'");
-                    stmt.run('0', clientId, err => {
+                    let stmt = items.sqlite.prepare("UPDATE users SET online=? WHERE id=?");
+                    stmt.run(online, userId, function(err) {
                         if (err) throw err;
-                        resolve(true);
+                        resolve(!!this.changes);
                     });
                 });
             }
             function offlineAll() {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE users SET client=?");
-                    stmt.run('0', err => {
+                    let stmt = items.sqlite.prepare("UPDATE users SET online=?");
+                    stmt.run(0, err => {
                         if (err) throw err;
                         resolve(true);
                     });
                 });
             }
-            return { isLogin: isLogin, canSubscribe: canSubscribe, online: online, offline: offline, offlineAll: offlineAll };
+            return { isLogin: isLogin, canSubscribe: canSubscribe, canPublish: canPublish, update: update, offlineAll: offlineAll };
         }
     },
     Links: {
@@ -289,7 +287,7 @@ $_("mosca").imports({
         fun: function (sys, items, opts) {
             function canLink(linkId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM links WHERE links.id = '${linkId}' AND links.online = 0`;
+                    let stmt = `SELECT links.* FROM links,parts,authorizations WHERE links.id = '${linkId}' AND links.online = 0 AND links.id = parts.link AND parts.id = authorizations.part`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(!!data.length);
@@ -308,9 +306,9 @@ $_("mosca").imports({
             function update(linkId, online) {
                 return new Promise((resolve, reject) => {
                     let stmt = items.sqlite.prepare("UPDATE links SET online=? WHERE id=?");
-                    stmt.run(online, linkId, err => {
+                    stmt.run(online, linkId, function(err) {
                         if (err) throw err;
-                        resolve(true);
+                        resolve(!!this.changes);
                     });
                 });
             }
@@ -347,6 +345,15 @@ $_("mosca").imports({
                     });
                 });
             }
+            function canPublish(clientId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT authorizations.* FROM authorizations,parts,links WHERE authorizations.part=parts.id AND parts.link ='${clientId}'`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(!!data.length);
+                    });
+                });
+            }
             function getUsersByPart(partId) {
                 return new Promise((resolve, reject) => {
                     let stmt = `SELECT users.name FROM parts,authorizations,rooms,homes,users WHERE parts.id='${partId}' AND parts.id=authorizations.part AND authorizations.room=rooms.id AND rooms.home=homes.id AND homes.user=users.id`;
@@ -359,9 +366,9 @@ $_("mosca").imports({
             function update(partId, online) {
                 return new Promise((resolve, reject) => {
                     let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE id=?");
-                    stmt.run(online, partId, err => {
+                    stmt.run(online, partId, function(err) {
                         if (err) throw err;
-                        resolve(true);
+                        resolve(!!this.changes);
                     });
                 });
             }
@@ -374,7 +381,7 @@ $_("mosca").imports({
                     });
                 });
             }
-            return { canSubscribe: canSubscribe, isSubscribed: isSubscribed, getUsersByPart: getUsersByPart, update: update, offlineAll: offlineAll };
+            return { canSubscribe: canSubscribe, isSubscribed: isSubscribed, canPublish: canPublish, getUsersByPart: getUsersByPart, update: update, offlineAll: offlineAll };
         }
     }
 });

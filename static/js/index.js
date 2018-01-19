@@ -43,6 +43,7 @@ $_().imports({
         fun: function (sys, items, opts) {
             let client = null;
             this.on("show", (e, key, config) => {
+                config.clientId = CryptoJS.MD5(config.username).toString();
                 client = mqtt.connect(Server, config);
                 client.on("connect", e => {
                     client.subscribe(config.username);
