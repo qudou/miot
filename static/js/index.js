@@ -73,13 +73,15 @@ $_().imports({
         }
     },
     Login: {
-        css: "#logo { display: block; width: 50%; }",
-        xml: "<i:Flow id='login' xmlns:i='login'>\
+        css: "#logo { margin: 60px auto 25px; padding: 4px; line-height: 1.42857143; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; -webkit-transition: all 0.2s ease-in-out; -o-transition: all 0.2s ease-in-out; transition: all 0.2s ease-in-out; display: block; width: 50%; height: auto; }",
+        xml: "<div class='page'><div class='page-content login-screen-content' xmlns:i='login'>\
                 <i:Logo id='logo'/>\
-                <i:User id='user'/>\
-                <i:Pass id='pass'/>\
-                <i:Submit id='submit'/>\
-              </i:Flow>",
+                <i:From id='login'>\
+                  <i:User id='user'/>\
+                  <i:Pass id='pass'/>\
+                  <i:Submit id='submit'/>\
+                </i:From>\
+              </div></div>",
         fun: function (sys, items, opts) {
             function keypress( e ) {
                 if (e.which === 13)
@@ -92,7 +94,7 @@ $_().imports({
     },
     Content: {
         css: "#content { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
-              #stack, #client, #stack > * { width: 100%; height: 100%; }",
+              #stack, #client, #stack > * { width: 100%; height: 100%; box-sizing: border-box;}",
         xml: "<div id='content' xmlns:i='content'>\
                 <ViewStack id='stack'>\
                     <i:Home id='home'/>\
@@ -159,17 +161,13 @@ $_("verify").imports({
 });
 
 $_("login").imports({
-    Flow: {
-        css: "#flow { height: 100%; display: -ms-flexbox; display: -webkit-flex; display: flex; -ms-flex-align: center; -webkit-align-items: center; -webkit-box-align: center; align-items: center; }\
-              #content { max-width: 330px; }\
-              #content > * { margin: 0 auto 1.25em; }\
-              #content > *:last-child { margin-bottom: 0; }",
-        xml: "<div id='flow'>\
-                <div id='content' class='container'/>\
-              </div>",
+    From: {
+        xml: "<form id='form' class='list form-store-data'>\
+                <ul id='content'/>\
+              </form>",
         map: { "appendTo": "content" },
         fun: function (sys, items, opts) {
-            var ptr, first = this.children()[1];
+            var ptr, first = this.first();
             this.on("next", function ( e, r ) {
                 e.stopPropagation();
                 ptr = ptr.next();
@@ -232,7 +230,9 @@ $_("login").imports({
         }
     },
     Submit: {
-        xml: "<Button id='submit' label='登录'/>",
+        xml: "<li id='submit'>\
+                <a href='#' class='item-link list-button'>登录</a>\
+              </li>",
         fun: function (sys, items, opts) {
             this.on("start", (e, o) => {
                 localStorage.setItem("username", o.name);
@@ -242,9 +242,18 @@ $_("login").imports({
         }
     },
     Input: {
-        xml: "<input id='input' type='text' class='form-control'/>",
+        xml: "<li class='item-content item-input'>\
+               <div class='item-inner'>\
+                <div id='label' class='item-title item-label'/>\
+                <div class='item-input-wrap'>\
+                  <input id='input' type='text' placeholder='Your name'/>\
+                  <span class='input-clear-button'/>\
+                </div>\
+               </div>\
+             </li>",
         map: { attrs: { input: "name value type maxlength placeholder" } },
         fun: function (sys, items, opts) {
+            //sys.label.text(opts.label);
             function focus() {
                 sys.input.elem().focus();
                 return this;
@@ -256,12 +265,6 @@ $_("login").imports({
                 return this;
             }
             return { val: val, focus: focus };
-        }
-    },
-    Button: {
-        xml: "<button class='btn btn-lg btn-primary btn-block'/>",
-        fun: function (sys, items, opts) {
-            this.text(opts.label);
         }
     }
 });
@@ -339,9 +342,16 @@ $_("content").imports({
                 require([`/parts/${data.class}/index.js`], e => {
                     let Client = `//${data.class}/Client`;
                     xp.hasComponent(Client).map.msgscope = true;
-                    register(data.id, sys.client.append(Client, data));
-                    items.overlay.hide();
+                    let client = sys.client.append(Client, data)
+                    register(data.id, client.once("ready", items.overlay.hide));
                 });
+            }
+            function register(id, client) {
+                sys.client.watch(id, (e, data, topic) => {
+                    if ( data.online == false )
+                        return sys.client.trigger("close");
+                    client.notify(topic, [data]);
+                }).watch("offline", () => sys.client.trigger("close"));
             }
             this.watch("open-part", (e, data) => {
                 items.overlay.show();
@@ -352,13 +362,6 @@ $_("content").imports({
                 e.stopPropagation();
                 sys.client.unwatch(opts.id).unwatch("offline").removeClass("#modal-in");
             }, false);
-            function register(id, client) {
-                sys.client.watch(id, (e, data, topic) => {
-                    if ( data.online == false )
-                        return sys.client.trigger("close");
-                    client.notify(topic, [data]);
-                }).watch("offline", () => sys.client.trigger("close"));
-            }
         }
     },
     Footer: {
