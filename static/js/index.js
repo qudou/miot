@@ -73,7 +73,7 @@ $_().imports({
         }
     },
     Login: {
-        css: "#logo { margin: 60px auto 25px; padding: 4px; line-height: 1.42857143; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; -webkit-transition: all 0.2s ease-in-out; -o-transition: all 0.2s ease-in-out; transition: all 0.2s ease-in-out; display: block; width: 50%; height: auto; }",
+        css: "#logo { margin: 60px auto 25px; display: block; width: 50%; height: auto; }",
         xml: "<div class='page'><div class='page-content login-screen-content' xmlns:i='login'>\
                 <i:Logo id='logo'/>\
                 <i:From id='login'>\
@@ -181,8 +181,9 @@ $_("login").imports({
         }
     },
     Logo: {
-        css: "#logo { fill: currentColor; color: #3388FF; }",
-        xml: "<svg id='logo' viewBox='0 0 1024 1024' width='200' height='200' class='img-thumbnail'>\
+        css: "#logo { fill: currentColor; color: #3388FF; }\
+              #logo { padding: 4px; line-height: 1.42857143; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; -webkit-transition: all 0.2s ease-in-out; -o-transition: all 0.2s ease-in-out; transition: all 0.2s ease-in-out; display: inline-block; max-width: 100%; height: auto;}",
+        xml: "<svg id='logo' viewBox='0 0 1024 1024' width='200' height='200'>\
                 <path d='M880 688c-32 0-57.6 9.6-83.2 25.6l-99.2-96c28.8-35.2 48-83.2 48-134.4 0-57.6-22.4-108.8-60.8-147.2l80-80c16 9.6 32 12.8 51.2 12.8C876.8 272 928 220.8 928 160c0-60.8-51.2-112-112-112C755.2 48 704 99.2 704 160c0 19.2 6.4 38.4 12.8 54.4l-86.4 86.4c-28.8-16-64-25.6-102.4-25.6-51.2 0-99.2 19.2-137.6 51.2L307.2 240C313.6 224 320 208 320 192c0-60.8-51.2-112-112-112C147.2 80 96 131.2 96 192c0 60.8 51.2 112 112 112 22.4 0 41.6-6.4 60.8-16l86.4 83.2c-22.4 32-32 70.4-32 112 0 35.2 9.6 70.4 25.6 99.2l-70.4 70.4c-28.8-19.2-60.8-32-99.2-32C80 624 0 704 0 800s80 176 176 176S352 896 352 800c0-38.4-12.8-73.6-32-99.2l64-64c38.4 38.4 89.6 60.8 147.2 60.8 44.8 0 86.4-12.8 118.4-35.2l105.6 102.4C742.4 780.8 736 806.4 736 832c0 80 64 144 144 144s144-64 144-144S960 688 880 688z'/>\
               </svg>"
     },
@@ -717,13 +718,11 @@ $_("content/about").imports({
     },
     Content: {
         css: "#body { height: 100%; text-align: center; overflow-y: auto; display: -ms-flexbox; display: -webkit-flex; display: flex; -ms-flex-align: center; -webkit-align-items: center; -webkit-box-align: center; align-items: center; }\
-              #logo { width: 160px; border-radius: 10px; background: rgba(255,255,255,0.8) none repeat scroll; }\
+              #logo { margin: 0 auto; width: 160px; border-radius: 10px; background: rgba(255,255,255,0.8) none repeat scroll; }\
               #body { margin: 0; box-sizing: border-box; }\
               #content > * { margin: 0 0 .5em; }",
         xml: "<div id='body'>\
-                <div id='content' class='container'>\
-                    <Logo id='logo' xmlns='/login'/>\
-                </div>\
+                <Logo id='logo' xmlns='/login'/>\
               </div>"
     },
     Icon: {
