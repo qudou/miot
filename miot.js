@@ -1,117 +1,375 @@
-const xmlplus = require("xmlplus");
+/*!
+ * miot.js v1.0.0
+ * https://github.com/qudou/miot
+ * (c) 2009-2017 qudou
+ * Released under the MIT license
+ */
 
-xmlplus("miot", (xp, $_) => {
+const mosca = require("mosca");
+const xmlplus = require("xmlplus");
+const ID = "c55d5e0e-f506-4933-8962-c87932e0bc2a";
+
+xmlplus("miot", (xp, $_, t) => {
 
 $_().imports({
     Index: {
-        xml: "<Mosca id='index'>\
-                <Homes id='homes'/>\
-                <Rooms id='rooms'/>\
-                <Parts id='parts'/>\
-              </Mosca>",
+        xml: "<main id='index'>\
+                <Mosca id='mosca'/>\
+                <Proxy id='proxy'/>\
+              </main>",
         map: { share: "sqlite/Sqlite" }
     },
     Mosca: {
         xml: "<main id='mosca' xmlns:i='mosca'>\
-                <i:Users id='users'/>\
-                <i:Links id='links'/>\
+                <i:Authorize id='auth'/>\
+                <i:Homes id='homes'/>\
                 <i:Parts id='parts'/>\
-                <i:Authorize id='authorize'/>\
               </main>",
-        opt: { port: 1883, http: { port: 8000, bundle: true, static: "./static" } },
-        fun: function (sys, items, opts) {
-            let first = this.first();
-            let table = this.find("./*[@id]").hash();
-            let server = new require('mosca').Server(opts);
-
-            this.on("next", (e, d, next) => {
-                d.ptr[0] = table[next] || d.ptr[0].next();
-                d.ptr[0] ? d.ptr[0].trigger("enter", d, false) : this.trigger("reject", d);
-            });
-            this.on("reply", (e, d) => {
-                let topic = d.ssid;
-                delete d.ptr; d.ssid = "00000"; publish(topic, d);
-            });
-            this.on("reject", (e, d) => {
-                d.code = -1;
-                this.trigger("reply", d);
-            });
+        fun: async function (sys, items, opts) {
+            let options = await items.parts.options();
+            let server = new mosca.Server({port: 1883});
             server.on("ready", async () => {
-                await items.users.offlineAll(), await items.links.offlineAll(), await items.parts.offlineAll();
-                server.authenticate = items.authorize.authenticate;
-                server.authorizeSubscribe = items.authorize.authorizeSubscribe;
-                server.authorizePublish = items.authorize.authorizePublish;
+                await items.homes.offlineAll();
+                await items.parts.offlineAll();
+                Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
                 console.log("Mosca server is up and running"); 
             });
-            server.on("published", async (packet, client) => {
-                if (client == undefined || packet.topic !== "00000") return;
-                let data = {};
-                try {
-                    data = JSON.parse(packet.payload + '');
-                } catch(err) {}
-                if (await items.users.isLogin(client.id)) {
-                    data.ptr = [first];
-                    first.trigger("enter", data, false);
-                } else if (await items.parts.canPublish(client.id)) {
-                    let users = await items.parts.getUsersByPart(data.ssid);
-                    users.forEach(user => publish(user.name, data));
-                }
-            });
             server.on("subscribed", async (topic, client) => {
-                if (await items.users.isLogin(client.id)) {
-                    first.trigger("enter", {ssid: topic, topic: "/homes/select", ptr:[first]});
-                } else if (await items.parts.canSubscribe(topic)) {
-                    let users = await items.parts.getUsersByPart(topic);
-                    await items.parts.update(topic, 1);
-                    users.forEach(user => publish(user.name, {ssid: topic, data: {online: 1}}));
-                }
+                await items.homes.update(topic, 1);
+                await items.parts.update(topic, 1);
+                this.notify("answer", {ssid: topic, online: 0});
             });
             server.on("unsubscribed", async (topic, client) => {
-                if (await items.parts.isSubscribed(topic)) {
-                    let users = await items.parts.getUsersByPart(topic);
-                    await items.parts.update(topic, 0);
-                    users.forEach(user => publish(user.name, {ssid: topic, data: {online: 0}}));
+                await items.homes.update(topic, 0);
+                await items.parts.update(topic, 0);
+                this.notify("answer", {ssid: topic, online: 0});
+                let parts = await items.parts.getPartsByLink(topic);
+                parts.forEach(item => {
+                    this.notify("answer", {ssid: item.part, online: 0});
+                });
+            });
+            server.on("published", async (packet, client) => {
+                if (client == undefined) return;
+                if (packet.topic == ID) {
+                    let payload = JSON.parse(packet.payload + '');
+                    xp.extend(options[payload.ssid], payload.data);
+                    items.parts.cache(payload.ssid, options[payload.ssid]);
+                    this.notify("answer", payload);
                 }
             });
-            server.on("clientConnected", async client => {
-                await items.users.update(client.id, 1) || await items.links.update(client.id, 1);
+            this.watch("publish", (e, topic, msg) => {
+                delete msg.ptr;
+                delete msg.args;
+                server.publish({topic: topic, payload: JSON.stringify(msg), qos: 1, retain: false});
             });
-            server.on("clientDisconnected", async client => {
-                await items.users.update(client.id, 0) || await items.links.update(client.id, 0);
+        }
+    },
+    Proxy: {
+        xml: "<main id='proxy' xmlns:i='proxy'>\
+                <i:Authorize id='auth'/>\
+                <i:Users id='users'/>\
+                <i:Homes id='homes'/>\
+                <i:Rooms id='rooms'/>\
+                <i:Parts id='parts'/>\
+              </main>",
+        opt: { port: 1885, http: { port: 8000, bundle: true, static: "./static" } },
+        fun: function (sys, items, opts) {
+            let first = sys.homes;
+            let server = new mosca.Server(opts);
+            server.on("ready", async () => {
+                await items.users.offlineAll();
+                Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
+                console.log("Proxy server is up and running"); 
+            });
+            server.on("clientConnected", client => {
+                items.users.update(client.id, 1);
+            });
+            server.on("clientDisconnected", client => {
+                items.users.update(client.id, 0);
+            });
+            server.on("subscribed", (topic, client) => {
+                first.trigger("enter", {ssid: topic, topic: "/homes/select", ptr:[first]});
+            });
+            server.on("published", async (packet, client) => {
+                if (client == undefined) return;
+                let payload = JSON.parse(packet.payload + '');
+                if (packet.topic == ID) {
+                    payload.ptr = [first];
+                    first.trigger("enter", payload, false);
+                } else {
+                    let topic = await items.parts.getLinkByPart(packet.topic);
+                    this.notify("publish", [topic, {ssid: packet.topic, body: payload}]);
+                }
+            });
+            this.on("publish", (e, payload) => {
+                delete payload.ptr;
+                let topic = payload.ssid;
+                payload.ssid = ID;
+                publish(topic, payload);
+            });
+            this.watch("answer", async (e, payload) => {
+                let users = await items.users.getUsersByPart(payload.ssid);
+                users.forEach(user => publish(user.name, payload));
             });
             function publish(topic, payload) {
-                server.publish({topic: topic, payload: JSON.stringify(payload), qos: 1, retain: false});
+                payload = JSON.stringify(payload);
+                server.publish({topic: topic, payload: payload, qos: 1, retain: false});
             }
+        }
+    }
+});
+
+$_("mosca").imports({
+    Authorize: {
+        xml: "<main id='authorize'>\
+                <Homes id='homes'/>\
+              </main>",
+        fun: function (sys, items, opts) {
+            async function authenticate(client, user, pass, callback) {
+                callback(null, await items.homes.canLink(client.id));
+            }
+            return { authenticate: authenticate };
         }
     },
     Homes: {
-        xml: "<i:Flow xmlns:i='mosca' xmlns:h='homes'>\
+        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
+        fun: function (sys, items, opts) {
+            function canLink(homeId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT * FROM homes WHERE id = '${homeId}' AND online = 0`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(!!data.length);
+                    });
+                });
+            }
+            function update(homeId, online) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE homes SET online=? WHERE id=?");
+                    stmt.run(online, homeId, err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
+                });
+            }
+            function offlineAll() {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE homes SET online=?");
+                    stmt.run(0, err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
+                });
+            }
+            return { canLink: canLink, update: update, offlineAll: offlineAll };
+        }
+    },
+    Parts: {
+        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
+        fun: function (sys, items, opts) {
+            function options() {
+                return new Promise(resolve => {
+                    items.sqlite.all("SELECT * FROM parts", (err, rows) => {
+                        if (err) throw err;
+                        let table = {};
+                        rows.forEach(item => table[item.id] = JSON.parse(item.data));
+                        resolve(table);
+                    });
+                });
+            }
+            function cache(id, data) {
+                let stmt = items.sqlite.prepare("UPDATE parts SET data=? WHERE id=?");
+                stmt.run(JSON.stringify(data), id, err => {
+                    if (err) throw err;
+                });
+            }
+            function update(homeId, online) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE id in (SELECT part FROM authorizations, homes, rooms WHERE authorizations.room = rooms.id AND rooms.home = homes.id AND homes.id = ?)");
+                    stmt.run(online, homeId, err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
+                });
+            }
+            function offlineAll() {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare(`UPDATE parts SET online=?`);
+                    stmt.run(0, err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
+                });
+            }
+            function getPartsByLink(linkId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT authorizations.* FROM homes,rooms,authorizations WHERE homes.id='${linkId}' AND rooms.home = homes.id AND authorizations.room = rooms.id`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data);
+                    });
+                });
+            }
+            return { options: options, cache: cache, update: update, offlineAll: offlineAll, getPartsByLink: getPartsByLink };
+        }
+    }
+});
+
+$_("proxy").imports({
+    Authorize: {
+        xml: "<main id='authorize'>\
+                <Login id='login'/>\
+                <Users id='users'/>\
+              </main>",
+        fun: function (sys, items, opts) {
+            async function authenticate(client, user, pass, callback) {
+                callback(null, await items.login(user, pass + ''));
+            }
+            async function authorizeSubscribe(client, topic, callback) {
+                callback(null, await items.users.canSubscribe(client.id, topic));
+            }
+            return { authenticate: authenticate, authorizeSubscribe: authorizeSubscribe };
+        }
+    },
+    Login: {
+        xml: "<main id='login' xmlns:i='login'>\
+                <Sqlite id='sqlite' xmlns='/sqlite'/>\
+                <i:Crypto id='crypto'/>\
+                <i:InputCheck id='check'/>\
+              </main>",
+        fun: function (sys, items, opts) {
+            var cryptoJS = require("crypto-js");
+            function checkName(name, pass) {
+                return new Promise((resolve, reject) => {
+                    let userId = cryptoJS.MD5(name).toString();
+                    let stmt = `SELECT * FROM users WHERE id="${userId}" AND name="${name}" AND online=0`;
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if (err) throw err;
+                        resolve(!!rows.length && checkPass(pass, rows[0]));
+                    });
+                });
+            }
+            function checkPass(pass, record) {
+                return items.crypto.encrypt(pass, record.salt) == record.pass;
+            }
+            return async (name, pass) => {
+                return items.check("u", name) && items.check("p", pass) && await checkName(name, pass);
+            };
+        }
+    },
+    Users: {
+        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
+        fun: function (sys, items, opts) {
+            function canSubscribe(clientId, name) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT * FROM users WHERE id='${clientId}' AND online = 1 AND name='${name}'`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(!!data.length);
+                    });
+                });
+            }
+            function getUsersByPart(partId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT users.name FROM users,homes,parts WHERE parts.id='${partId}' AND homes.id = parts.home AND homes.user = users.id`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data);
+                    });
+                });
+            }
+            function update(userId, online) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE users SET online=? WHERE id=?");
+                    stmt.run(online, userId, function(err) {
+                        if (err) throw err;
+                        resolve(true);
+                    });
+                });
+            }
+            function offlineAll() {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE users SET online=?");
+                    stmt.run(0, err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
+                });
+            }
+            return { canSubscribe: canSubscribe, getUsersByPart: getUsersByPart, update: update, offlineAll: offlineAll };
+        }
+    },
+    Homes: {
+        xml: "<i:Flow xmlns:i='homes'>\
                 <i:Router id='router' url='/homes/:action'/>\
-                <h:Select id='select'/>\
+                <i:Select id='select'/>\
               </i:Flow>"
     },
     Rooms: {
-        xml: "<i:Flow xmlns:i='mosca' xmlns:r='rooms'>\
+        xml: "<i:Flow xmlns:i='homes' xmlns:r='rooms'>\
                 <i:Router id='router' url='/rooms/:action'/>\
                 <r:Select id='select'/>\
               </i:Flow>"
     },
     Parts: {
-        xml: "<i:Flow xmlns:i='mosca' xmlns:p='parts'>\
+        xml: "<i:Flow xmlns:i='homes' xmlns:p='parts'>\
                 <i:Router id='router' url='/parts/:action'/>\
                 <p:Select id='select'/>\
-              </i:Flow>"
-    },
-    Signup: {
-        xml: "<i:Flow xmlns:i='mosca' xmlns:s='signup'>\
-                <i:Router id='router' url='/signup'/>\
-                <s:Validate id='validate'/>\
-                <s:Register id='register'/>\
-              </i:Flow>"
+                <Sqlite id='sqlite' xmlns='/sqlite'/>\
+              </i:Flow>",
+        fun: function (sys, items, opts) {
+            function getLinkByPart(partId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT home FROM parts WHERE id='${partId}'`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data[0].home);
+                    });
+                });
+            }
+            return { getLinkByPart: getLinkByPart };
+        }
     }
 });
 
-$_("mosca").imports({
+$_("proxy/login").imports({
+    InputCheck: {
+        fun: function (sys, items, opts) {
+            var ureg = /^[A-Z0-9]{6,}$/i,
+                ereg = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i;
+            var table = { u: user, p: pass, e: email };
+            function user( v ) {
+                return v.length <= 32 && ureg.test(v);
+            }
+            function pass( v ) {
+                return 6 <= v.length && v.length <= 16 
+            }
+            function email( v ) {
+                return v.length <= 32 && ereg.test(v);
+            }
+            function check( key, value ) {
+                return typeof value == "string" && table[key](value);
+            }
+            return check;
+        }
+    },
+    Crypto: {
+        opt: { keySize: 512/32, iterations: 32 },
+        map: { format: { "int": "keySize iterations" } },
+        fun: function (sys, items, opts) {
+            var cryptoJS = require("crypto-js");
+            function encrypt(plaintext, salt) {
+                return cryptoJS.PBKDF2(plaintext, salt, opts).toString();
+            }
+            function salt() {
+                return cryptoJS.lib.WordArray.random(128/8).toString();
+            }
+            return { encrypt: encrypt, salt: salt };
+        }
+    }
+});
+
+$_("proxy/homes").imports({
     Flow: {
         xml: "<main id='flow'/>",
         fun: function (sys, items, opts) {
@@ -176,404 +434,54 @@ $_("mosca").imports({
                 return params;
             };
         }
-    }
-});
-
-$_("mosca").imports({
-    Authorize: {
-        xml: "<main id='mosca'>\
-                <Login id='login'/>\
-                <Users id='users'/>\
-                <Links id='links'/>\
-                <Parts id='parts'/>\
-              </main>",
-        fun: function (sys, items, opts) {
-            async function authenticate(client, user, pass, callback) {
-                let answer = await items.login(user, pass + '') || await items.links.canLink(client.id);
-                callback(null, answer);
-            }
-            async function authorizeSubscribe(client, topic, callback) {
-                let answer = await items.users.canSubscribe(client.id, topic) || await items.parts.canSubscribe(topic);
-                callback(null, answer);
-            }
-            async function authorizePublish(client, topic, payload, callback) {
-                let userToPart = await items.users.canPublish(client.id, topic);
-                let userToMosca = await items.users.isLogin(client.id);
-                let partToUser = await items.parts.canPublish(client.id);
-                callback(null, userToPart || topic == "00000" && (userToMosca || partToUser));
-            }
-            return { authenticate: authenticate, authorizeSubscribe: authorizeSubscribe, authorizePublish: authorizePublish };
-        }
     },
-    Login: {
-        xml: "<main id='login' xmlns:i='login'>\
-                <Sqlite id='sqlite' xmlns='/sqlite'/>\
-                <i:Crypto id='crypto'/>\
-                <i:InputCheck id='check'/>\
-              </main>",
-        fun: function (sys, items, opts) {
-            var cryptoJS = require("crypto-js");
-            function checkName(name, pass) {
-                return new Promise((resolve, reject) => {
-                    let userId = cryptoJS.MD5(name).toString();
-                    let stmt = `SELECT * FROM users WHERE id="${userId}" AND name="${name}" AND online=0`;
-                    items.sqlite.all(stmt, (err, rows) => {
-                        if (err) throw err;
-                        resolve(!!rows.length && checkPass(pass, rows[0]));
-                    });
-                });
-            }
-            function checkPass(pass, record) {
-                return items.crypto.encrypt(pass, record.salt) == record.pass;
-            }
-            return async (name, pass) => {
-                return items.check("u", name) && items.check("p", pass) && await checkName(name, pass);
-            };
-        }
-    },
-    Users: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
-        fun: function (sys, items, opts) {
-            function isLogin(clientId) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM users WHERE id='${clientId}' AND online = 1`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(!!data.length);
-                    });
-                });
-            }
-            function canSubscribe(clientId, name) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM users WHERE id='${clientId}' AND online = 1 AND name='${name}'`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(!!data.length);
-                    });
-                });
-            }
-            function canPublish(clientId, topic) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT authorizations.* FROM authorizations,rooms,homes WHERE authorizations.part='${topic}' AND authorizations.room = rooms.id AND homes.id = rooms.home AND homes.user = '${clientId}'`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(!!data.length);
-                    });
-                });
-            }
-            function update(userId, online) {
-                return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE users SET online=? WHERE id=?");
-                    stmt.run(online, userId, function(err) {
-                        if (err) throw err;
-                        resolve(!!this.changes);
-                    });
-                });
-            }
-            function offlineAll() {
-                return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE users SET online=?");
-                    stmt.run(0, err => {
-                        if (err) throw err;
-                        resolve(true);
-                    });
-                });
-            }
-            return { isLogin: isLogin, canSubscribe: canSubscribe, canPublish: canPublish, update: update, offlineAll: offlineAll };
-        }
-    },
-    Links: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
-        fun: function (sys, items, opts) {
-            function canLink(linkId) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT links.* FROM links,parts,authorizations WHERE links.id = '${linkId}' AND links.online = 0 AND links.id = parts.link AND parts.id = authorizations.part`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(!!data.length);
-                    });
-                });
-            }
-            function isLinked(linkId) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM links WHERE links.id = '${linkId}' AND links.online = 1`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(!!data.length);
-                    });
-                });
-            }
-            function update(linkId, online) {
-                return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE links SET online=? WHERE id=?");
-                    stmt.run(online, linkId, function(err) {
-                        if (err) throw err;
-                        resolve(!!this.changes);
-                    });
-                });
-            }
-            function offlineAll() {
-                return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE links SET online=?");
-                    stmt.run(0, err => {
-                        if (err) throw err;
-                        resolve(true);
-                    });
-                });
-            }
-            return { canLink: canLink, isLinked: isLinked, update: update, offlineAll: offlineAll };
-        }
-    },
-    Parts: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
-        fun: function (sys, items, opts) {
-            function canSubscribe(partId) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT authorizations.* FROM parts,links,authorizations WHERE authorizations.part='${partId}' AND authorizations.part=parts.id AND parts.online=0 AND parts.link=links.id AND links.online=1`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(!!data.length);
-                    });
-                });
-            }
-            function isSubscribed(partId) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT authorizations.* FROM parts,links,authorizations WHERE authorizations.part='${partId}' AND authorizations.part=parts.id AND parts.online=1 AND parts.link=links.id AND links.online=1`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(!!data.length);
-                    });
-                });
-            }
-            function canPublish(clientId) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT authorizations.* FROM authorizations,parts,links WHERE authorizations.part=parts.id AND parts.link ='${clientId}'`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(!!data.length);
-                    });
-                });
-            }
-            function getUsersByPart(partId) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT users.name FROM parts,authorizations,rooms,homes,users WHERE parts.id='${partId}' AND parts.id=authorizations.part AND authorizations.room=rooms.id AND rooms.home=homes.id AND homes.user=users.id`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(data);
-                    });
-                });
-            }
-            function update(partId, online) {
-                return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE id=?");
-                    stmt.run(online, partId, function(err) {
-                        if (err) throw err;
-                        resolve(!!this.changes);
-                    });
-                });
-            }
-            function offlineAll() {
-                return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE parts SET online=?");
-                    stmt.run(0, err => {
-                        if (err) throw err;
-                        resolve(true);
-                    });
-                });
-            }
-            return { canSubscribe: canSubscribe, isSubscribed: isSubscribed, canPublish: canPublish, getUsersByPart: getUsersByPart, update: update, offlineAll: offlineAll };
-        }
-    }
-});
-
-$_("mosca/login").imports({
-    InputCheck: {
-        fun: function (sys, items, opts) {
-            var ureg = /^[A-Z0-9]{6,}$/i,
-                ereg = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i;
-            var table = { u: user, p: pass, e: email };
-            function user( v ) {
-                return v.length <= 32 && ureg.test(v);
-            }
-            function pass( v ) {
-                return 6 <= v.length && v.length <= 16 
-            }
-            function email( v ) {
-                return v.length <= 32 && ereg.test(v);
-            }
-            function check( key, value ) {
-                return typeof value == "string" && table[key](value);
-            }
-            return check;
-        }
-    },
-    Crypto: {
-        opt: { keySize: 512/32, iterations: 32 },
-        map: { format: { "int": "keySize iterations" } },
-        fun: function (sys, items, opts) {
-            var cryptoJS = require("crypto-js");
-            function encrypt(plaintext, salt) {
-                return cryptoJS.PBKDF2(plaintext, salt, opts).toString();
-            }
-            function salt() {
-                return cryptoJS.lib.WordArray.random(128/8).toString();
-            }
-            return { encrypt: encrypt, salt: salt };
-        }
-    }
-});
-
-$_("sinup").imports({
-    Validate: {
-        xml: "<main id='top' xmlns:h='/mosca/login' xmlns:s='/sqlite'>\
-                <s:Sqlite id='sqlite'/>\
-                <h:InputCheck id='check'/>\
-              </main>",
-        fun: function ( sys, items, opts ) {
-            this.on("enter", (e, d) => {
-                e.stopPropagation();
-                if ( items.check("e", d.email) && items.check("u", d.body.name) || items.check("p", d.body.pass) )
-                    return checkName(d);
-                this.trigger("reject", xp.extend(d, {desc: "邮箱、用户名或密码有误"}));
-            });
-            function checkName(d) {
-                var stmt = "SELECT * FROM users WHERE name='" + d.body.name + "' limit 1";
-                items.sqlite.all(stmt, (err, rows) => {
-                    if ( err ) { throw err; }
-                    if ( !rows.length )
-                        return checkEmail(d);
-                    this.trigger("reject", xp.extend(d, {desc: "用户已存在"}));
-                });
-            }
-            function checkEmail(d) {
-                var stmt = "SELECT * FROM users WHERE email='" + d.body.email + "' limit 1";
-                items.sqlite.all(stmt, function(err, rows) {
-                    if ( err ) { throw err; }
-                    if ( !rows.length )
-                        return this.trigger("next", d);
-                    this.trigger("reject", xp.extend(d, {desc: "邮箱已存在"}));
-                });
-            }
-        }
-    },
-    Register: {
-       xml: "<main id='top' xmlns:t='/login' xmlns:i='/sqlite'>\
-                <i:Sqlite id='sqlite'/>\
-                <t:Crypto id='crypto'/>\
-              </main>",
-        fun: function ( sys, items, opts ) {
-            this.on("enter", (e, d) => {
-                var salt = items.crypto.salt(),
-                    pass = items.crypto.encrypt(d.body.pass, salt),
-                    stmt = items.sqlite.prepare("INSERT INTO users (email,name,pass,salt) values(?, ?,?,?)");
-                stmt.run(d.body.email, d.body.name, d.body.pass, salt);
-                stmt.finalize(e => {
-                    this.trigger("reply", xp.extend(d, {desc: "注册成功"}));
-                }); 
-            });
-        }
-    }
-});
-
-$_("homes").imports({
     Select: {
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
-            let SELECT = "SELECT * FROM homes";
-            this.on("enter", (e, d) => {
-                items.sqlite.all(SELECT, (err, data) => {
-                    if (err) { throw err; }
-                    d.data = data;
-                    this.trigger("reply", d);
-                });
-            });
-        }
-    },
-});
-
-$_("rooms").imports({
-    Select: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
-        fun: function (sys, items, opts) {
-            let SELECT = "SELECT * FROM rooms WHERE home=";
-            this.on("enter", (e, d) => {
-                items.sqlite.all(SELECT + d.body.homeId, (err, data) => {
-                    if ( err ) { throw err; }
-                    d.data = data;
-                    this.trigger("reply", d);
-                });
-            });
-        }
-    },
-});
-
-$_("parts").imports({
-    Select: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
-        fun: function (sys, items, opts) {
-            this.on("enter", (e, d) => {
-                let stmt = `SELECT parts.* FROM parts,authorizations WHERE authorizations.room=${d.body.roomId} AND authorizations.part=parts.id`;
-                items.sqlite.all(stmt, (err, data) => {
-                    if ( err ) { throw err; }
-                    d.data = data;
-                    this.trigger("reply", d);
-                });
-            });
-        }
-    },
-    Update: {
-        xml: "<main xmlns:v='validate' xmlns:i='/sqlite'>\
-                <i:Sqlite id='sqlite'/>\
-                <v:Update id='validate'/>\
-              </main>",
-        fun: function (sys, items, opts) {
-            let SELECT = "SELECT * FROM parts WHERE id=",
-                UPDATE = "UPDATE parts SET name=?, room=?, class=?, online=? WHERE id=?";
-            this.on("enter", async (e, d) => {
-                d.body = xp.extend({}, await select(d.body.id), d.body);
-                items.validate(e, d);
-            });
-            sys.validate.on("success", (e, r) => {
-                let d = r.body,
-                    stmt = items.sqlite.prepare(UPDATE);
-                stmt.run(d.name, d.room, d.class, d.online, d.id, function (err) {
+            this.on("enter", (e, payload) => {
+                items.sqlite.all("SELECT * FROM homes", (err, data) => {
                     if (err) throw err;
-                    r.body.code = this.changes ? 0 : -1;
-                    sys.sqlite.trigger("reply", r);
+                    payload.data = data;
+                    this.trigger("publish", payload);
                 });
             });
-            function select(partId) {
-                return new Promise((resolve, reject) => {
-                    items.sqlite.all(SELECT + partId, (err, data) => {
-                        if (err) { throw err; }
-                        resolve(data);
-                    });
-                });
-            }
         }
     }
 });
 
-$_("parts/validate").imports({
-    Validate: {
+$_("proxy/rooms").imports({
+    Select: {
+        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
-            function id(value) {
-                return xp.isNumeric(value) && /^\d+$/.test(value + "");
-            }
-            function name(value) {
-                return typeof value == "string" && /^[a-z_][a-z0-9_]*$/i.test(value);
-            }
-            return { id: id, name: name };
+            this.on("enter", (e, payload) => {
+                let stmt = `SELECT * FROM rooms WHERE home='${payload.body.homeId}'`;
+                items.sqlite.all(stmt, (err, data) => {
+                    if (err) throw err;
+                    payload.data = data;
+                    this.trigger("publish", payload);
+                });
+            });
         }
-    },
-    Update: {
-        xml: "<Validate id='validate'/>",
+    }
+});
+
+$_("proxy/parts").imports({
+    Select: {
+        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
-            let check = items.validate;
-            return (e, d) => {
-                d.code = check.id(d.body.id) && check.name(d.body.name) ? 0 : -1;
-                this.trigger(d.code == 0 ? "success" : "reply", d);
-            };
+            this.on("enter", (e, payload) => {
+                let stmt = `SELECT parts.* FROM parts,authorizations WHERE authorizations.room=${payload.body.roomId} AND authorizations.part=parts.id`;
+                items.sqlite.all(stmt, (err, data) => {
+                    if (err) throw err;
+                    data.forEach(item => {
+                        item.ssid = item.id;
+                        delete item.id;
+                        item.data = JSON.parse(item.data);
+                    });
+                    payload.data = data;
+                    this.trigger("publish", payload);
+                });
+            });
         }
     }
 });
@@ -591,7 +499,7 @@ $_("sqlite").imports({
     Prepare: {
         fun: function (sys, items, opts) {
             return stmt => {
-                var args = [].slice.call(arguments).slice(1);
+                let args = [].slice.call(arguments).slice(1);
                 args.forEach(item => {
                     stmt = stmt.replace("?", typeof item == "string" ? '"' + item + '"' : item);
                 });

@@ -1,4 +1,12 @@
+/*!
+ * miot.js v1.0.0
+ * https://github.com/qudou/miot
+ * (c) 2009-2017 qudou
+ * Released under the MIT license
+ */
+
 const Server = "ws://t-store.cn:8000";
+const Gateway = "c55d5e0e-f506-4933-8962-c87932e0bc2a";
 
 xmlplus("miot", (xp, $_, t) => {
 
@@ -52,9 +60,9 @@ $_().imports({
                 });
                 client.on("message", (topic, payload) => {
                     payload = JSON.parse(payload.toString());
-                    if (payload.ssid == "00000")
+                    if (payload.ssid == Gateway)
                         return this.notify(payload.topic, [payload.data, payload]);
-                    this.notify(payload.ssid, [payload.data, payload.topic]);
+                    this.notify(payload.ssid, payload);
                 });
                 client.on("close", e => this.notify("offline"));
                 client.on("error", e => this.notify("logout"));
@@ -290,7 +298,7 @@ $_("content").imports({
                 sys.title.text(home.name);
                 if (homes[home.id])
                     return this.notify("/rooms/select", [homes[home.id]]);
-                this.notify("publish", ["00000", {topic: "/rooms/select", body: {homeId: home.id}}]);
+                this.notify("publish", [Gateway, {topic: "/rooms/select", body: {homeId: home.id}}]);
             }).watch("offline", e => homes = {});
         }
     },
@@ -313,7 +321,7 @@ $_("content").imports({
                 sys.title.text(room.name);
                 if (rooms[room.id])
                     return this.notify("/parts/select", [rooms[room.id]]);
-                this.notify("publish", ["00000", {topic: "/parts/select", body: {roomId: room.id}}]);
+                this.notify("publish", [Gateway, {topic: "/parts/select", body: {roomId: room.id}}]);
             }).watch("offline", e => rooms = {});
         }
     },
@@ -330,38 +338,35 @@ $_("content").imports({
               #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}\
               #client > * { width: 100%; height: 100%; }",
         xml: "<div id='client'>\
-                <Overlay id='overlay' xmlns='/verify'/>\
                 <div id='instance'/>\
               </div>",
         fun: function (sys, items, opts) {
-            let table = {};
-            this.on("publish", (e, topic, data) => {
+            this.on("publish", (e, topic, body) => {
                 e.stopPropagation();
-                this.notify("publish", [opts.id + '', {topic: topic, data: data}]);
+                this.notify("publish", [opts.ssid, {topic: topic, body: body}]);
             });
-            function loadClient(data) {
-                require([`/parts/${data.class}/index.js`], e => {
-                    let Client = `//${data.class}/Client`;
+            function loadClient(part) {
+                require([`/parts/${part.class}/index.js`], e => {
+                    let Client = `//${part.class}/Client`;
                     xp.hasComponent(Client).map.msgscope = true;
-                    let client = sys.client.append(Client, data)
-                    register(data.id, client.once("ready", items.overlay.hide));
+                    let client = sys.client.append(Client, part);
+                    register(client.notify("options", part.data));
                 });
             }
-            function register(id, client) {
-                sys.client.watch(id, (e, data, topic) => {
-                    if ( data.online == false )
+            function register(client) {
+                sys.client.watch(opts.ssid, (e, part) => {
+                    if ( part.online == 0 )
                         return sys.client.trigger("close");
-                    client.notify(topic, [data]);
+                    client.notify("options", xp.extend(true, opts.data, part.data));
                 }).watch("offline", () => sys.client.trigger("close"));
             }
             this.watch("open-part", (e, data) => {
-                items.overlay.show();
                 sys.client.addClass("#modal-in").last().remove();
                 loadClient(opts = data);
             });
             this.on("close", e => {
                 e.stopPropagation();
-                sys.client.unwatch(opts.id).unwatch("offline").removeClass("#modal-in");
+                sys.client.unwatch(opts.ssid).unwatch("offline").removeClass("#modal-in");
             }, false);
         }
     },
@@ -465,7 +470,7 @@ $_("content/home").imports({
         fun: function (sys, items, opts) {
             this.on("data",  (e, payload) => {
                 var data = e.currentTarget.data("data");
-                xp.extend(data, payload);
+                xp.extend(true, data, payload);
                 items.icon(data['class']);
                 sys.label.text(data.name);
                 sys.thumbnail[data.online ? 'addClass' : 'removeClass']("#active");
@@ -630,7 +635,7 @@ $_("content/room").imports({
                     list[i] || list.push(sys.parts.append("Thumbnail"));
                     list[i].unwatch(list[i].attr("_id"));
                     list[i].data("data", item).trigger("data", item, false);
-                    list[i].watch(item.id + '', listener).attr("_id", item.id + '').show();
+                    list[i].watch(item.ssid + '', listener).attr("_id", item.ssid + '').show();
                 }
                 for ( var k = i; k < list.length; k++ )
                     list[k].unwatch(list[i].attr("_id")).hide();
