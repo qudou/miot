@@ -1,0 +1,33 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          miot
+# Required-Start:    $local_fs $remote_fs $network $syslog $named
+# Required-Stop:     $local_fs $remote_fs $network $syslog $named
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# X-Interactive:     true
+# Short-Description: Start/stop miot server
+### END INIT INFO
+
+DEAMON=/root/miot/miot.js
+LOG=/var/log/miot.log
+PID=/var/run/miot.pid
+
+export PATH=$PATH:/usr/local/bin
+export NODE_PATH=$NODE_PATH:/usr/local/lib/node_modules
+
+case "$1" in
+ start)
+  forever start -l $LOG --pidFile $PID -a $DEAMON
+  ;;
+ stop)
+  forever stop --pidFile $PID $DEAMON
+  ;;
+ restart)
+  forever restart -l $LOG --pidFile $PID -a $DEAMON
+  ;;
+  *)
+  echo "Usage: /etc.init.d/node {start|stop|restart}"
+  exit 1
+  ;;
+esac
