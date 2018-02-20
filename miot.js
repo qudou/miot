@@ -491,7 +491,7 @@ $_("sqlite").imports({
         fun: function (sys, items, opts) {
             let sqlite = require("sqlite3").verbose(),
                 db = new sqlite.Database("data.db");
-			db.exec("VACUUM");
+            db.exec("VACUUM");
             db.exec("PRAGMA foreign_keys = ON");
             return db;
         }
