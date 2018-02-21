@@ -72,7 +72,7 @@ $_().imports({
                 <i:Rooms id='rooms'/>\
                 <i:Parts id='parts'/>\
               </main>",
-        opt: { port: 1885, http: { port: 8000, bundle: true, static: "./static" } },
+        opt: { port: 1885, http: { port: 8000, bundle: true, static: `${__dirname}/static` } },
         fun: function (sys, items, opts) {
             let first = sys.homes;
             let server = new mosca.Server(opts);
@@ -490,7 +490,7 @@ $_("sqlite").imports({
     Sqlite: {
         fun: function (sys, items, opts) {
             let sqlite = require("sqlite3").verbose(),
-                db = new sqlite.Database("data.db");
+                db = new sqlite.Database(`${__dirname}/data.db`);
             db.exec("VACUUM");
             db.exec("PRAGMA foreign_keys = ON");
             return db;
