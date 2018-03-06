@@ -339,6 +339,7 @@ $_("content").imports({
               #client > * { width: 100%; height: 100%; }",
         xml: "<div id='client'>\
                 <div id='instance'/>\
+                <Overlay id='overlay' xmlns='/verify'/>\
               </div>",
         fun: function (sys, items, opts) {
             this.on("publish", (e, topic, body) => {
@@ -349,8 +350,9 @@ $_("content").imports({
                 require([`/parts/${part.class}/index.js`], e => {
                     let Client = `//${part.class}/Client`;
                     xp.hasComponent(Client).map.msgscope = true;
-                    let client = sys.client.append(Client, part);
+                    let client = sys.overlay.before(Client, part);
                     register(client.notify("options", part.data));
+                    items.overlay.hide();
                 });
             }
             function register(client) {
@@ -361,7 +363,8 @@ $_("content").imports({
                 }).watch("offline", () => sys.client.trigger("close"));
             }
             this.watch("open-part", (e, data) => {
-                sys.client.addClass("#modal-in").last().remove();
+                items.overlay.show();
+                sys.client.addClass("#modal-in").first().remove();
                 loadClient(opts = data);
             });
             this.on("close", e => {

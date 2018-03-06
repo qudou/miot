@@ -36,24 +36,23 @@ $_().imports({
             });
             server.on("subscribed", async (topic, client) => {
                 await items.homes.update(topic, 1);
-                await items.parts.update(topic, 1);
-                this.notify("to-users", {ssid: topic, online: 0});
             });
             server.on("unsubscribed", async (topic, client) => {
                 await items.homes.update(topic, 0);
                 await items.parts.update(topic, 0);
-                this.notify("to-users", {ssid: topic, online: 0});
                 let parts = await items.parts.getPartsByLink(topic);
                 parts.forEach(item => {
-                    this.notify("to-users", {ssid: item.part, online: 0});
+                    this.notify("to-users", {ssid: item.id, online: 0});
                 });
             });
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 if (packet.topic == ID) {
                     let payload = JSON.parse(packet.payload + '');
-                    xp.extend(options[payload.ssid], payload.data);
-                    items.parts.cache(payload.ssid, options[payload.ssid]);
+                    let part = await items.parts.getPartByLink(client.id, payload.ssid);
+                    xp.extend(options[part.id], payload.data);
+                    items.parts.cache(part.id, payload.online, options[part.id]);
+                    payload.ssid = part.id;
                     this.notify("to-users", payload);
                 }
             });
@@ -97,8 +96,8 @@ $_().imports({
                     payload.ptr = [first];
                     first.trigger("enter", payload, false);
                 } else {
-                    let topic = await items.parts.getLinkByPart(packet.topic);
-                    this.notify("to-local", [topic, {ssid: packet.topic, body: payload}]);
+                    let part = await items.parts.getPartById(packet.topic);
+                    this.notify("to-local", [part.home, {ssid: part.part, body: payload}]);
                 }
             });
             this.on("publish", (e, payload) => {
@@ -107,7 +106,7 @@ $_().imports({
                 payload.ssid = ID;
                 publish(topic, payload);
             });
-            this.watch("to-users", async (e, payload) => {
+            this.watch("to-users", async (e, payload, linkId) => {
                 let users = await items.users.getUsersByPart(payload.ssid);
                 users.forEach(user => publish(user.name, payload));
             });
@@ -177,8 +176,9 @@ $_("mosca").imports({
                     });
                 });
             }
-            function cache(id, data) {
-                let stmt = items.sqlite.prepare("UPDATE parts SET data=? WHERE id=?");
+            function cache(id, online, data) {
+                let str = "UPDATE parts SET data=?, online=% WHERE id=?";
+                let stmt = items.sqlite.prepare(str.replace('%', online == undefined ? 1 : online));
                 stmt.run(JSON.stringify(data), id, err => {
                     if (err) throw err;
                 });
@@ -201,16 +201,25 @@ $_("mosca").imports({
                     });
                 });
             }
+            function getPartByLink(linkId, partId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT * FROM parts WHERE home='${linkId}' AND part = '${partId}'`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data[0]);
+                    });
+                });
+            }
             function getPartsByLink(linkId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT authorizations.* FROM homes,rooms,authorizations WHERE homes.id='${linkId}' AND rooms.home = homes.id AND authorizations.room = rooms.id`;
+                    let stmt = `SELECT parts.* FROM homes,rooms,parts,authorizations WHERE homes.id='${linkId}' AND rooms.home = homes.id AND authorizations.room = rooms.id AND authorizations.part = parts.id`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data);
                     });
                 });
             }
-            return { options: options, cache: cache, update: update, offlineAll: offlineAll, getPartsByLink: getPartsByLink };
+            return { options: options, cache: cache, update: update, offlineAll: offlineAll, getPartByLink: getPartByLink, getPartsByLink: getPartsByLink };
         }
     }
 });
@@ -281,7 +290,7 @@ $_("proxy").imports({
             function update(userId, online) {
                 return new Promise((resolve, reject) => {
                     let stmt = items.sqlite.prepare("UPDATE users SET online=? WHERE id=?");
-                    stmt.run(online, userId, function(err) {
+                    stmt.run(online, userId, err => {
                         if (err) throw err;
                         resolve(true);
                     });
@@ -318,16 +327,16 @@ $_("proxy").imports({
                 <Sqlite id='sqlite' xmlns='/sqlite'/>\
               </i:Flow>",
         fun: function (sys, items, opts) {
-            function getLinkByPart(partId) {
+            function getPartById(partId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT home FROM parts WHERE id='${partId}'`;
+                    let stmt = `SELECT * FROM parts WHERE id = '${partId}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
-                        resolve(data[0].home);
+                        resolve(data[0]);
                     });
                 });
             }
-            return { getLinkByPart: getLinkByPart };
+            return { getPartById: getPartById };
         }
     }
 });
