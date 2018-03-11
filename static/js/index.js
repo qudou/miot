@@ -5,6 +5,7 @@
  * Released under the MIT license
  */
 
+const app = new Framework7();
 const Server = "ws://t-store.cn:8000";
 const Gateway = "c55d5e0e-f506-4933-8962-c87932e0bc2a";
 
@@ -105,8 +106,7 @@ $_().imports({
               #stack, #client, #stack > * { width: 100%; height: 100%; box-sizing: border-box;}",
         xml: "<div id='content' xmlns:i='content'>\
                 <ViewStack id='stack'>\
-                    <i:Home id='home'/>\
-                    <i:Room id='room'/>\
+                    <i:Index id='index'/>\
                     <i:About id='about'/>\
                 </ViewStack>\
                 <i:Client id='client'/>\
@@ -117,7 +117,7 @@ $_().imports({
                 e.stopPropagation();
                 sys.stack.trigger("switch", page, false);
             });
-            this.on("show", () => this.notify("switch-page", "home"));
+            this.on("show", () => this.notify("switch-page", "index"));
         }
     },
     ViewStack: {
@@ -279,50 +279,29 @@ $_("login").imports({
 });
 
 $_("content").imports({
-    Home: {
-        css: "#home { padding: 12px; }\
-              #rooms { max-height: calc(100% - 130px); overflow: auto; }",
-        xml: "<div id='home' xmlns:i='home'>\
-                <i:Header id='header' for='home'/>\
+    Index: {
+        css: "#index { padding: 12px; }\
+              #parts { max-height: calc(100% - 130px); overflow: auto; }",
+        xml: "<div id='index' xmlns:i='index'>\
+                <i:Header id='header'/>\
+                <i:Areas id='areas'/>\
                 <i:Title id='title'/>\
-                <i:Homelist id='homelist'/>\
-                <i:Rooms id='rooms'/>\
+                <i:Stores id='stores'/>\
+                <i:Parts id='parts'/>\
               </div>",
         fun: function (sys, items, opts) {
-            var homes = {};
-            this.watch("/rooms/select", (e, rooms, d) => {
-                if (!d) return;
-                homes[d.body.homeId] = rooms;
-            });
-            this.watch("open-home", (e, home) => {
-                sys.title.text(home.name);
-                if (homes[home.id])
-                    return this.notify("/rooms/select", [homes[home.id]]);
-                this.notify("publish", [Gateway, {topic: "/rooms/select", body: {homeId: home.id}}]);
-            }).watch("offline", e => homes = {});
-        }
-    },
-    Room: {
-        css: "#room { padding: 12px; }\
-              #parts { max-height: calc(100% - 130px); overflow: auto; }",
-        xml: "<div id='room' xmlns:i='room'>\
-                <i:Header id='header' for='room'/>\
-                <i:Title id='title'/>\
-                <i:Roomlist id='roomlist'/>\
-                <i:Parts id='parts'/>\
-              </div>", 
-        fun: function (sys, items, opts) {
-            var rooms = {};
+            var stores = {};
             this.watch("/parts/select", (e, parts, d) => {
                 if (!d) return;
-                rooms[d.body.roomId] = parts;
+                stores[d.body.link] = parts;
             });
-            this.watch("open-room", (e, room) => {
-                sys.title.text(room.name);
-                if (rooms[room.id])
-                    return this.notify("/parts/select", [rooms[room.id]]);
-                this.notify("publish", [Gateway, {topic: "/parts/select", body: {roomId: room.id}}]);
-            }).watch("offline", e => rooms = {});
+            this.watch("open-store", (e, store) => {
+                sys.title.text(store.name);
+                if (stores[store.id])
+                    return this.notify("/parts/select", [stores[store.id]]);
+                this.notify("publish", [Gateway, {topic: "/parts/select", body: {link: store.id}}]);
+            }).watch("offline", e => stores = {});
+            sys.title.on("click", e => this.notify("show-stores"))
         }
     },
     About: {
@@ -375,86 +354,132 @@ $_("content").imports({
     },
     Footer: {
         xml: "<i:Tabbar id='nav' xmlns:i='footer'>\
-                <i:TabItem id='home' label='家庭'/>\
-                <i:TabItem id='room' label='房间'/>\
+                <i:TabItem id='index' label='首页'/>\
                 <i:TabItem id='about' label='关于'/>\
               </i:Tabbar>",
         fun: function (sys, items, opts) {
-            this.watch("switch-page", function (e, page) {
-                sys[page].trigger("touchend");
-            });
+            this.watch("switch-page", (e, page) => sys[page].trigger("touchend"));
         }
     }
 });
 
-$_("content/home").imports({
+$_("content/index").imports({
     Header: {
         css: "#header { margin: 0 4px; height: 26px; line-height: 26px; color: white; }\
+              #area { float: left; background: none; padding: 0; }\
+              #list { float: left; margin-right: 8px; }\
               #add { float: right; margin: 0 0 0 8px; }\
               #line { float: right; }",
         xml: "<header id='header' xmlns:i='header'>\
                 <i:Icon id='list'/>\
+                <i:Line id='area'/>\
                 <i:Icon id='add'/>\
                 <i:Line id='line'/>\
               </header>",
         fun: function (sys, items, opts) {
-            sys.list.on("touchend", e => {
-                let line = sys.line.text();
-                line == "在线" && this.notify("show-" + opts['for'] + "list");
-            });
             this.watch("online", e => sys.line.text("在线"));
             this.watch("offline", e => sys.line.text("离线"));
+            sys.area.on("touchend", () => {
+                let line = sys.line.text();
+                line == "在线" && app.panel.open();
+            });
+            this.watch("open-area", (e, area) => sys.area.text(area.name));
+        }
+    },
+    Areas: {
+        xml: "<div id='area' class='panel panel-left panel-cover'>\
+                <div class='page'>\
+                  <div class='page-content'>\
+                    <div class='block-title'>区域选择</div>\
+                    <div class='list links-list'><ul id='areas'/></div>\
+                  </div>\
+                </div>\
+             </div>",
+        fun: function (sys, items, opts) {
+            var areas = {}, checked = {};
+            this.watch("/areas/select", (e, areas) => {
+                var tmp, selected;
+                sys.areas.children().call("remove");
+                areas.forEach(item => {
+                    item.key = "area";
+                    tmp = sys.areas.append("areas/Item");
+                    tmp.value().init(item);
+                    item.id == checked.id && (selected = tmp);
+                });
+                (selected || sys.areas.first()).trigger("touchend");
+            });
+            sys.areas.on("touchend", "*", function (e) {
+                checked = this.data("data");
+                this.trigger("checked", true);
+                app.panel.close();
+                sys.areas.notify("open-area", this.data("data"));
+            });
+            this.watch("/links/select", (e, stores, d) => {
+                if (!d) return;
+                areas[d.body.area] = stores;
+            });
+            this.watch("open-area", (e, area) => {
+                if (areas[area.id])
+                    return this.notify("/links/select", [areas[area.id]]);
+                this.notify("publish", [Gateway, {topic: "/links/select", body: {area: area.id}}]);
+            });
+            this.watch("offline", e => areas = {});
+            app.panel.create({swipe: "left", el: sys.area.elem()});
+        }
+    },
+    Stores: {
+        xml: "<List id='stores' xmlns='list'/>",
+        fun: function (sys, items, opts) {
+            var checked = {};
+            this.watch("/links/select", (e, links) => {
+                var tmp, selected;
+                sys.stores.children().call("remove");
+                links.forEach(item => {
+                    item.key = "link";
+                    tmp = sys.stores.append("list/Item");
+                    tmp.value().init(item);
+                    item.id == checked.id && (selected = tmp);
+                });
+                (selected || sys.stores.first()).trigger("touchend");
+            });
+            sys.stores.on("touchend", "*", function (e) {
+                checked = this.data("data");
+                this.trigger("checked", true);
+                items.stores.hide().notify("open-store", this.data("data"));
+            });
+            this.watch("show-stores", items.stores.show);
         }
     },
     Title: {
         css: "#title { letter-spacing: 0.1em; margin: 16px 4px 12px; font-weight: bold; color: white; }",
         xml: "<h3 id='title'/>"
     },
-    HomeList: {
-        xml: "<List id='homelist' xmlns='list'/>",
+    Parts: {
+        css: "#parts { display: flex; overflow: auto; flex-wrap: wrap; }\
+              #parts > * { margin: 4px }",
+        xml: "<div id='parts'/>",
         fun: function (sys, items, opts) {
-            var checked = {};
-            this.watch("/homes/select", (e, homes) => {
-                var tmp, selected;
-                sys.homelist.children().call("remove");
-                homes.forEach(item => {
-                    item.key = "home";
-                    tmp = sys.homelist.append("list/Item");
-                    tmp.value().init(item);
-                    item.id == checked.id && (selected = tmp);
-                });
-                (selected || sys.homelist.first()).trigger("touchend");
-            });
-            sys.homelist.on("touchend", "*", function (e) {
-                checked = this.data("data");
-                this.trigger("checked", true);
-                items.homelist.hide().notify("open-home", this.data("data"));
-            });
-            this.watch("show-homelist", items.homelist.show);
-        }
-    },
-    Rooms: {
-        css: "#rooms { display: flex; overflow: hidden; flex-wrap: wrap; }\
-              #rooms > * { margin: 4px }",
-        xml: "<div id='rooms'/>",
-        fun: function (sys, items, opts) {
-            this.watch("/rooms/select", (e, rooms) => {
-                var item, list = sys.rooms.children();
-                for ( i = 0; i < rooms.length; i++ ) {
-                    item = rooms[i];
-                    item.online = true;
-                    list[i] || list.push(sys.rooms.append("Thumbnail"));
+            this.watch("/parts/select", (e, parts) => {
+                var item, list = sys.parts.children();
+                for ( i = 0; i < parts.length; i++ ) {
+                    item = parts[i];
+                    list[i] || list.push(sys.parts.append("Thumbnail"));
+                    list[i].unwatch(list[i].attr("_id"));
                     list[i].data("data", item).trigger("data", item, false);
+                    list[i].watch(item.ssid + '', listener).attr("_id", item.ssid + '').show();
                 }
                 for ( var k = i; k < list.length; k++ )
-                    list[k].hide();
+                    list[k].unwatch(list[i].attr("_id")).hide();
             });
-            sys.rooms.on("touchend", "*", function (e) {
+            function listener(e, item) {
+                e.currentTarget.trigger("data", item, false);
+            }
+            sys.parts.on("touchend", "*", function (e) {
                 var data = this.data("data");
-                data.online && this.notify("switch-page", "room").notify("open-room", data);
+                data.online && this.notify("open-part", data);
             });
             this.watch("offline", e => {
-                sys.rooms.children().forEach(item => {
+                sys.parts.children().forEach(item => {
                     item.trigger("data", {online: false}, false);
                 })
             });
@@ -468,7 +493,7 @@ $_("content/home").imports({
               a#active { color: #FF9501; }",
         xml: "<a id='thumbnail'>\
                 <Icon id='icon'/>\
-                <span id='label'>我的家</span>\
+                <span id='label'>标签</span>\
               </a>",
         fun: function (sys, items, opts) {
             this.on("data",  (e, payload) => {
@@ -481,26 +506,37 @@ $_("content/home").imports({
         }
     },
     Icon: {
-        css: "#icon { fill: currentColor; height: 30px; display: block; width: 30px; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
+        css: "#icon { fill: currentColor; width: 30px; height: 30px; display: block; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
         xml: "<span id='icon'/>",
         fun: function (sys, items, opts) {
             let iPath, icon = sys.icon;
             return (klass) => {
-                let iconPath = "Default";
-                if ( iPath != iconPath ) {
-                    icon = icon.replace(iPath = iconPath).addClass("#icon");
+                try {
+                    try_show(klass);
+                } catch(err) {
+                    show("Unknow");
+                }
+                function try_show(klass) {
+                    require([`/parts/${klass}/icon.js`], e => {
+                        let iconPath = `//${klass}/Icon`;
+                        show(xp.hasComponent(iconPath) ? iconPath : "Unknow");
+                    });
+                }
+                function show(iconPath) {
+                    if (iPath != iconPath)
+                        icon = icon.replace(iPath = iconPath).addClass("#icon");
                 }
             };
         }
     },
-    Default: {
+    Unknow: {
         xml: "<svg viewBox='0 0 1024 1024' width='200' height='200'>\
-                <path d='M0 64l256 0 0 896-256 0 0-896Z' p-id='7567'></path><path d='M320 64l704 0 0 256-704 0 0-256Z' p-id='7568'></path><path d='M320 384l704 0 0 576-704 0 0-576Z'/>\
+                  <path d='M797.75744 438.02624c-11.07968 0-21.95456 0.8192-32.72704 2.56 2.2528-13.6192 3.62496-27.36128 3.62496-41.69728 0-146.47296-118.6816-265.3184-265.29792-265.3184-142.56128 0-258.62144 112.78336-264.62208 254.03392C105.6768 394.38336 0 503.99232 0 638.64832c0 139.10016 112.68096 251.76064 251.82208 251.76064h545.93536C922.64448 890.40896 1024 789.13536 1024 664.18688c0-124.88704-101.35552-226.16064-226.24256-226.16064zM510.27968 808.38656c-22.69184 0-41.14432-18.06336-41.14432-40.30464 0-22.24128 18.39104-40.30464 41.14432-40.30464 22.67136 0 41.14432 18.06336 41.14432 40.30464-0.02048 22.24128-18.41152 40.30464-41.14432 40.30464z m110.46912-228.0448c-8.06912 12.6976-25.1904 29.92128-51.44576 51.77344-13.57824 11.28448-22.03648 20.3776-25.31328 27.29984-3.2768 6.8608-4.8128 19.16928-4.48512 36.90496h-58.5728c-0.12288-8.3968-0.24576-13.5168-0.24576-15.38048 0-18.96448 3.13344-34.52928 9.4208-46.77632 6.26688-12.24704 18.8416-26.0096 37.62176-41.2672 18.78016-15.31904 30.04416-25.31328 33.71008-30.04416 5.632-7.49568 8.51968-15.7696 8.51968-24.73984 0-12.4928-5.05856-23.18336-15.0528-32.1536-9.99424-8.9088-23.57248-13.39392-40.57088-13.39392-16.40448 0-30.12608 4.68992-41.14432 13.96736-11.01824 9.29792-20.50048 29.7984-22.75328 42.496-2.10944 11.9808-59.84256 17.03936-59.14624-7.24992 0.69632-24.28928 13.33248-50.62656 34.97984-69.71392 21.66784-19.08736 50.11456-28.65152 85.2992-28.65152 37.04832 0 66.4576 9.68704 88.3712 29.02016 21.9136 19.3536 32.80896 41.84064 32.80896 67.54304a74.07616 74.07616 0 0 1-12.00128 40.36608z'/>\
               </svg>"
     }
 });
 
-$_("content/home/header").imports({
+$_("content/index/header").imports({
     Icon: {
         css: "#icon { display: inline-block; border-radius: 13px; background:rgba(0,0,0,0.2) none repeat scroll; width: 26px; height: 26px; }\
               #icon svg { color: white; fill: currentColor; width: 16px; height: 16px; margin: 5px; }",
@@ -526,7 +562,30 @@ $_("content/home/header").imports({
     }
 });
 
-$_("content/home/list").imports({
+$_("content/index/areas").imports({
+    Item: {
+        css: "#label, #icon { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }\
+              #input { display: none; } #input:checked ~ div { background: no-repeat center; background-image: url(\"data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D'8px'%20height%3D'13px'%20viewBox%3D'0%200%208%2013'%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%3E%3Cpolygon%20fill%3D'%23007aff'%20transform%3D'translate(1.500000%2C%206.500000)%20rotate(-45.000000)%20translate(-1.500000%2C%20-6.500000)%20'%20points%3D'6%2011%206%202%204%202%204%209%20-3%209%20-3%2011%205%2011'%3E%3C%2Fpolygon%3E%3C%2Fsvg%3E\"); -webkit-background-size: 13px 10px; background-size: 8px 13px; background-position: calc(100% - 15px) center; }",
+        xml: "<li id='item'>\
+                <a id='span' href='javascript:void(0)'/>\
+                <label id='label'>\
+                    <input id='input' type='radio'/>\
+                    <div id='icon'/>\
+                </label>\
+              </li>",
+        fun: function (sys, items, opts) {
+            this.on("checked", (e, value) => sys.input.prop("checked", value));
+            return { init: data => {
+                this.data("data", data);
+                sys.span.text(data.name);
+                sys.input.attr("name", data.key);
+                sys.input.prop("value", data.name);
+            }};
+        }
+    }
+});
+
+$_("content/index/list").imports({
     List: {
         css: "#list { -webkit-transition-duration: .3s; transition-duration: .3s; position: fixed; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
               #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}",
@@ -596,124 +655,12 @@ $_("content/home/list").imports({
     }
 });
 
-$_("content/room").imports({
-    Header: {
-        map: { extend: {"from": "../home/Header"} }
-    },
-    Title: {
-        map: { extend: {"from": "../home/Title"} }
-    },
-    RoomList: {
-        xml: "<List id='roomlist' xmlns='../home/list'/>",
-        fun: function (sys, items, opts) {
-            var checked = {};
-            this.watch("/rooms/select", (e, rooms) => {
-                var tmp, selected;
-                sys.roomlist.children().call("remove");
-                rooms.forEach(item => {
-                    item.key = "room";
-                    tmp = sys.roomlist.append("../home/list/Item");
-                    tmp.value().init(item);
-                    item.id == checked.id && (selected = tmp);
-                });
-                (selected || sys.roomlist.first()).trigger("touchend");
-            });
-            sys.roomlist.on("touchend", "*", function (e) {
-                checked = this.data("data");
-                this.trigger("checked", true);
-                items.roomlist.hide().notify("open-room", this.data("data"));
-            });
-            this.watch("show-roomlist", items.roomlist.show);
-        }
-    },
-    Parts: {
-        css: "#parts { display: flex; overflow: auto; flex-wrap: wrap; }\
-              #parts > * { margin: 4px }",
-        xml: "<div id='parts'/>",
-        fun: function (sys, items, opts) {
-            this.watch("/parts/select", (e, parts) => {
-                var item, list = sys.parts.children();
-                for ( i = 0; i < parts.length; i++ ) {
-                    item = parts[i];
-                    list[i] || list.push(sys.parts.append("Thumbnail"));
-                    list[i].unwatch(list[i].attr("_id"));
-                    list[i].data("data", item).trigger("data", item, false);
-                    list[i].watch(item.ssid + '', listener).attr("_id", item.ssid + '').show();
-                }
-                for ( var k = i; k < list.length; k++ )
-                    list[k].unwatch(list[i].attr("_id")).hide();
-            });
-            function listener(e, item) {
-                e.currentTarget.trigger("data", item, false);
-            }
-            sys.parts.on("touchend", "*", function (e) {
-                var data = this.data("data");
-                data.online && this.notify("open-part", data);
-            });
-            this.watch("offline", e => {
-                sys.parts.children().forEach(item => {
-                    item.trigger("data", {online: false}, false);
-                })
-            });
-        }
-    },
-    Thumbnail: {
-        map: { extend: { "from": "../home/Thumbnail" } }
-    },
-    Icon: {
-        css: "#icon { fill: currentColor; width: 30px; height: 30px; display: block; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
-        xml: "<span id='icon'/>",
-        fun: function (sys, items, opts) {
-            let iPath, icon = sys.icon;
-            return (klass) => {
-                try {
-                    try_show(klass);
-                } catch(err) {
-                    show("Unknow");
-                }
-                function try_show(klass) {
-                    require([`/parts/${klass}/icon.js`], e => {
-                        let iconPath = `//${klass}/Icon`;
-                        show(xp.hasComponent(iconPath) ? iconPath : "Unknow");
-                    });
-                }
-                function show(iconPath) {
-                    if (iPath != iconPath)
-                        icon = icon.replace(iPath = iconPath).addClass("#icon");
-                }
-            };
-        }
-    },
-    Unknow: {
-        xml: "<svg viewBox='0 0 1024 1024' width='200' height='200'>\
-                  <path d='M797.75744 438.02624c-11.07968 0-21.95456 0.8192-32.72704 2.56 2.2528-13.6192 3.62496-27.36128 3.62496-41.69728 0-146.47296-118.6816-265.3184-265.29792-265.3184-142.56128 0-258.62144 112.78336-264.62208 254.03392C105.6768 394.38336 0 503.99232 0 638.64832c0 139.10016 112.68096 251.76064 251.82208 251.76064h545.93536C922.64448 890.40896 1024 789.13536 1024 664.18688c0-124.88704-101.35552-226.16064-226.24256-226.16064zM510.27968 808.38656c-22.69184 0-41.14432-18.06336-41.14432-40.30464 0-22.24128 18.39104-40.30464 41.14432-40.30464 22.67136 0 41.14432 18.06336 41.14432 40.30464-0.02048 22.24128-18.41152 40.30464-41.14432 40.30464z m110.46912-228.0448c-8.06912 12.6976-25.1904 29.92128-51.44576 51.77344-13.57824 11.28448-22.03648 20.3776-25.31328 27.29984-3.2768 6.8608-4.8128 19.16928-4.48512 36.90496h-58.5728c-0.12288-8.3968-0.24576-13.5168-0.24576-15.38048 0-18.96448 3.13344-34.52928 9.4208-46.77632 6.26688-12.24704 18.8416-26.0096 37.62176-41.2672 18.78016-15.31904 30.04416-25.31328 33.71008-30.04416 5.632-7.49568 8.51968-15.7696 8.51968-24.73984 0-12.4928-5.05856-23.18336-15.0528-32.1536-9.99424-8.9088-23.57248-13.39392-40.57088-13.39392-16.40448 0-30.12608 4.68992-41.14432 13.96736-11.01824 9.29792-20.50048 29.7984-22.75328 42.496-2.10944 11.9808-59.84256 17.03936-59.14624-7.24992 0.69632-24.28928 13.33248-50.62656 34.97984-69.71392 21.66784-19.08736 50.11456-28.65152 85.2992-28.65152 37.04832 0 66.4576 9.68704 88.3712 29.02016 21.9136 19.3536 32.80896 41.84064 32.80896 67.54304a74.07616 74.07616 0 0 1-12.00128 40.36608z'/>\
-              </svg>"
-    }
-});
-
-$_("content/room/header").imports({
-    Icon: {
-        map: { extend: {"from": "../../home/header/Icon"} }
-    },
-    List: {
-        xml: "<svg viewBox='0 0 1024 1024' width='200' height='200'>\
-                <path d='M931.2 227.2 396.8 227.2c-19.2 0-35.2-19.2-35.2-41.6 0-22.4 16-41.6 35.2-41.6l534.4 0c19.2 0 35.2 19.2 35.2 41.6C966.4 208 950.4 227.2 931.2 227.2L931.2 227.2 931.2 227.2zM931.2 534.4 396.8 534.4c-19.2 0-35.2-19.2-35.2-41.6 0-22.4 16-41.6 35.2-41.6l534.4 0c19.2 0 35.2 19.2 35.2 41.6C966.4 515.2 950.4 534.4 931.2 534.4L931.2 534.4 931.2 534.4zM931.2 859.2 396.8 859.2c-19.2 0-35.2-19.2-35.2-41.6 0-22.4 16-41.6 35.2-41.6l534.4 0c19.2 0 35.2 19.2 35.2 41.6C966.4 841.6 950.4 859.2 931.2 859.2L931.2 859.2 931.2 859.2zM171.2 896c-44.8 0-80-35.2-80-80 0-44.8 35.2-80 80-80 44.8 0 80 35.2 80 80C251.2 860.8 216 896 171.2 896L171.2 896 171.2 896zM171.2 576c-44.8 0-80-35.2-80-80 0-44.8 35.2-80 80-80 44.8 0 80 35.2 80 80C251.2 539.2 216 576 171.2 576L171.2 576 171.2 576zM171.2 254.4c-44.8 0-80-35.2-80-80 0-44.8 35.2-80 80-80 44.8 0 80 35.2 80 80C251.2 219.2 216 254.4 171.2 254.4L171.2 254.4 171.2 254.4zM404.8 776'/>\
-              </svg>"
-    },
-    Add: {
-        map: { extend: {"from": "../../home/header/Add"} }
-    },
-    Line: {
-        map: { extend: {"from": "../../home/header/Line"} }
-    }
-});
-
 $_("content/about").imports({
     Header: {
         css: "#header { margin: 0 4px; height: 26px; line-height: 26px; color: white; }\
               #logout { float: right; margin: 0 0 0 8px; }\
               #line { float: right; }",
-        xml: "<header id='header' xmlns:i='../home/header'>\
+        xml: "<header id='header' xmlns:i='../index/header'>\
                 <Icon id='about'/>\
                 <Icon id='logout'/>\
                 <i:Line id='line'/>\
@@ -734,7 +681,7 @@ $_("content/about").imports({
               </div>"
     },
     Icon: {
-        map: { extend: {"from": "../home/header/Icon"} }
+        map: { extend: {"from": "../index/header/Icon"} }
     },
     About: {
         map: { extend: {"from": "../footer/icon/About"} }
@@ -789,7 +736,7 @@ $_("content/footer").imports({
     TabIcon: {
         css: "#icon { fill: currentColor; height: 30px; display: block; width: 30px; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
         xml: "<span id='icon'/>",
-        opt: { icon: "Home" },
+        opt: { icon: "Index" },
         fun: function (sys, items, opts) {
             sys.icon.replace("icon/" + opts.icon).addClass("#icon");
         }
@@ -797,15 +744,10 @@ $_("content/footer").imports({
 });
 
 $_("content/footer/icon").imports({
-    Home: {
+    Index: {
         xml: "<svg width='48' height='48' viewBox='0 0 1024 1024'>\
                 <path d='M949.082218 519.343245 508.704442 107.590414 68.326667 518.133697c-8.615215 8.03193-9.096169 21.538549-1.043772 30.144554 8.043187 8.599865 21.566178 9.085936 30.175253 1.035586l411.214573-383.337665 411.232992 384.505257c4.125971 3.854794 9.363252 5.760191 14.5903 5.760191 5.690606 0 11.384281-2.260483 15.58393-6.757914C958.138478 540.883841 957.695387 527.388479 949.082218 519.343245L949.082218 519.343245zM949.082218 519.343245M814.699602 527.800871c-11.787464 0-21.349237 9.555633-21.349237 21.327748l0 327.037405L622.552373 876.166023 622.552373 648.662543 394.824789 648.662543l0 227.503481L224.032938 876.166023 224.032938 549.128619c0-11.772115-9.55154-21.327748-21.348214-21.327748-11.802814 0-21.35333 9.555633-21.35333 21.327748l0 369.691877 256.19494 0L437.526333 691.318038l142.329613 0 0 227.502457 256.1888 0L836.044746 549.128619C836.045769 537.356504 826.481949 527.800871 814.699602 527.800871L814.699602 527.800871zM814.699602 527.800871M665.254941 222.095307l128.095423 0 0 113.74867c0 11.789511 9.562796 21.332864 21.349237 21.332864 11.783371 0 21.346167-9.543354 21.346167-21.332864L836.045769 179.439812 665.254941 179.439812c-11.789511 0-21.35333 9.538237-21.35333 21.327748C643.900587 212.554 653.464407 222.095307 665.254941 222.095307L665.254941 222.095307zM665.254941 222.095307'/>\
               </svg>",
-    },
-    Room: {
-        xml: "<svg viewBox='0 0 1024 1024' width='200' height='200'>\
-                <path d='M404.552849 81.875752l-257.873162 0c-35.603893 0-64.46829 28.862351-64.46829 64.46829l0 258.543428c0 35.605939 28.864398 64.46829 64.46829 64.46829l257.873162 0c35.605939 0 64.46829-28.862351 64.46829-64.46829L469.02114 146.344043C469.02114 110.738104 440.158788 81.875752 404.552849 81.875752zM425.820222 426.66138 124.971269 426.66138 124.971269 125.136022l300.849976 0L425.821245 426.66138zM404.552849 554.643216l-257.873162 0c-35.603893 0-64.46829 28.862351-64.46829 64.46829l0 258.543428c0 35.605939 28.864398 64.46829 64.46829 64.46829l257.873162 0c35.605939 0 64.46829-28.862351 64.46829-64.46829L469.02114 619.111506C469.02114 583.505567 440.158788 554.643216 404.552849 554.643216zM425.820222 899.428843 124.971269 899.428843 124.971269 597.905532l300.849976 0L425.821245 899.428843zM877.320313 81.875752l-257.873162 0c-35.605939 0-64.46829 28.862351-64.46829 64.46829l0 258.543428c0 35.605939 28.862351 64.46829 64.46829 64.46829l257.873162 0c35.605939 0 64.46829-28.862351 64.46829-64.46829L941.788603 146.344043C941.788603 110.738104 912.926252 81.875752 877.320313 81.875752zM898.587686 426.66138 597.738733 426.66138 597.738733 125.136022l300.849976 0L898.588709 426.66138zM877.320313 554.643216l-257.873162 0c-35.605939 0-64.46829 28.862351-64.46829 64.46829l0 258.543428c0 35.605939 28.862351 64.46829 64.46829 64.46829l257.873162 0c35.605939 0 64.46829-28.862351 64.46829-64.46829L941.788603 619.111506C941.788603 583.505567 912.926252 554.643216 877.320313 554.643216zM898.587686 899.428843 597.738733 899.428843 597.738733 597.905532l300.849976 0L898.588709 899.428843z'/>\
-              </svg>"
     },
     About: {
         xml: "<svg width='48' height='48' viewBox='0 0 1024 1024'>\

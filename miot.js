@@ -22,23 +22,23 @@ $_().imports({
     Mosca: {
         xml: "<main id='mosca' xmlns:i='mosca'>\
                 <i:Authorize id='auth'/>\
-                <i:Homes id='homes'/>\
+                <i:Links id='links'/>\
                 <i:Parts id='parts'/>\
               </main>",
         fun: async function (sys, items, opts) {
             let options = await items.parts.options();
             let server = new mosca.Server({port: 1883});
             server.on("ready", async () => {
-                await items.homes.offlineAll();
+                await items.links.offlineAll();
                 await items.parts.offlineAll();
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
                 console.log("Mosca server is up and running"); 
             });
             server.on("subscribed", async (topic, client) => {
-                await items.homes.update(topic, 1);
+                await items.links.update(topic, 1);
             });
             server.on("unsubscribed", async (topic, client) => {
-                await items.homes.update(topic, 0);
+                await items.links.update(topic, 0);
                 await items.parts.update(topic, 0);
                 let parts = await items.parts.getPartsByLink(topic);
                 parts.forEach(item => {
@@ -67,13 +67,13 @@ $_().imports({
         xml: "<main id='proxy' xmlns:i='proxy'>\
                 <i:Authorize id='auth'/>\
                 <i:Users id='users'/>\
-                <i:Homes id='homes'/>\
-                <i:Rooms id='rooms'/>\
+                <i:Areas id='areas'/>\
+                <i:Links id='links'/>\
                 <i:Parts id='parts'/>\
               </main>",
         opt: { port: 1885, http: { port: 8000, bundle: true, static: `${__dirname}/static` } },
         fun: function (sys, items, opts) {
-            let first = sys.homes;
+            let first = sys.areas;
             let server = new mosca.Server(opts);
             server.on("ready", async () => {
                 await items.users.offlineAll();
@@ -87,7 +87,8 @@ $_().imports({
                 items.users.update(client.id, 0);
             });
             server.on("subscribed", (topic, client) => {
-                first.trigger("enter", {ssid: topic, topic: "/homes/select", ptr:[first]});
+                let body = {user: client.id};
+                first.trigger("enter", {ssid: topic, topic: "/areas/select", body: body, ptr:[first]});
             });
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
@@ -97,7 +98,7 @@ $_().imports({
                     first.trigger("enter", payload, false);
                 } else {
                     let part = await items.parts.getPartById(packet.topic);
-                    this.notify("to-local", [part.home, {ssid: part.part, body: payload}]);
+                    this.notify("to-local", [part.link, {ssid: part.part, body: payload}]);
                 }
             });
             this.on("publish", (e, payload) => {
@@ -121,31 +122,31 @@ $_().imports({
 $_("mosca").imports({
     Authorize: {
         xml: "<main id='authorize'>\
-                <Homes id='homes'/>\
+                <Links id='links'/>\
               </main>",
         fun: function (sys, items, opts) {
             async function authenticate(client, user, pass, callback) {
-                callback(null, await items.homes.canLink(client.id));
+                callback(null, await items.links.canLink(client.id));
             }
             return { authenticate: authenticate };
         }
     },
-    Homes: {
+    Links: {
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
-            function canLink(homeId) {
+            function canLink(linkId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM homes WHERE id = '${homeId}' AND online = 0`;
+                    let stmt = `SELECT * FROM links WHERE id = '${linkId}' AND online = 0`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(!!data.length);
                     });
                 });
             }
-            function update(homeId, online) {
+            function update(linkId, online) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE homes SET online=? WHERE id=?");
-                    stmt.run(online, homeId, err => {
+                    let stmt = items.sqlite.prepare("UPDATE links SET online=? WHERE id=?");
+                    stmt.run(online, linkId, err => {
                         if (err) throw err;
                         resolve(true);
                     });
@@ -153,7 +154,7 @@ $_("mosca").imports({
             }
             function offlineAll() {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE homes SET online=?");
+                    let stmt = items.sqlite.prepare("UPDATE links SET online=?");
                     stmt.run(0, err => {
                         if (err) throw err;
                         resolve(true);
@@ -183,10 +184,10 @@ $_("mosca").imports({
                     if (err) throw err;
                 });
             }
-            function update(homeId, online) {
+            function update(linkId, online) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE id in (SELECT part FROM authorizations, homes, rooms WHERE authorizations.room = rooms.id AND rooms.home = homes.id AND homes.id = ?)");
-                    stmt.run(online, homeId, err => {
+                    let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE link = ?");
+                    stmt.run(online, linkId, err => {
                         if (err) throw err;
                         resolve(true);
                     });
@@ -203,7 +204,7 @@ $_("mosca").imports({
             }
             function getPartByLink(linkId, partId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM parts WHERE home='${linkId}' AND part = '${partId}'`;
+                    let stmt = `SELECT * FROM parts WHERE link='${linkId}' AND part = '${partId}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data[0]);
@@ -212,7 +213,7 @@ $_("mosca").imports({
             }
             function getPartsByLink(linkId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT parts.* FROM homes,rooms,parts,authorizations WHERE homes.id='${linkId}' AND rooms.home = homes.id AND authorizations.room = rooms.id AND authorizations.part = parts.id`;
+                    let stmt = `SELECT * FROM parts WHERE link='${linkId}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data);
@@ -280,7 +281,7 @@ $_("proxy").imports({
             }
             function getUsersByPart(partId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT users.name FROM users,homes,parts WHERE parts.id='${partId}' AND homes.id = parts.home AND homes.user = users.id`;
+                    let stmt = `SELECT users.name FROM users,areas,authorizations,parts WHERE parts.id='${partId}' AND authorizations.link = parts.link AND authorizations.area = areas.id AND areas.user = users.id`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data);
@@ -308,22 +309,22 @@ $_("proxy").imports({
             return { canSubscribe: canSubscribe, getUsersByPart: getUsersByPart, update: update, offlineAll: offlineAll };
         }
     },
-    Homes: {
-        xml: "<i:Flow xmlns:i='homes'>\
-                <i:Router id='router' url='/homes/:action'/>\
+    Areas: {
+        xml: "<i:Flow xmlns:i='areas'>\
+                <i:Router id='router' url='/areas/:action'/>\
                 <i:Select id='select'/>\
               </i:Flow>"
     },
-    Rooms: {
-        xml: "<i:Flow xmlns:i='homes' xmlns:r='rooms'>\
-                <i:Router id='router' url='/rooms/:action'/>\
-                <r:Select id='select'/>\
+    Links: {
+        xml: "<i:Flow xmlns:i='areas'>\
+                <i:Router id='router' url='/links/:action'/>\
+                <Select id='select' xmlns='links'/>\
               </i:Flow>"
     },
     Parts: {
-        xml: "<i:Flow xmlns:i='homes' xmlns:p='parts'>\
+        xml: "<i:Flow xmlns:i='areas'>\
                 <i:Router id='router' url='/parts/:action'/>\
-                <p:Select id='select'/>\
+                <Select id='select' xmlns='parts'/>\
                 <Sqlite id='sqlite' xmlns='/sqlite'/>\
               </i:Flow>",
         fun: function (sys, items, opts) {
@@ -378,7 +379,7 @@ $_("proxy/login").imports({
     }
 });
 
-$_("proxy/homes").imports({
+$_("proxy/areas").imports({
     Flow: {
         xml: "<main id='flow'/>",
         fun: function (sys, items, opts) {
@@ -448,7 +449,7 @@ $_("proxy/homes").imports({
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
-                items.sqlite.all("SELECT * FROM homes", (err, data) => {
+                items.sqlite.all(`SELECT * FROM areas WHERE user='${payload.body.user}'`, (err, data) => {
                     if (err) throw err;
                     payload.data = data;
                     this.trigger("publish", payload);
@@ -458,13 +459,12 @@ $_("proxy/homes").imports({
     }
 });
 
-$_("proxy/rooms").imports({
+$_("proxy/links").imports({
     Select: {
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
-                let stmt = `SELECT * FROM rooms WHERE home='${payload.body.homeId}'`;
-                items.sqlite.all(stmt, (err, data) => {
+                items.sqlite.all(`SELECT links.* FROM links,authorizations WHERE authorizations.area='${payload.body.area}' AND authorizations.link = links.id`, (err, data) => {
                     if (err) throw err;
                     payload.data = data;
                     this.trigger("publish", payload);
@@ -479,7 +479,7 @@ $_("proxy/parts").imports({
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
-                let stmt = `SELECT parts.* FROM parts,authorizations WHERE authorizations.room=${payload.body.roomId} AND authorizations.part=parts.id`;
+                let stmt = `SELECT * FROM parts WHERE link='${payload.body.link}'`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     data.forEach(item => {
