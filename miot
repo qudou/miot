@@ -27,7 +27,7 @@ case "$1" in
   forever restart -l $LOG --pidFile $PID -a $DEAMON
   ;;
   *)
-  echo "Usage: /etc.init.d/node {start|stop|restart}"
+  echo "Usage: /etc.init.d/miot {start|stop|restart}"
   exit 1
   ;;
 esac

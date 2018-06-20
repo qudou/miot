@@ -5,8 +5,7 @@
  * Released under the MIT license
  */
 
-const app = new Framework7();
-const Server = "ws://t-store.cn:8000";
+const Server = "ws://xmlplus.cn:8000";
 const Gateway = "c55d5e0e-f506-4933-8962-c87932e0bc2a";
 
 xmlplus("miot", (xp, $_, t) => {
@@ -381,20 +380,13 @@ $_("content/index").imports({
             this.watch("offline", e => sys.line.text("离线"));
             sys.area.on("touchend", () => {
                 let line = sys.line.text();
-                line == "在线" && app.panel.open();
+                line == "在线" && this.notify("show-areas");
             });
             this.watch("open-area", (e, area) => sys.area.text(area.name));
         }
     },
     Areas: {
-        xml: "<div id='area' class='panel panel-left panel-cover'>\
-                <div class='page'>\
-                  <div class='page-content'>\
-                    <div class='block-title'>区域选择</div>\
-                    <div class='list links-list'><ul id='areas'/></div>\
-                  </div>\
-                </div>\
-             </div>",
+        xml: "<List id='areas' xmlns='list'/>",
         fun: function (sys, items, opts) {
             var areas = {}, checked = {};
             this.watch("/areas/select", (e, areas) => {
@@ -402,7 +394,7 @@ $_("content/index").imports({
                 sys.areas.children().call("remove");
                 areas.forEach(item => {
                     item.key = "area";
-                    tmp = sys.areas.append("areas/Item");
+                    tmp = sys.areas.append("list/Item");
                     tmp.value().init(item);
                     item.id == checked.id && (selected = tmp);
                 });
@@ -411,8 +403,7 @@ $_("content/index").imports({
             sys.areas.on("touchend", "*", function (e) {
                 checked = this.data("data");
                 this.trigger("checked", true);
-                app.panel.close();
-                sys.areas.notify("open-area", this.data("data"));
+                items.areas.hide().notify("open-area", this.data("data"));
             });
             this.watch("/links/select", (e, stores, d) => {
                 if (!d) return;
@@ -424,7 +415,7 @@ $_("content/index").imports({
                 this.notify("publish", [Gateway, {topic: "/links/select", body: {area: area.id}}]);
             });
             this.watch("offline", e => areas = {});
-            app.panel.create({swipe: "left", el: sys.area.elem()});
+            this.watch("show-areas", items.areas.show);
         }
     },
     Stores: {
