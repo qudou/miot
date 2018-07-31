@@ -50,6 +50,7 @@ $_().imports({
                 if (packet.topic == ID) {
                     let payload = JSON.parse(packet.payload + '');
                     let part = await items.parts.getPartByLink(client.id, payload.ssid);
+                    if (!part) return;
                     xp.extend(options[part.id], payload.data);
                     items.parts.cache(part.id, payload.online, options[part.id]);
                     payload.ssid = part.id;
@@ -123,6 +124,7 @@ $_("mosca").imports({
     Authorize: {
         xml: "<main id='authorize'>\
                 <Links id='links'/>\
+                <Parts id='parts'/>\
               </main>",
         fun: function (sys, items, opts) {
             async function authenticate(client, user, pass, callback) {
