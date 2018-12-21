@@ -19,7 +19,7 @@ $_().imports({
               </main>",
         map: { share: "sqlite/Sqlite" }
     },
-    Mosca: {
+    Mosca: { // 本 MQTT 服务器用于连接 MQTT 客户端，一般是主机上的客户端，如树莓派等等
         xml: "<main id='mosca' xmlns:i='mosca'>\
                 <i:Authorize id='auth'/>\
                 <i:Links id='links'/>\
@@ -64,7 +64,7 @@ $_().imports({
             });
         }
     },
-    Proxy: {
+    Proxy: { // 本代理用于连接客户端，一般是浏览器上的客户端
         xml: "<main id='proxy' xmlns:i='proxy'>\
                 <i:Authorize id='auth'/>\
                 <i:Users id='users'/>\
@@ -505,17 +505,6 @@ $_("sqlite").imports({
             db.exec("VACUUM");
             db.exec("PRAGMA foreign_keys = ON");
             return db;
-        }
-    },
-    Prepare: {
-        fun: function (sys, items, opts) {
-            return stmt => {
-                let args = [].slice.call(arguments).slice(1);
-                args.forEach(item => {
-                    stmt = stmt.replace("?", typeof item == "string" ? '"' + item + '"' : item);
-                });
-                return stmt;
-            };
         }
     }
 });
