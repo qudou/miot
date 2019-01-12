@@ -7,6 +7,7 @@
 
 const Server = "ws://xmlplus.cn:8000";
 const Gateway = "c55d5e0e-f506-4933-8962-c87932e0bc2a";
+const app = new Framework7({dialog:{buttonOk: '确定', buttonCancel: "取消"}});
 
 xmlplus("miot", (xp, $_, t) => {
 
@@ -21,13 +22,7 @@ $_().imports({
                 <Service id='service'/>\
                 <Login id='login'/>\
                 <Content id='content'/>\
-              </ViewStack>",
-        fun: function (sys, items, opts) {
-            var msg = xmlplus.startup("/miot/tools/Message").value();
-            this.on("message", function (e, type, message) {
-                msg[type](message);
-            });
-        }
+              </ViewStack>"
     },
     Verify: {
         xml: "<Overlay id='verify' xmlns='verify'/>",
@@ -65,7 +60,10 @@ $_().imports({
                     this.notify(payload.ssid, payload);
                 });
                 client.on("close", e => this.notify("offline"));
-                client.on("error", e => this.notify("logout"));
+                client.on("error", e => {
+                    this.notify("logout");
+                    app.dialog.alert("用户名或密码有误！", "提示");
+                });
             });
             this.watch("logout", () => {
                 client.end();
@@ -174,11 +172,16 @@ $_("login").imports({
               </form>",
         map: { "appendTo": "content" },
         fun: function (sys, items, opts) {
-            var ptr, first = this.first();
+            var toast, ptr, first = this.first();
             this.on("next", function ( e, r ) {
                 e.stopPropagation();
                 ptr = ptr.next();
                 ptr.trigger("start", r, false);
+            });
+            this.on("message", (e, t, msg) => {
+                app.toast.destroy(toast);
+                toast = app.toast.create({ text: msg, position: 'top', closeTimeout: 3000});
+                toast.open();
             });
             function start() {
                 ptr = first;
@@ -388,7 +391,8 @@ $_("content/index").imports({
         fun: function (sys, items, opts) {
             var areas = {}, checked = {};
             this.watch("/areas/select", (e, areas) => {
-                var tmp, selected;
+                let tmp, selected;
+                checked.id = localStorage.getItem("area");
                 sys.areas.children().call("remove");
                 areas.forEach(item => {
                     item.key = "area";
@@ -408,6 +412,7 @@ $_("content/index").imports({
                 areas[d.body.area] = stores;
             });
             this.watch("open-area", (e, area) => {
+                localStorage.setItem("area", area.id);
                 if (areas[area.id])
                     return this.notify("/links/select", [areas[area.id]]);
                 this.notify("publish", [Gateway, {topic: "/links/select", body: {area: area.id}}]);
@@ -422,6 +427,7 @@ $_("content/index").imports({
             var checked = {};
             this.watch("/links/select", (e, links) => {
                 var tmp, selected;
+                checked.id = localStorage.getItem("store");
                 sys.stores.children().call("remove");
                 links.forEach(item => {
                     item.key = "link";
@@ -433,6 +439,7 @@ $_("content/index").imports({
             });
             sys.stores.on("touchend", "*", function (e) {
                 checked = this.data("data");
+                localStorage.setItem("store", checked.id);
                 this.trigger("checked", true);
                 items.stores.hide().notify("open-store", this.data("data"));
             });
@@ -641,26 +648,28 @@ $_("content/index/list").imports({
 $_("content/about").imports({
     Header: {
         css: "#header { margin: 0 4px; height: 26px; line-height: 26px; color: white; }\
-              #logout { float: right; margin: 0 0 0 8px; }\
-              #line { float: right; }",
+              #about { float: left; margin-right: 8px; }\
+              #title { float: left; background: none; padding: 0; }\
+              #line { float: right; margin: 0 0 0 8px; }",
         xml: "<header id='header' xmlns:i='../index/header'>\
                 <Icon id='about'/>\
-                <Icon id='logout'/>\
+                <i:Line id='title'/>\
                 <i:Line id='line'/>\
               </header>",
         fun: function (sys, items, opts) {
+            sys.title.text("马蹄莲");
             this.watch("online", e => sys.line.text("在线"));
             this.watch("offline", e => sys.line.text("离线"));
-            sys.logout.on("touchend", () => this.notify("logout"));
         }
     },
     Content: {
-        css: "#body { height: 100%; text-align: center; overflow-y: auto; display: -ms-flexbox; display: -webkit-flex; display: flex; -ms-flex-align: center; -webkit-align-items: center; -webkit-box-align: center; align-items: center; }\
+        css: "#body { height: 100%; overflow-y: auto; display: -ms-flexbox; display: -webkit-flex; display: flex; flex-direction: column; justify-content: center; }\
               #logo { margin: 0 auto; width: 160px; border-radius: 10px; background: rgba(255,255,255,0.8) none repeat scroll; }\
               #body { margin: 0; box-sizing: border-box; }\
               #content > * { margin: 0 0 .5em; }",
         xml: "<div id='body'>\
                 <Logo id='logo' xmlns='/login'/>\
+                <Logout id='logout'/>\
               </div>"
     },
     Icon: {
@@ -670,9 +679,14 @@ $_("content/about").imports({
         map: { extend: {"from": "../footer/icon/About"} }
     },
     Logout: {
-        xml: "<svg viewBox='0 0 1024 1024' width='200' height='200'>\
-                <path d='M531.420587 1023.26528C465.257472 1023.26528 401.002197 1010.811989 340.56256 986.125781 282.145195 962.394667 229.756544 928.377685 184.732075 885.029888 139.707605 841.682048 104.374827 791.170859 79.649536 734.965675 54.084779 676.776747 41.111637 614.95104 41.111637 551.215061 41.111637 474.95232 60.533205 399.240619 97.239595 332.161707 132.724992 267.360427 184.274219 210.457259 246.35456 167.623723 263.601237 155.721472 287.563392 159.578667 299.887915 176.146347 312.212395 192.714027 308.282283 215.747157 291.035648 227.575936 238.570667 263.870549 195.034283 311.84704 165.119701 366.546048 133.717035 423.890048 117.805867 486.009685 117.805867 551.215061 117.805867 657.600853 160.846208 757.631403 238.990379 832.828843 317.096405 908.062976 420.957952 949.500544 531.420587 949.500544 641.844992 949.500544 745.744725 908.062976 823.888896 832.828843 902.033067 757.631403 945.035264 657.600853 945.035264 551.215061 945.035264 486.083157 929.16224 423.853355 897.721429 366.546048 867.806848 311.883776 824.23232 263.870549 771.767339 227.649408 754.558848 215.820629 750.552405 192.787499 762.915072 176.219819 775.277739 159.652139 799.201749 155.758208 816.41024 167.697195 878.528768 210.530731 930.154325 267.433899 965.601536 332.235179 1002.346112 399.314048 1021.76768 475.025792 1021.76768 551.288533 1021.76768 615.024512 1008.794539 676.850219 983.191637 735.075883 958.504448 791.281067 923.133525 841.792256 878.109056 885.140096 833.084587 928.487893 780.695936 962.468139 722.278571 986.309461 661.800789 1010.848725 597.583659 1023.26528 531.420587 1023.26528L531.420587 1023.26528 531.420587 1023.26528ZM542.943787 511.026517C521.766997 511.026517 504.596651 494.569045 504.596651 474.144128L504.596651 36.919083C504.596651 16.56768 521.766997 0 542.943787 0 564.120533 0 581.329067 16.56768 581.329067 36.919083L581.329067 474.144128C581.329067 494.569045 564.120533 511.026517 542.943787 511.026517L542.943787 511.026517 542.943787 511.026517Z'/>\
-              </svg>"
+        xml: "<div class='list inset'>\
+                <ul><li><a href='#' class='list-button item-link color-red'>退出</a></li></ul>\
+              </div>",
+        fun: function (sys, items, opts) {
+            this.on("touchend", e => {
+                app.dialog.confirm("确定退出系统吗？", "温馨提示", e => this.notify("logout"));
+            });
+        }
     }
 });
 
@@ -736,28 +750,6 @@ $_("content/footer/icon").imports({
         xml: "<svg width='48' height='48' viewBox='0 0 1024 1024'>\
                 <path d='M507.577907 23.272727C240.142852 23.272727 23.272727 239.870837 23.272727 507.094323 23.272727 774.535126 240.153546 991.375225 507.577907 991.375225 775.101356 991.375225 991.883087 774.596878 991.883087 507.094323 991.883087 239.824352 775.104293 23.272727 507.577907 23.272727ZM507.577907 69.818182C749.408866 69.818182 945.337633 265.541628 945.337633 507.094323 945.337633 748.890368 749.395172 944.82977 507.577907 944.82977 265.857934 944.82977 69.818182 748.826829 69.818182 507.094323 69.818182 265.590268 265.836128 69.818182 507.577907 69.818182ZM460.17174 368.061568 555.443661 368.061568 555.443661 763.664179 460.17174 763.664179 460.17174 368.061568ZM507.761743 230.268948C534.095946 230.268948 555.397702 251.580874 555.397702 277.899264 555.397702 304.171723 534.072967 325.506614 507.761743 325.506614 481.450515 325.506614 460.17174 304.171723 460.17174 277.899264 460.17174 251.580874 481.450515 230.268948 507.761743 230.268948Z'/>\
               </svg>"
-    }
-});
-
-$_("tools").imports({
-    Message: {
-        css: "#message { position: fixed; top: 16px; left: 0; width: 100%; }\
-              #message { z-index: 99999; display: none; height: 36px; line-height: 36px; text-align: center; }\
-              #text { border-radius: 6px; font-size: 20px; padding: 3px 10px 5px; }\
-              #text { background: #f2dede; border: 1px solid #eed3d7; color: #b94a48; }",
-        xml: "<div id='message'>\
-                <span id='text'/>\
-              </div>",
-        fun: function (sys, items, opts) {
-            var timer;
-            function error( label ) {
-                clearTimeout(timer);
-                sys.text.text(label);
-                sys.message.show();
-                timer = setTimeout(sys.message.hide, 3000);
-            }
-            return { error: error }; 
-        }
     }
 });
 

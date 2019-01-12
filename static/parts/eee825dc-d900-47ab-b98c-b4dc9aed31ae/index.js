@@ -63,10 +63,15 @@ $_().imports({
 
 $_("content").imports({
     Player: {
-        css: "#toggle { margin: 10px auto; }",
+        css: "#toggle { margin: 10px auto; }\
+              #ctrl { text-align: center; margin-top: 16px; }\
+              #skip_next { margin-left: 16px; }",
         xml: "<div id='player' xmlns:i='player'>\
                 <i:Title id='title'/>\
-                <i:Toggle id='toggle'/>\
+                <div id='ctrl'>\
+                  <i:Toggle id='toggle'/>\
+                  <i:SkipNext id='skip_next'/>\
+                </div>\
               </div>"
     },
     Range: {
@@ -184,7 +189,8 @@ $_("content/player").imports({
         }
     },
     Toggle: {
-        css: "#toggle, #toggle > * { width: 64px; height: 64px; }\
+        css: "#toggle { display: inline; }\
+              #toggle, #toggle > * { width: 64px; height: 64px; }\
               #toggle i { font-size: 64px; }",
         xml: "<ViewStack id='toggle'>\
                 <i id='play' class='icon f7-icons ios-only'>play_round</i>\
@@ -199,6 +205,16 @@ $_("content/player").imports({
             });
             this.watch("options", (e, data) => {
                 sys.toggle.trigger("switch", table[data.stat]);
+            });
+        }
+    },
+    SkipNext: {
+        css: "#skip_next { width: 64px; height: 64px; font-size: 64px; }",
+        xml: "<i id='skip_next' class='icon f7-icons ios-only'>refresh_round</i>",
+        fun: function (sys, items, opts) {
+            let key = 0;
+            sys.skip_next.on("touchend", () => {
+                this.trigger("publish", ["control", {next: ++key % 3}]);
             });
         }
     },

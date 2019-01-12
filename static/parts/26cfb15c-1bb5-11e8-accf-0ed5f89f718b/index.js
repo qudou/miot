@@ -42,10 +42,11 @@ $_().imports({
         xml: "<div id='content' class='page'>\
                 <div class='page-content'>\
                     <div class='block-title'>系统信息</div>\
-                    <div>制造商：<span id='manufacturer'/></div>\
-                    <div>品牌：<span id='brand'/></div>\
-                    <div>CPU温度：<span id='temp'/></div>\
-                    <div>磁盘空间：<span id='diskspace'/></div>\
+                    <div>更新时间：<span id='dateTime'/></div>\
+                    <div>　制造商：<span id='manufacturer'/></div>\
+                    <div>　　品牌：<span id='brand'/></div>\
+                    <div>　ＣＰＵ：<span id='temp'/></div>\
+                    <div>磁盘容量：<span id='diskspace'/></div>\
                     <Reboot id='reboot'/>\
                 </div>\
               </div>",
