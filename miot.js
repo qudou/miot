@@ -14,7 +14,7 @@ xmlplus("miot", (xp, $_, t) => {
 $_().imports({
     Index: {
         xml: "<main id='index'>\
-                <Mosca id='mosca'/>\
+                <!--Mosca id='mosca'/-->\
                 <Proxy id='proxy'/>\
               </main>",
         map: { share: "sqlite/Sqlite" }
@@ -77,33 +77,35 @@ $_().imports({
             let first = sys.areas;
             let server = new mosca.Server(opts);
             server.on("ready", async () => {
+                await items.auth.init();
                 await items.users.offlineAll();
+                delete items.auth.init;
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
                 console.log("Proxy server is up and running"); 
             });
-            server.on("clientConnected", client => {
-                items.users.update(client.id, 1);
-            });
-            server.on("clientDisconnected", client => {
-                items.users.update(client.id, 0);
-            });
+            server.on("clientConnected", client => items.users.update(client.id, 1));
+            server.on("clientDisconnected", client => items.users.update(client.id, 0));
             server.on("subscribed", (topic, client) => {
-                let body = {user: client.id};
-                first.trigger("enter", {ssid: topic, topic: "/areas/select", body: body, ptr:[first]});
+                first.trigger("enter", {ssid: topic, topic: "/areas/select", ptr:[first], client:client});
             });
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 let payload = JSON.parse(packet.payload + '');
+                payload.client = client;
                 if (packet.topic == ID) {
                     payload.ptr = [first];
-                    first.trigger("enter", payload, false);
-                } else {
-                    let part = await items.parts.getPartById(packet.topic);
-                    this.notify("to-local", [part.link, {ssid: part.part, body: payload}]);
+                    return first.trigger("enter", payload, false);
+                }
+                let p = await items.parts.getPartById(packet.topic);
+                try {
+                    items.parts.creatPart(p).notify("options", [payload]);
+                } catch(e) {
+                    this.notify("to-local", [p.link, {ssid: p.part, body: payload}]);
                 }
             });
             this.on("publish", (e, payload) => {
                 delete payload.ptr;
+                delete payload.client;
                 let topic = payload.ssid;
                 payload.ssid = ID;
                 publish(topic, payload);
@@ -232,15 +234,63 @@ $_("proxy").imports({
         xml: "<main id='authorize'>\
                 <Login id='login'/>\
                 <Users id='users'/>\
+                <Sqlite id='sqlite' xmlns='/sqlite'/>\
               </main>",
         fun: function (sys, items, opts) {
+            async function init() {
+                let [xpath, doc, auths] = [require("xpath"), await toXML(), await table("authorizations")];
+                for (let auth of auths) {
+                    let arr = [];
+                    let result = xpath.select(auth.parts, doc);
+                    result.forEach(item => arr.push(item.getAttribute('id')));
+                    await updateAuth(auth.id, arr.join(','));
+                }
+            }
+            async function toXML() {
+                let root_ = xp.parseXML("<areas/>");
+                let [areas,links,parts] = [await table("areas"), await table("links"), await table("parts")];
+                areas.forEach(area => {
+                    let a = root_.lastChild.appendChild(Element(root_, "area_", area));
+                    links.forEach(link => {
+                        if (link.area == area.id) {
+                            let l = a.appendChild(Element(root_, "link_", link));
+                            parts.forEach(part => {
+                                part.link == link.id && l.appendChild(Element(root_, "part_", part));
+                            });
+                        };
+                    });
+                });
+                return root_;
+            }
+            async function updateAuth(id, memo) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("UPDATE authorizations SET memo=? WHERE id=?");
+                    stmt.run(memo, id, err => {
+                        if (err) throw err;
+                        resolve(true);
+                    });
+                });
+            };
+            function Element(root_, name, data) {
+                let item = root_.createElement(name);
+                item.setAttribute("id", data.id);
+                return item;
+            }
+            async function table(name) {
+                return new Promise((resolve, reject) => {
+                    items.sqlite.all(`SELECT * FROM ${name}`, (err, rows) => {
+                        if (err) throw err;
+                        resolve(rows);
+                    });
+                });
+            }
             async function authenticate(client, user, pass, callback) {
                 callback(null, await items.login(user, pass + ''));
             }
             async function authorizeSubscribe(client, topic, callback) {
                 callback(null, await items.users.canSubscribe(client.id, topic));
             }
-            return { authenticate: authenticate, authorizeSubscribe: authorizeSubscribe };
+            return { init: init, authenticate: authenticate, authorizeSubscribe: authorizeSubscribe };
         }
     },
     Login: {
@@ -254,7 +304,7 @@ $_("proxy").imports({
             function checkName(name, pass) {
                 return new Promise((resolve, reject) => {
                     let userId = cryptoJS.MD5(name).toString();
-                    let stmt = `SELECT * FROM users WHERE id="${userId}" AND name="${name}" AND online=0`;
+                    let stmt = `SELECT * FROM users WHERE id="${userId}" AND name="${name}" AND (once=1 OR online=0)`;
                     items.sqlite.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(!!rows.length && checkPass(pass, rows[0]));
@@ -283,7 +333,8 @@ $_("proxy").imports({
             }
             function getUsersByPart(partId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT users.name FROM users,areas,authorizations,parts WHERE parts.id='${partId}' AND authorizations.link = parts.link AND authorizations.area = areas.id AND areas.user = users.id`;
+                    let stmt = `SELECT users.name FROM users,authorizations AS a, parts
+                                WHERE users.id = a.id AND a.memo LIKE '%' || '${partId}' || '%'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data);
@@ -330,6 +381,7 @@ $_("proxy").imports({
                 <Sqlite id='sqlite' xmlns='/sqlite'/>\
               </i:Flow>",
         fun: function (sys, items, opts) {
+            let table = {};
             function getPartById(partId) {
                 return new Promise((resolve, reject) => {
                     let stmt = `SELECT * FROM parts WHERE id = '${partId}'`;
@@ -339,7 +391,20 @@ $_("proxy").imports({
                     });
                 });
             }
-            return { getPartById: getPartById };
+            function creatPart(p) {
+                if (!table[p.part]) {
+                    require(`${__dirname}/parts/${p.part}/index.js`);
+                    let Middle = `//${p.part}/Middle`;
+                    xp.hasComponent(Middle).map.msgscope = true;
+                    let part = sys.sqlite.append(Middle, p);
+                    table[p.part] = part;
+                    part.on("to-local", (e, payload) => {
+                        sys.sqlite.notify("to-local", [p.link, {ssid: p.part, body: payload}]);
+                    });
+                }
+                return table[p.part];
+            }
+            return { getPartById: getPartById, creatPart: creatPart };
         }
     }
 });
@@ -451,7 +516,9 @@ $_("proxy/areas").imports({
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
-                items.sqlite.all(`SELECT * FROM areas WHERE user='${payload.body.user}'`, (err, data) => {
+                let stmt = `SELECT distinct areas.* FROM areas,links,parts,authorizations AS a
+                            WHERE a.user='${payload.client.id}' AND a.memo LIKE '%' || parts.id || '%' AND areas.id = links.area AND links.id = parts.link`
+                items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     payload.data = data;
                     this.trigger("publish", payload);
@@ -466,7 +533,9 @@ $_("proxy/links").imports({
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
-                items.sqlite.all(`SELECT links.* FROM links,authorizations WHERE authorizations.area='${payload.body.area}' AND authorizations.link = links.id`, (err, data) => {
+                let stmt = `SELECT distinct links.* FROM links,parts,authorizations AS a
+                            WHERE a.user='${payload.client.id}' AND a.memo LIKE '%' || parts.id || '%' AND links.area = '${payload.body.area}' AND links.id = parts.link`;
+                items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     payload.data = data;
                     this.trigger("publish", payload);
@@ -481,7 +550,8 @@ $_("proxy/parts").imports({
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
-                let stmt = `SELECT * FROM parts WHERE link='${payload.body.link}'`;
+                let stmt = `SELECT parts.* FROM parts,authorizations AS a
+                            WHERE a.user='${payload.client.id}' AND a.memo LIKE '%' || parts.id || '%' AND parts.link = '${payload.body.link}'`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     data.forEach(item => {

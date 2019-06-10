@@ -60,10 +60,7 @@ $_().imports({
                     this.notify(payload.ssid, payload);
                 });
                 client.on("close", e => this.notify("offline"));
-                client.on("error", e => {
-                    this.notify("logout");
-                    app.dialog.alert("用户名或密码有误！", "提示");
-                });
+                client.on("error", e => this.notify("logout"));
             });
             this.watch("logout", () => {
                 client.end();
@@ -292,17 +289,10 @@ $_("content").imports({
                 <i:Parts id='parts'/>\
               </div>",
         fun: function (sys, items, opts) {
-            var stores = {};
-            this.watch("/parts/select", (e, parts, d) => {
-                if (!d) return;
-                stores[d.body.link] = parts;
-            });
             this.watch("open-store", (e, store) => {
                 sys.title.text(store.name);
-                if (stores[store.id])
-                    return this.notify("/parts/select", [stores[store.id]]);
                 this.notify("publish", [Gateway, {topic: "/parts/select", body: {link: store.id}}]);
-            }).watch("offline", e => stores = {});
+            });
             sys.title.on("click", e => this.notify("show-stores"))
         }
     },
@@ -495,9 +485,9 @@ $_("content/index").imports({
             this.on("data",  (e, payload) => {
                 var data = e.currentTarget.data("data");
                 xp.extend(true, data, payload);
-                items.icon(data['class']);
+                items.icon(data["class"]);
                 sys.label.text(data.name);
-                sys.thumbnail[data.online ? 'addClass' : 'removeClass']("#active");
+                sys.thumbnail[data.online ? "addClass" : "removeClass"]("#active");
             });
         }
     },
