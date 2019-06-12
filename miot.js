@@ -14,7 +14,7 @@ xmlplus("miot", (xp, $_, t) => {
 $_().imports({
     Index: {
         xml: "<main id='index'>\
-                <!--Mosca id='mosca'/-->\
+                <Mosca id='mosca'/>\
                 <Proxy id='proxy'/>\
               </main>",
         map: { share: "sqlite/Sqlite" }
@@ -83,17 +83,18 @@ $_().imports({
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
                 console.log("Proxy server is up and running"); 
             });
-            server.on("clientConnected", client => items.users.update(client.id, 1));
-            server.on("clientDisconnected", client => items.users.update(client.id, 0));
+            server.on("clientConnected", client => items.users.connected(client));
+            server.on("clientDisconnected", client => items.users.disconnected(client));
             server.on("subscribed", (topic, client) => {
-                first.trigger("enter", {ssid: topic, topic: "/areas/select", ptr:[first], client:client});
+                let user = client.id.substr(0,32);
+                first.trigger("enter", {ssid: topic, topic: "/areas/select", ptr:[first], user: user});
             });
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 let payload = JSON.parse(packet.payload + '');
-                payload.client = client;
                 if (packet.topic == ID) {
                     payload.ptr = [first];
+                    payload.user = client.id.substr(0,32);
                     return first.trigger("enter", payload, false);
                 }
                 let p = await items.parts.getPartById(packet.topic);
@@ -105,7 +106,7 @@ $_().imports({
             });
             this.on("publish", (e, payload) => {
                 delete payload.ptr;
-                delete payload.client;
+                delete payload.user;
                 let topic = payload.ssid;
                 payload.ssid = ID;
                 publish(topic, payload);
@@ -288,7 +289,7 @@ $_("proxy").imports({
                 callback(null, await items.login(user, pass + ''));
             }
             async function authorizeSubscribe(client, topic, callback) {
-                callback(null, await items.users.canSubscribe(client.id, topic));
+                callback(null, await items.users.canSubscribe(client, topic));
             }
             return { init: init, authenticate: authenticate, authorizeSubscribe: authorizeSubscribe };
         }
@@ -300,11 +301,10 @@ $_("proxy").imports({
                 <i:InputCheck id='check'/>\
               </main>",
         fun: function (sys, items, opts) {
-            var cryptoJS = require("crypto-js");
             function checkName(name, pass) {
                 return new Promise((resolve, reject) => {
-                    let userId = cryptoJS.MD5(name).toString();
-                    let stmt = `SELECT * FROM users WHERE id="${userId}" AND name="${name}" AND (once=1 OR online=0)`;
+                    let stmt = `SELECT users.* FROM users,authorizations AS a
+                                WHERE name="${name}" AND users.id = a.user AND (a.repeat_login=1 OR count=0)`;
                     items.sqlite.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(!!rows.length && checkPass(pass, rows[0]));
@@ -322,9 +322,9 @@ $_("proxy").imports({
     Users: {
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
-            function canSubscribe(clientId, name) {
+            function canSubscribe(client) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM users WHERE id='${clientId}' AND online = 1 AND name='${name}'`;
+                    let stmt = `SELECT * FROM status WHERE client_id='${client.id}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(!!data.length);
@@ -333,18 +333,39 @@ $_("proxy").imports({
             }
             function getUsersByPart(partId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT users.name FROM users,authorizations AS a, parts
-                                WHERE users.id = a.id AND a.memo LIKE '%' || '${partId}' || '%'`;
+                    let stmt = `SELECT users.name FROM users,authorizations AS a
+                                WHERE users.id = a.user AND a.memo LIKE '%' || '${partId}' || '%'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data);
                     });
                 });
             }
-            function update(userId, online) {
+            function connected(client) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE users SET online=? WHERE id=?");
-                    stmt.run(online, userId, err => {
+                    let insert = `INSERT INTO status VALUES(?,(datetime('now','localtime')))`;
+                    let stmt = items.sqlite.prepare(insert);
+                    stmt.run(client.id, async err => {
+                        if (err) throw err;
+                        await changeCount(client, +1);
+                        resolve(true);
+                    });
+                });
+            }
+            function disconnected(client) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare("DELETE FROM status WHERE client_id=?");
+                    stmt.run(client.id, async err => {
+                        if (err) throw err;
+                        await changeCount(client, -1);
+                        resolve(true);
+                    });
+                });
+            }
+            function changeCount(client, inc) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare(`UPDATE users SET count=count+${inc} WHERE id=?`);
+                    stmt.run(client.id.substr(0, 32), err => {
                         if (err) throw err;
                         resolve(true);
                     });
@@ -352,14 +373,24 @@ $_("proxy").imports({
             }
             function offlineAll() {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE users SET online=?");
-                    stmt.run(0, err => {
+                    let stmt = items.sqlite.prepare("DELETE FROM status");
+                    stmt.run(async err => {
+                        if (err) throw err;
+                        await clearCount();
+                        resolve(true);
+                    });
+                });
+            }
+            function clearCount() {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.sqlite.prepare(`UPDATE users SET count=0`);
+                    stmt.run(err => {
                         if (err) throw err;
                         resolve(true);
                     });
                 });
             }
-            return { canSubscribe: canSubscribe, getUsersByPart: getUsersByPart, update: update, offlineAll: offlineAll };
+            return { canSubscribe: canSubscribe, getUsersByPart: getUsersByPart, connected: connected, disconnected: disconnected, offlineAll: offlineAll };
         }
     },
     Areas: {
@@ -517,7 +548,7 @@ $_("proxy/areas").imports({
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
                 let stmt = `SELECT distinct areas.* FROM areas,links,parts,authorizations AS a
-                            WHERE a.user='${payload.client.id}' AND a.memo LIKE '%' || parts.id || '%' AND areas.id = links.area AND links.id = parts.link`
+                            WHERE a.user='${payload.user}' AND a.memo LIKE '%' || parts.id || '%' AND areas.id = links.area AND links.id = parts.link`
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     payload.data = data;
@@ -534,7 +565,7 @@ $_("proxy/links").imports({
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
                 let stmt = `SELECT distinct links.* FROM links,parts,authorizations AS a
-                            WHERE a.user='${payload.client.id}' AND a.memo LIKE '%' || parts.id || '%' AND links.area = '${payload.body.area}' AND links.id = parts.link`;
+                            WHERE a.user='${payload.user}' AND a.memo LIKE '%' || parts.id || '%' AND links.area = '${payload.body.area}' AND links.id = parts.link`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     payload.data = data;
@@ -551,7 +582,7 @@ $_("proxy/parts").imports({
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
                 let stmt = `SELECT parts.* FROM parts,authorizations AS a
-                            WHERE a.user='${payload.client.id}' AND a.memo LIKE '%' || parts.id || '%' AND parts.link = '${payload.body.link}'`;
+                            WHERE a.user='${payload.user}' AND a.memo LIKE '%' || parts.id || '%' AND parts.link = '${payload.body.link}'`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     data.forEach(item => {
