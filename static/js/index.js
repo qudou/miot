@@ -320,10 +320,15 @@ $_("content").imports({
             function loadClient(part) {
                 require([`/parts/${part.class}/index.js`], e => {
                     let Client = `//${part.class}/Client`;
-                    xp.hasComponent(Client).map.msgscope = true;
-                    let client = sys.overlay.before(Client, part);
-                    register(client.notify("options", part.data));
-                    items.overlay.hide();
+                    (function load() {
+                        let com = xp.hasComponent(Client);
+                        if (!com)
+                            return setTimeout(load, 100);
+                        com.map.msgscope = true;
+                        let client = sys.overlay.before(Client, part);
+                        register(client.notify("options", part.data));
+                        items.overlay.hide();
+                    }());
                 });
             }
             function register(client) {
