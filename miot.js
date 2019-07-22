@@ -100,7 +100,7 @@ $_().imports({
             });
             this.watch("to-users", async (e, payload) => {
                 let users = await items.users.getUsersByPart(payload.ssid);
-                users.forEach(item => this.notify(item.client_id, payload));
+                users.forEach(item => this.notify("to-user", [item.client_id, payload]));
             });
         }
     }
