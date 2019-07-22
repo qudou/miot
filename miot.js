@@ -41,9 +41,7 @@ $_().imports({
                 await items.links.update(topic, 0);
                 await items.parts.update(topic, 0);
                 let parts = await items.parts.getPartsByLink(topic);
-                parts.forEach(item => {
-                    this.notify("to-users", {ssid: item.id, online: 0});
-                });
+                parts.forEach(item => this.notify("to-users", {ssid: item.id, online: 0}));
             });
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
@@ -57,10 +55,10 @@ $_().imports({
                     this.notify("to-users", payload);
                 }
             });
-            this.watch("to-local", (e, topic, msg) => {
-                delete msg.ptr;
-                delete msg.args;
-                server.publish({topic: topic, payload: JSON.stringify(msg), qos: 1, retain: false});
+            this.watch("to-local", (e, topic, payload) => {
+                delete payload.ptr;
+                delete payload.args;
+                server.publish({topic: topic, payload: JSON.stringify(payload), qos: 1, retain: false});
             });
         }
     },
@@ -68,11 +66,9 @@ $_().imports({
         xml: "<main id='proxy' xmlns:i='proxy'>\
                 <i:Authorize id='auth'/>\
                 <i:Users id='users'/>\
-                <i:Areas id='areas'/>\
-                <i:Links id='links'/>\
-                <i:Parts id='parts'/>\
+                <i:Factory id='factory'/>\
               </main>",
-        opt: { port: 1885, http: { port: 8000, bundle: true, static: `${__dirname}/static` } },
+        opt: { port: 1885, http: { port: 80, bundle: true, static: `${__dirname}/static` } },
         fun: function (sys, items, opts) {
             let first = sys.areas;
             let server = new mosca.Server(opts);
@@ -85,40 +81,27 @@ $_().imports({
             });
             server.on("clientConnected", client => items.users.connected(client));
             server.on("clientDisconnected", client => items.users.disconnected(client));
-            server.on("subscribed", (topic, client) => {
-                let user = client.id.substr(0,32);
-                first.trigger("enter", {ssid: topic, topic: "/areas/select", ptr:[first], user: user});
-            });
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
-                let payload = JSON.parse(packet.payload + '');
-                if (packet.topic == ID) {
-                    payload.ptr = [first];
-                    payload.user = client.id.substr(0,32);
-                    return first.trigger("enter", payload, false);
-                }
-                let p = await items.parts.getPartById(packet.topic);
+                let payload = JSON.parse(packet.payload + '');                                // 含 ssid(clientId) 本次出发源, topic(partId) 最终目的地
+                let p = await items.factory.getPartById(packet.topic);
+                payload.detail = p;
+                let klass = p && p['class'] || packet.topic;
                 try {
-                    items.parts.creatPart(p).notify("options", [payload]);
+                    items.factory.create(klass).trigger("start", payload);
                 } catch(e) {
-                    this.notify("to-local", [p.link, {ssid: p.part, body: payload}]);
+                    delete payload.detail;
+                    p && this.notify("to-local", [p.link, {ssid: p.part, body: payload}]);    // ssid 应该命名为 topic
                 }
             });
-            this.on("publish", (e, payload) => {
-                delete payload.ptr;
-                delete payload.user;
-                let topic = payload.ssid;
-                payload.ssid = ID;
-                publish(topic, payload);
-            });
-            this.watch("to-users", async (e, payload, linkId) => {
-                let users = await items.users.getUsersByPart(payload.ssid);
-                users.forEach(user => publish(user.name, payload));
-            });
-            function publish(topic, payload) {
+            this.watch("to-user", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
                 server.publish({topic: topic, payload: payload, qos: 1, retain: false});
-            }
+            });
+            this.watch("to-users", async (e, payload) => {
+                let users = await items.users.getUsersByPart(payload.ssid);
+                users.forEach(item => this.notify(item.client_id, payload));
+            });
         }
     }
 });
@@ -333,8 +316,8 @@ $_("proxy").imports({
             }
             function getUsersByPart(partId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT users.name FROM users,authorizations AS a
-                                WHERE users.id = a.user AND a.memo LIKE '%' || '${partId}' || '%'`;
+                    let stmt = `SELECT status.* FROM users,authorizations AS a, status
+                                WHERE users.id = substr(status.client_id,1,32) AND users.id = a.user AND a.memo LIKE '%' || '${partId}' || '%'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data);
@@ -393,26 +376,29 @@ $_("proxy").imports({
             return { canSubscribe: canSubscribe, getUsersByPart: getUsersByPart, connected: connected, disconnected: disconnected, offlineAll: offlineAll };
         }
     },
-    Areas: {
-        xml: "<i:Flow xmlns:i='areas'>\
-                <i:Router id='router' url='/areas/:action'/>\
-                <i:Select id='select'/>\
-              </i:Flow>"
+    Middle: {
+        fun: function (sys, items, opts) {
+            let first = this.first();
+            this.on("start", (e, payload) => {
+                e.stopPropagation();
+                payload.ptr = [first];
+                first && first.trigger("enter", payload);
+            });
+        }
     },
-    Links: {
-        xml: "<i:Flow xmlns:i='areas'>\
-                <i:Router id='router' url='/links/:action'/>\
-                <Select id='select' xmlns='links'/>\
-              </i:Flow>"
-    },
-    Parts: {
-        xml: "<i:Flow xmlns:i='areas'>\
-                <i:Router id='router' url='/parts/:action'/>\
-                <Select id='select' xmlns='parts'/>\
-                <Sqlite id='sqlite' xmlns='/sqlite'/>\
-              </i:Flow>",
+    Factory: {
+        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
             let table = {};
+            function create(klass) {
+                if (!table[klass]) {
+                    require(`${__dirname}/parts/${klass}/index.js`);
+                    let Middle = `//${klass}/Index`;
+                    xp.hasComponent(Middle).map.msgscope = true;
+                    table[klass] = sys.sqlite.append(Middle);
+                }
+                return table[klass];
+            }
             function getPartById(partId) {
                 return new Promise((resolve, reject) => {
                     let stmt = `SELECT * FROM parts WHERE id = '${partId}'`;
@@ -422,20 +408,24 @@ $_("proxy").imports({
                     });
                 });
             }
-            function creatPart(p) {
-                if (!table[p.part]) {
-                    require(`${__dirname}/parts/${p.part}/index.js`);
-                    let Middle = `//${p.part}/Middle`;
-                    xp.hasComponent(Middle).map.msgscope = true;
-                    let part = sys.sqlite.append(Middle, p);
-                    table[p.part] = part;
-                    part.on("to-local", (e, payload) => {
-                        sys.sqlite.notify("to-local", [p.link, {ssid: p.part, body: payload}]);
-                    });
-                }
-                return table[p.part];
+            function remove(e, payload) {
+                delete payload.ptr;
+                delete payload.args;
+                delete payload.detail;
+                e.stopPropagation();
             }
-            return { getPartById: getPartById, creatPart: creatPart };
+            this.on("to-user", (e, payload) => {
+                let topic = payload.ssid;
+                delete payload.ssid;
+                remove(e, payload);
+                this.notify("to-user", [topic, payload]);
+            });
+            this.on("to-local", (e, payload) => {
+                let p = payload.detail;
+                remove(e, payload);
+                p && this.notify("to-local", [p.link, {ssid: p.part, body: payload}]);
+            });
+            return { create: create, getPartById: getPartById };
         }
     }
 });
@@ -473,127 +463,6 @@ $_("proxy/login").imports({
                 return cryptoJS.lib.WordArray.random(128/8).toString();
             }
             return { encrypt: encrypt, salt: salt };
-        }
-    }
-});
-
-$_("proxy/areas").imports({
-    Flow: {
-        xml: "<main id='flow'/>",
-        fun: function (sys, items, opts) {
-            let first = this.first(),
-                table = this.find("./*[@id]").hash();
-            this.on("enter", (e, d, next) => {
-                d.ptr.unshift(first);
-                first.trigger("enter", d, false);
-            });
-            this.on("next", (e, d, next) => {
-                if ( e.target == sys.flow ) return;
-                e.stopPropagation();
-                if ( next == null ) {
-                    d.ptr[0] = d.ptr[0].next();
-                    d.ptr[0] ? d.ptr[0].trigger("enter", d, false) : this.trigger("reject", [d, next]);
-                } else if ( table[next] ) {
-                    (d.ptr[0] = table[next]).trigger("enter", d, false);
-                } else {
-                    this.trigger("reject", [d, next]);
-                }
-            });
-            this.on("reject", (e, d, next) => {
-                d.ptr.shift();
-                e.stopPropagation();
-                this.trigger("next", [d, next]);
-            });
-        }
-    },
-    Router: {
-        xml: "<ParseURL id='router'/>",
-        opt: { url: "/*" },
-        map: { attrs: {"router": "url"} },
-        fun: function (sys, items, opts) {
-            this.on("enter", (e, d) => {
-                d.args = items.router(d.topic);
-                if ( d.args == false )
-                    return this.trigger("reject", d);
-                this.trigger("next", d);
-            });
-        }
-    },
-    ParseURL: {
-        fun: function (sys, items, opts) {
-            let pathRegexp = require("path-to-regexp"),
-                regexp = pathRegexp(opts.url || "/", opts.keys = [], {});
-            function decode(val) {
-                if ( typeof val !== "string" || val.length === 0 ) return val;
-                try {
-                    val = decodeURIComponent(val);
-                } catch(e) {}
-                return val;
-            }
-            return path => {
-                let res = regexp.exec(path);
-                if (!res) return false;
-                let params = {};
-                for (let i = 1; i < res.length; i++) {
-                    let key = opts.keys[i - 1], val = decode(res[i]);
-                    if (val !== undefined || !(hasOwnProperty.call(params, key.name)))
-                        params[key.name] = val;
-                }
-                return params;
-            };
-        }
-    },
-    Select: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
-        fun: function (sys, items, opts) {
-            this.on("enter", (e, payload) => {
-                let stmt = `SELECT distinct areas.* FROM areas,links,parts,authorizations AS a
-                            WHERE a.user='${payload.user}' AND a.memo LIKE '%' || parts.id || '%' AND areas.id = links.area AND links.id = parts.link`
-                items.sqlite.all(stmt, (err, data) => {
-                    if (err) throw err;
-                    payload.data = data;
-                    this.trigger("publish", payload);
-                });
-            });
-        }
-    }
-});
-
-$_("proxy/links").imports({
-    Select: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
-        fun: function (sys, items, opts) {
-            this.on("enter", (e, payload) => {
-                let stmt = `SELECT distinct links.* FROM links,parts,authorizations AS a
-                            WHERE a.user='${payload.user}' AND a.memo LIKE '%' || parts.id || '%' AND links.area = '${payload.body.area}' AND links.id = parts.link`;
-                items.sqlite.all(stmt, (err, data) => {
-                    if (err) throw err;
-                    payload.data = data;
-                    this.trigger("publish", payload);
-                });
-            });
-        }
-    }
-});
-
-$_("proxy/parts").imports({
-    Select: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
-        fun: function (sys, items, opts) {
-            this.on("enter", (e, payload) => {
-                let stmt = `SELECT parts.* FROM parts,authorizations AS a
-                            WHERE a.user='${payload.user}' AND a.memo LIKE '%' || parts.id || '%' AND parts.link = '${payload.body.link}'`;
-                items.sqlite.all(stmt, (err, data) => {
-                    if (err) throw err;
-                    data.forEach(item => {
-                        item.ssid = item.id;
-                        delete item.id;
-                        item.data = JSON.parse(item.data);
-                    });
-                    payload.data = data;
-                    this.trigger("publish", payload);
-                });
-            });
         }
     }
 });

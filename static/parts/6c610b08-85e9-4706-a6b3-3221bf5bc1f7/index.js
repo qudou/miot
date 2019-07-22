@@ -5,17 +5,27 @@
  * Released under the MIT license
  */
 
-xmlplus("44e3904d-2ad3-44e5-ae1b-0327b666629c", (xp, $_, t) => { //leyaoyao
+xmlplus("6c610b08-85e9-4706-a6b3-3221bf5bc1f7", (xp, $_, t) => { //sysinfo
+
+let QueryData = {};
 
 $_().imports({
     Client: {
         xml: "<div id='client'>\
                 <Navbar id='navbar'/>\
                 <Content id='content'/>\
+                <label id='label'></label>\
               </div>",
         fun: function (sys, items, opts) {
             items.navbar.title(opts.name);
-            this.notify("options", opts.data);
+            QueryData = opts.queryData;
+            QueryData.ln = parseInt(QueryData.ln);
+            QueryData.col = parseInt(QueryData.col);
+            console.log(opts);
+            sys.label.text(JSON.stringify(opts));
+            this.watch("options", (e, options) => {
+                console.log(options);
+            });
         }
     },
     Navbar: {
@@ -39,35 +49,31 @@ $_().imports({
         css: "#content .page-content div { margin-left: 15px; margin-right: 15px; }",
         xml: "<div id='content' class='page'>\
                 <div class='page-content'>\
-                    <div class='block-title'>系统信息</div>\
-                    <div>更新时间：<span id='dateTime'/></div>\
-                    <div>　制造商：<span id='manufacturer'/></div>\
-                    <div>　　品牌：<span id='brand'/></div>\
-                    <div>　ＣＰＵ：<span id='temp'/></div>\
-                    <div>磁盘容量：<span id='diskspace'/></div>\
-                    <Reboot id='reboot'/>\
+                    <div id='price'>66.66</div>\
+                    <div id='name_'>品名</div>\
+                    <div id='bcode'>货号</div>\
+                    <button id='test'>下货</button>\
                 </div>\
               </div>",
         map: { nofragment: true },
         fun: function (sys, items, opts) {
-            this.watch("options", (e, data) => {
-                for(let key in items)
-                    data[key] && sys[key].text(data[key]);
+            sys.test.on("click", e => {
+                this.trigger("publish", ["drop-goods", {ln: QueryData.ln, col: QueryData.col}]);
             });
-        }
-    },
-    Reboot: {
-        xml: "<div class='list inset'>\
-                <ul><li><a href='#' class='list-button item-link color-red'>重启</a></li></ul>\
-              </div>",
-        fun: function (sys, items, opts) {
-            this.on("touchend", e => {
-                app.dialog.confirm("确定重启系统吗？", "温馨提示", e => {
-                    this.trigger("publish", ["reboot", {}]);
-                });
+            this.watch("options", (e, o) => {
+                let ln = QueryData.ln;
+                let col = QueryData.col;
+                let g = o.table[ln][col];
+                sys.price.text(g["零售价"]);
+                sys.name_.text(g["品名"]);
+                sys.bcode.text(g["货号"]);
             });
         }
     }
 });
 
 });
+
+if ( typeof define === "function" ) {
+    define( "xmlplus", [], function () { return xmlplus; } );
+}

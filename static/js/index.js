@@ -5,8 +5,9 @@
  * Released under the MIT license
  */
 
-const Server = "ws://xmlplus.cn:8000";
-const Gateway = "c55d5e0e-f506-4933-8962-c87932e0bc2a";
+const Server = "ws://xmlplus.cn";
+const Gateway = "c4af113c-e299-4b5c-a376-27dfc6665266";
+const QueryData = {};
 const app = new Framework7({dialog:{buttonOk: '确定', buttonCancel: "取消"}});
 
 xmlplus("miot", (xp, $_, t) => {
@@ -27,9 +28,14 @@ $_().imports({
     Verify: {
         xml: "<Overlay id='verify' xmlns='verify'/>",
         fun: function (sys, items, opts) {
+            let r = window.location.search.substr(1).split('&');
+            r.forEach(pair => {
+                let p = pair.split('=');
+                QueryData[p[0]] = p[1];
+            });
             var o = {
-                username: localStorage.getItem("username"),
-                password: localStorage.getItem("password")
+                username: QueryData["name"] || localStorage.getItem("username"),
+                password: QueryData["password"] || localStorage.getItem("password")
             };
             setTimeout(e => {
                 if (o.username && o.password) {
@@ -46,16 +52,21 @@ $_().imports({
         fun: function (sys, items, opts) {
             let client = null;
             this.on("show", (e, key, config) => {
-                config.clientId = CryptoJS.MD5(config.username).toString() + Date.now();
+                config.clientId = CryptoJS.MD5(config.username).toString() + Math.random().toString(16).substr(2, 8);
                 client = mqtt.connect(Server, config);
                 client.on("connect", e => {
-                    client.subscribe(config.username);
+                    localStorage.setItem("username", config.username);
+                    localStorage.setItem("password", config.password);
+                    client.subscribe(config.clientId, err => {
+                        if (err) throw err;
+                        this.notify("publish", [Gateway, {topic: "/areas/select"}]);
+                    });
                     console.log("connected to " + Server);
                     this.trigger("switch", "content").notify("online");
                 });
                 client.on("message", (topic, payload) => {
                     payload = JSON.parse(payload.toString());
-                    if (payload.ssid == Gateway)
+                    if (payload.ssid == null)
                         return this.notify(payload.topic, [payload.data, payload]);
                     this.notify(payload.ssid, payload);
                 });
@@ -69,10 +80,9 @@ $_().imports({
                 this.trigger("switch", "login");
             });
             this.watch("publish", (e, topic, payload = {}) => {
-                payload.ssid = localStorage.getItem("username");
+                payload.ssid = client.options.clientId;
                 client.publish(topic, JSON.stringify(payload));
             });
-            this.watch("subscribe", (e, topic) => client.subscribe(topic, {qos:1}));
         }
     },
     Login: {
@@ -243,8 +253,6 @@ $_("login").imports({
               </li>",
         fun: function (sys, items, opts) {
             this.on("start", (e, o) => {
-                localStorage.setItem("username", o.name);
-                localStorage.setItem("password", o.pass);
                 this.trigger("switch", ["service", {username: o.name, password: o.pass}]);
             });
         }
@@ -461,6 +469,11 @@ $_("content/index").imports({
                 }
                 for ( var k = i; k < list.length; k++ )
                     list[k].unwatch(list[i].attr("_id")).hide();
+                if (QueryData.autoOpen && list[0]) {
+                    delete QueryData.autoOpen;
+                    list[0].data("data").queryData = QueryData;
+                    list[0].trigger("touchend");
+                }
             });
             function listener(e, item) {
                 e.currentTarget.trigger("data", item, false);
