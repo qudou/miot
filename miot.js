@@ -86,12 +86,11 @@ $_().imports({
                 let payload = JSON.parse(packet.payload + '');                                // 含 ssid(clientId) 本次出发源, topic(partId) 最终目的地
                 let p = await items.factory.getPartById(packet.topic);
                 payload.detail = p;
-                let klass = p && p['class'] || packet.topic;
                 try {
-                    items.factory.create(klass).trigger("start", payload);
+                    items.factory.create(p['class']).trigger("start", payload);
                 } catch(e) {
                     delete payload.detail;
-                    p && this.notify("to-local", [p.link, {ssid: p.part, body: payload}]);    // ssid 应该命名为 topic
+                    this.notify("to-local", [p.link, {ssid: p.part, body: payload}]);         // ssid 应该命名为 topic
                 }
             });
             this.watch("to-user", (e, topic, payload) => {
@@ -404,7 +403,7 @@ $_("proxy").imports({
                     let stmt = `SELECT * FROM parts WHERE id = '${partId}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
-                        resolve(data[0]);
+                        resolve(data[0] || {'class': partId});
                     });
                 });
             }
