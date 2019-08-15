@@ -7,22 +7,15 @@
 
 xmlplus("6c610b08-85e9-4706-a6b3-3221bf5bc1f7", (xp, $_, t) => { //sysinfo
 
-let QueryData = {};
-
 $_().imports({
     Client: {
         xml: "<div id='client'>\
                 <Navbar id='navbar'/>\
                 <Content id='content'/>\
-                <label id='label'></label>\
               </div>",
         fun: function (sys, items, opts) {
             items.navbar.title(opts.name);
-            QueryData = opts.queryData;
-            QueryData.ln = parseInt(QueryData.ln);
-            QueryData.col = parseInt(QueryData.col);
             console.log(opts);
-            sys.label.text(JSON.stringify(opts));
             this.watch("options", (e, options) => {
                 console.log(options);
             });
@@ -46,28 +39,64 @@ $_().imports({
         }
     },
     Content: {
-        css: "#content .page-content div { margin-left: 15px; margin-right: 15px; }",
+        css: "#content .page-content div { margin-left: 15px; margin-right: 15px; }\
+              #detail { width: 100%; text-align: center; margin: 30px 0 0; }\
+              #price { color: #ff5745; font-size: 1.35em; }\
+              #buy { margin: 10px 0 0; }",
         xml: "<div id='content' class='page'>\
-                <div class='page-content'>\
-                    <div id='price'>66.66</div>\
-                    <div id='name_'>品名</div>\
-                    <div id='bcode'>货号</div>\
-                    <button id='test'>下货</button>\
+                <div id='detail' class='page-content'>\
+                    <img src='http://www.tongyijia365.com/img/goods/06154.jpg'/>\
+                    <div id='price'>￥66.66</div>\
+                    <div id='cname'>品名</div>\
+                    <button id='buy'>购买</button>\
                 </div>\
+                <WeixinJSBridge id='wcpay'/>\
               </div>",
         map: { nofragment: true },
         fun: function (sys, items, opts) {
-            sys.test.on("click", e => {
-                this.trigger("publish", ["drop-goods", {ln: QueryData.ln, col: QueryData.col}]);
+            let G = {}, Q = {};
+            let r = window.location.search.substr(1).split('&');
+            r.forEach(pair => {
+                let p = pair.split('=');
+                Q[p[0]] = p[1];
+            });
+            sys.buy.on("click", e => {
+                let body = { code: Q.code, money: 0.01, spbill_create_ip: returnCitySN["cip"], ln: Q.ln, col: Q.col };
+                this.trigger("publish", ["/unifiedorder", body]);
             });
             this.watch("options", (e, o) => {
-                let ln = QueryData.ln;
-                let col = QueryData.col;
-                let g = o.table[ln][col];
-                sys.price.text(g["零售价"]);
-                sys.name_.text(g["品名"]);
-                sys.bcode.text(g["货号"]);
+                G = o.table[Q.ln][Q.col];
+                sys.price.text('￥'+G["零售价"]);
+                sys.cname.text(G["品名"]);
             });
+            sys.wcpay.on("wcpay-success", (e) => {
+                //this.trigger("publish", ["drop-goods", {ln: Q.ln, col: Q.col}]);
+            });
+            this.watch("/unifiedorder", (e, o) => items.wcpay(o));
+        }
+    },
+    WeixinJSBridge: {
+        xml: "<main id='bridge'/>",
+        fun: function (sys, items, opts) {
+            function onBridgeReady(body){
+                WeixinJSBridge.invoke('getBrandWCPayRequest', body, res => {
+                    if(res.err_msg == "get_brand_wcpay_request:ok" )
+                        sys.bridge.trigger("wcpay-success");
+                }); 
+            }
+            function wcpay(body) {
+                if (typeof WeixinJSBridge == "undefined"){
+                   if( document.addEventListener ){
+                       document.addEventListener('WeixinJSBridgeReady', () => onBridgeReady(body), false);
+                   } else if (document.attachEvent){
+                       document.attachEvent('WeixinJSBridgeReady', () => onBridgeReady(body)); 
+                       document.attachEvent('onWeixinJSBridgeReady', () => onBridgeReady(body));
+                   }
+                }else{
+                   onBridgeReady(body);
+                }
+            }
+            return wcpay;
         }
     }
 });

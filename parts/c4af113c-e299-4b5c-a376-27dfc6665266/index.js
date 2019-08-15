@@ -107,7 +107,7 @@ $_("areas").imports({
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
-                let user = payload.ssid.substr(0,32);
+                let user = payload.uid.substr(0,32);
                 let stmt = `SELECT distinct areas.* FROM areas,links,parts,authorizations AS a
                             WHERE a.user='${user}' AND a.memo LIKE '%' || parts.id || '%' AND areas.id = links.area AND links.id = parts.link`
                 items.sqlite.all(stmt, (err, data) => {
@@ -125,12 +125,12 @@ $_("links").imports({
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
-                let user = payload.ssid.substr(0,32);
+                let user = payload.uid.substr(0,32);
                 let stmt = `SELECT distinct links.* FROM links,parts,authorizations AS a
                             WHERE a.user='${user}' AND a.memo LIKE ('%' || parts.id || '%') AND links.area = '${payload.body.area}' AND links.id = parts.link`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
-                    payload.data = data;
+                    payload.data = {area: payload.body.area, links: data};
                     this.trigger("to-user", payload);
                 });
             });
@@ -143,17 +143,15 @@ $_("parts").imports({
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
-                let user = payload.ssid.substr(0,32);
+                let user = payload.uid.substr(0,32);
                 let stmt = `SELECT parts.* FROM parts,authorizations AS a
                             WHERE a.user='${user}' AND a.memo LIKE '%' || parts.id || '%' AND parts.link = '${payload.body.link}'`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
-                    data.forEach(item => {
-                        item.ssid = item.id;
-                        delete item.id;
-                        item.data = JSON.parse(item.data);
+                    payload.data = {link: payload.body.link, parts: []};
+                    data.forEach(i => {
+                        payload.data.parts.push({'mid':i.id,'name':i.name,'class':i['class'],'data':JSON.parse(i.data),'online':i.online});
                     });
-                    payload.data = data;
                     this.trigger("to-user", payload);
                 });
             });

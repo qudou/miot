@@ -41,24 +41,24 @@ $_().imports({
                 await items.links.update(topic, 0);
                 await items.parts.update(topic, 0);
                 let parts = await items.parts.getPartsByLink(topic);
-                parts.forEach(item => this.notify("to-users", {ssid: item.id, online: 0}));
+                parts.forEach(item => this.notify("to-users", {mid: item.id, online: 0, topic: "options"}));
             });
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 if (packet.topic == ID) {
                     let payload = JSON.parse(packet.payload + '');
-                    let part = await items.parts.getPartByLink(client.id, payload.ssid);
+                    let part = await items.parts.getPartByLink(client.id, payload.pid);
                     if (!part) return;
                     xp.extend(options[part.id], payload.data);
                     items.parts.cache(part.id, payload.online, options[part.id]);
-                    payload.ssid = part.id;
+                    payload.mid = part.id;
+                    payload.topic = "options";
                     this.notify("to-users", payload);
                 }
             });
             this.watch("to-local", (e, topic, payload) => {
-                delete payload.ptr;
-                delete payload.args;
-                server.publish({topic: topic, payload: JSON.stringify(payload), qos: 1, retain: false});
+                payload = JSON.stringify(payload);
+                server.publish({topic: topic, payload: payload, qos: 1, retain: false});
             });
         }
     },
@@ -83,14 +83,15 @@ $_().imports({
             server.on("clientDisconnected", client => items.users.disconnected(client));
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
-                let payload = JSON.parse(packet.payload + '');                                // 含 ssid(clientId) 本次出发源, topic(partId) 最终目的地
-                let p = await items.factory.getPartById(packet.topic);
-                payload.detail = p;
+                let p = JSON.parse(packet.payload + '');
+                let m = await items.factory.getPartById(packet.topic);
                 try {
-                    items.factory.create(p['class']).trigger("start", payload);
+                    p.pid = m.part, p.uid = client.id;
+                    p.mid = packet.topic, p.link = m.link;
+                    items.factory.create(m['class']).trigger("start", p);
                 } catch(e) {
-                    delete payload.detail;
-                    this.notify("to-local", [p.link, {ssid: p.part, body: payload}]);         // ssid 应该命名为 topic
+                    let body = { topic: p.topic, body: p.body };
+                    this.notify("to-local", [p.link, {pid: p.pid, body: body}]); 
                 }
             });
             this.watch("to-user", (e, topic, payload) => {
@@ -98,7 +99,7 @@ $_().imports({
                 server.publish({topic: topic, payload: payload, qos: 1, retain: false});
             });
             this.watch("to-users", async (e, payload) => {
-                let users = await items.users.getUsersByPart(payload.ssid);
+                let users = await items.users.getUsersByMiddle(payload.mid);
                 users.forEach(item => this.notify("to-user", [item.client_id, payload]));
             });
         }
@@ -313,10 +314,10 @@ $_("proxy").imports({
                     });
                 });
             }
-            function getUsersByPart(partId) {
+            function getUsersByMiddle(mid) {
                 return new Promise((resolve, reject) => {
                     let stmt = `SELECT status.* FROM users,authorizations AS a, status
-                                WHERE users.id = substr(status.client_id,1,32) AND users.id = a.user AND a.memo LIKE '%' || '${partId}' || '%'`;
+                                WHERE users.id = substr(status.client_id,1,32) AND users.id = a.user AND a.memo LIKE '%' || '${mid}' || '%'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data);
@@ -372,7 +373,7 @@ $_("proxy").imports({
                     });
                 });
             }
-            return { canSubscribe: canSubscribe, getUsersByPart: getUsersByPart, connected: connected, disconnected: disconnected, offlineAll: offlineAll };
+            return { canSubscribe: canSubscribe, getUsersByMiddle: getUsersByMiddle, connected: connected, disconnected: disconnected, offlineAll: offlineAll };
         }
     },
     Middle: {
@@ -403,26 +404,20 @@ $_("proxy").imports({
                     let stmt = `SELECT * FROM parts WHERE id = '${partId}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
-                        resolve(data[0] || {'class': partId});
+                        resolve(data[0]);
                     });
                 });
             }
-            function remove(e, payload) {
-                delete payload.ptr;
-                delete payload.args;
-                delete payload.detail;
-                e.stopPropagation();
-            }
             this.on("to-user", (e, payload) => {
-                let topic = payload.ssid;
-                delete payload.ssid;
-                remove(e, payload);
-                this.notify("to-user", [topic, payload]);
+                let p = payload;
+                e.stopPropagation();
+                payload = { mid: p.mid, topic: p.topic, data: p.data };
+                this.notify("to-user", [p.uid, payload]);
             });
             this.on("to-local", (e, payload) => {
-                let p = payload.detail;
-                remove(e, payload);
-                p && this.notify("to-local", [p.link, {ssid: p.part, body: payload}]);
+                let p = payload;
+                e.stopPropagation();
+                this.notify("to-local", [p.link, {pid: p.pid, body: p.body}]);
             });
             return { create: create, getPartById: getPartById };
         }

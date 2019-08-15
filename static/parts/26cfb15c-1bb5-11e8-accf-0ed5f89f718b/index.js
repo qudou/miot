@@ -7,8 +7,6 @@
 
 xmlplus("26cfb15c-1bb5-11e8-accf-0ed5f89f718b", (xp, $_, t) => { //sysinfo
 
-let app = new Framework7({dialog:{buttonOk: '确定', buttonCancel: "取消"}});
-
 $_().imports({
     Client: {
         xml: "<div id='client'>\
@@ -64,7 +62,7 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             this.on("touchend", e => {
-                app.dialog.confirm("确定重启系统吗？", "温馨提示", e => {
+                window.app.dialog.confirm("确定重启系统吗？", "温馨提示", e => {
                     this.trigger("publish", ["reboot", {}]);
                 });
             });

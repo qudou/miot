@@ -5,10 +5,9 @@
  * Released under the MIT license
  */
 
-const Server = "ws://xmlplus.cn";
-const Gateway = "c4af113c-e299-4b5c-a376-27dfc6665266";
+const Server = "ws://xmlplus.cn:8082";
 const QueryData = {};
-const app = new Framework7({dialog:{buttonOk: '确定', buttonCancel: "取消"}});
+window.app = new Framework7({theme: "ios", dialog:{buttonOk: '确定', buttonCancel: "取消"}});
 
 xmlplus("miot", (xp, $_, t) => {
 
@@ -59,16 +58,14 @@ $_().imports({
                     localStorage.setItem("password", config.password);
                     client.subscribe(config.clientId, err => {
                         if (err) throw err;
-                        this.notify("publish", [Gateway, {topic: "/areas/select"}]);
+                        this.notify("subscribed");
                     });
                     console.log("connected to " + Server);
                     this.trigger("switch", "content").notify("online");
                 });
                 client.on("message", (topic, payload) => {
                     payload = JSON.parse(payload.toString());
-                    if (payload.ssid == null)
-                        return this.notify(payload.topic, [payload.data, payload]);
-                    this.notify(payload.ssid, payload);
+                    this.notify(payload.mid, payload);
                 });
                 client.on("close", e => this.notify("offline"));
                 client.on("error", e => this.notify("logout"));
@@ -80,7 +77,6 @@ $_().imports({
                 this.trigger("switch", "login");
             });
             this.watch("publish", (e, topic, payload = {}) => {
-                payload.ssid = client.options.clientId;
                 client.publish(topic, JSON.stringify(payload));
             });
         }
@@ -117,11 +113,24 @@ $_().imports({
                 <i:Footer id='footer'/>\
               </div>",
         fun: function (sys, items, opts) {
+            const Gateway = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
             sys.footer.on("switch", (e, page) => {
                 e.stopPropagation();
                 sys.stack.trigger("switch", page, false);
             });
             this.on("show", () => this.notify("switch-page", "index"));
+            this.on("publish", (e, payload) => {
+                e.stopPropagation();
+                this.notify("publish", [Gateway, payload]);
+            });
+            this.on("open-part", (e, payload) => {
+                e.stopPropagation();
+                this.notify("open-part", payload);
+            });
+            this.watch(Gateway, (e, payload) => items.index.publish(payload));
+            this.watch("subscribed", () => this.trigger("publish", {topic: "/areas/select"}));
+            this.watch("online", items.index.online);
+            this.watch("offline", items.index.offline);
         }
     },
     ViewStack: {
@@ -296,12 +305,23 @@ $_("content").imports({
                 <i:Stores id='stores'/>\
                 <i:Parts id='parts'/>\
               </div>",
+        map: { msgscope: true },
         fun: function (sys, items, opts) {
             this.watch("open-store", (e, store) => {
                 sys.title.text(store.name);
-                this.notify("publish", [Gateway, {topic: "/parts/select", body: {link: store.id}}]);
+                this.trigger("publish", {topic: "/parts/select", body: {link: store.id}});
             });
-            sys.title.on("click", e => this.notify("show-stores"))
+            sys.title.on("click", e => this.notify("show-stores"));
+            function online() {
+                sys.index.notify("online");
+            }
+            function offline() {
+                sys.index.notify("offline");
+            }
+            function publish(payload) {
+                sys.index.notify(payload.topic, [payload.data, payload]);
+            }
+            return { publish: publish, online: online, offline: offline };
         }
     },
     About: {
@@ -323,7 +343,7 @@ $_("content").imports({
         fun: function (sys, items, opts) {
             this.on("publish", (e, topic, body) => {
                 e.stopPropagation();
-                this.notify("publish", [opts.ssid, {topic: topic, body: body}]);
+                this.notify("publish", [opts.mid, {topic: topic, body: body}]);
             });
             function loadClient(part) {
                 require([`/parts/${part.class}/index.js`], e => {
@@ -340,10 +360,14 @@ $_("content").imports({
                 });
             }
             function register(client) {
-                sys.client.watch(opts.ssid, (e, part) => {
+                sys.client.watch(opts.mid, (e, part) => {
                     if ( part.online == 0 )
                         return sys.client.trigger("close");
-                    client.notify("options", xp.extend(true, opts.data, part.data));
+                    if (part.topic == "options" || part.topic == null)
+                        client.notify(part.topic, xp.extend(true, opts.data, part.data));
+                    else {
+                        client.notify(part.topic, part.data);
+                    }
                 }).watch("offline", () => sys.client.trigger("close"));
             }
             this.watch("open-part", (e, data) => {
@@ -353,7 +377,7 @@ $_("content").imports({
             });
             this.on("close", e => {
                 e.stopPropagation();
-                sys.client.unwatch(opts.ssid).unwatch("offline").removeClass("#modal-in");
+                sys.client.unwatch(opts.mid).unwatch("offline").removeClass("#modal-in");
             }, false);
         }
     },
@@ -410,15 +434,15 @@ $_("content/index").imports({
                 this.trigger("checked", true);
                 items.areas.hide().notify("open-area", this.data("data"));
             });
-            this.watch("/links/select", (e, stores, d) => {
+            this.watch("/links/select", (e, data, d) => {
                 if (!d) return;
-                areas[d.body.area] = stores;
+                areas[d.data.area] = data.links;
             });
             this.watch("open-area", (e, area) => {
                 localStorage.setItem("area", area.id);
                 if (areas[area.id])
                     return this.notify("/links/select", [areas[area.id]]);
-                this.notify("publish", [Gateway, {topic: "/links/select", body: {area: area.id}}]);
+                this.trigger("publish", {topic: "/links/select", body: {area: area.id}});
             });
             this.watch("offline", e => areas = {});
             this.watch("show-areas", items.areas.show);
@@ -428,11 +452,11 @@ $_("content/index").imports({
         xml: "<List id='stores' xmlns='list'/>",
         fun: function (sys, items, opts) {
             var checked = {};
-            this.watch("/links/select", (e, links) => {
+            this.watch("/links/select", (e, data) => {
                 var tmp, selected;
                 checked.id = localStorage.getItem("store");
                 sys.stores.children().call("remove");
-                links.forEach(item => {
+                data.links.forEach(item => {
                     item.key = "link";
                     tmp = sys.stores.append("list/Item");
                     tmp.value().init(item);
@@ -458,29 +482,29 @@ $_("content/index").imports({
               #parts > * { margin: 4px }",
         xml: "<div id='parts'/>",
         fun: function (sys, items, opts) {
-            this.watch("/parts/select", (e, parts) => {
+            this.watch("/parts/select", (e, data) => {
                 var item, list = sys.parts.children();
-                for ( i = 0; i < parts.length; i++ ) {
-                    item = parts[i];
+                for ( i = 0; i < data.parts.length; i++ ) {
+                    item = data.parts[i];
                     list[i] || list.push(sys.parts.append("Thumbnail"));
                     list[i].unwatch(list[i].attr("_id"));
                     list[i].data("data", item).trigger("data", item, false);
-                    list[i].watch(item.ssid + '', listener).attr("_id", item.ssid + '').show();
+                    list[i].watch(item.mid + '', listener).attr("_id", item.mid + '').show();
                 }
                 for ( var k = i; k < list.length; k++ )
                     list[k].unwatch(list[i].attr("_id")).hide();
                 if (QueryData.autoOpen && list[0]) {
                     delete QueryData.autoOpen;
-                    list[0].data("data").queryData = QueryData;
                     list[0].trigger("touchend");
                 }
             });
             function listener(e, item) {
-                e.currentTarget.trigger("data", item, false);
+                if (item.topic == "options" || item.topic == null)
+                    e.currentTarget.trigger("data", item, false);
             }
             sys.parts.on("touchend", "*", function (e) {
                 var data = this.data("data");
-                data.online && this.notify("open-part", data);
+                data.online && this.trigger("open-part", data);
             });
             this.watch("offline", e => {
                 sys.parts.children().forEach(item => {

@@ -7,8 +7,6 @@
 
 xmlplus("eee825dc-d900-47ab-b98c-b4dc9aed31ae", (xp, $_, t) => { //player
 
-let app = new Framework7();
-
 $_().imports({
     Client: {
         xml: "<div id='client'>\

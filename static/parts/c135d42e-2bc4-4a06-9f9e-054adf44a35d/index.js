@@ -7,8 +7,6 @@
 
 xmlplus("c135d42e-2bc4-4a06-9f9e-054adf44a35d", (xp, $_, t) => { //auto
 
-let app = new Framework7();
-
 $_().imports({
     Client: {
         xml: "<div id='client'>\
@@ -90,7 +88,7 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             let today = new Date();
-            let picker = app.picker.create({
+            let picker = window.app.picker.create({
                 inputEl: sys.input.elem(),
                 rotateEffect: true,
                 toolbarCloseText: "确定",
