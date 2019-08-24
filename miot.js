@@ -68,9 +68,8 @@ $_().imports({
                 <i:Users id='users'/>\
                 <i:Factory id='factory'/>\
               </main>",
-        opt: { port: 1885, http: { port: 80, bundle: true, static: `${__dirname}/static` } },
+        opt: { port: 1885, http: { port: 8082, bundle: true, static: `${__dirname}/static` } },
         fun: function (sys, items, opts) {
-            let first = sys.areas;
             let server = new mosca.Server(opts);
             server.on("ready", async () => {
                 await items.auth.init();
@@ -269,7 +268,8 @@ $_("proxy").imports({
                 });
             }
             async function authenticate(client, user, pass, callback) {
-                callback(null, await items.login(user, pass + ''));
+                let result = await items.login(user, pass + '');
+                callback(result ? null : true, result);
             }
             async function authorizeSubscribe(client, topic, callback) {
                 callback(null, await items.users.canSubscribe(client, topic));

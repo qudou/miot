@@ -68,13 +68,13 @@ $_().imports({
                     this.notify(payload.mid, payload);
                 });
                 client.on("close", e => this.notify("offline"));
-                client.on("error", e => this.notify("logout"));
+                client.on("error", e => this.notify("logout", e));
             });
-            this.watch("logout", () => {
+            this.watch("logout", (e, err) => {
                 client.end();
-                localStorage.setItem("username", "");
-                localStorage.setItem("password", "");
+                localStorage.clear();
                 this.trigger("switch", "login");
+                err && window.app.dialog.alert(err.message, "提示");
             });
             this.watch("publish", (e, topic, payload = {}) => {
                 client.publish(topic, JSON.stringify(payload));
@@ -127,10 +127,10 @@ $_().imports({
                 e.stopPropagation();
                 this.notify("open-part", payload);
             });
-            this.watch(Gateway, (e, payload) => items.index.publish(payload));
+            this.watch(Gateway, (e, payload) => {
+                sys.index.notify(payload.topic, payload);
+            });
             this.watch("subscribed", () => this.trigger("publish", {topic: "/areas/select"}));
-            this.watch("online", items.index.online);
-            this.watch("offline", items.index.offline);
         }
     },
     ViewStack: {
@@ -305,23 +305,12 @@ $_("content").imports({
                 <i:Stores id='stores'/>\
                 <i:Parts id='parts'/>\
               </div>",
-        map: { msgscope: true },
         fun: function (sys, items, opts) {
             this.watch("open-store", (e, store) => {
                 sys.title.text(store.name);
                 this.trigger("publish", {topic: "/parts/select", body: {link: store.id}});
             });
             sys.title.on("click", e => this.notify("show-stores"));
-            function online() {
-                sys.index.notify("online");
-            }
-            function offline() {
-                sys.index.notify("offline");
-            }
-            function publish(payload) {
-                sys.index.notify(payload.topic, [payload.data, payload]);
-            }
-            return { publish: publish, online: online, offline: offline };
         }
     },
     About: {
@@ -417,11 +406,11 @@ $_("content/index").imports({
         xml: "<List id='areas' xmlns='list'/>",
         fun: function (sys, items, opts) {
             var areas = {}, checked = {};
-            this.watch("/areas/select", (e, areas) => {
+            this.watch("/areas/select", (e, d) => {
                 let tmp, selected;
                 checked.id = localStorage.getItem("area");
                 sys.areas.children().call("remove");
-                areas.forEach(item => {
+                d.data.forEach(item => {
                     item.key = "area";
                     tmp = sys.areas.append("list/Item");
                     tmp.value().init(item);
@@ -434,9 +423,9 @@ $_("content/index").imports({
                 this.trigger("checked", true);
                 items.areas.hide().notify("open-area", this.data("data"));
             });
-            this.watch("/links/select", (e, data, d) => {
+            this.watch("/links/select", (e, d) => {
                 if (!d) return;
-                areas[d.data.area] = data.links;
+                areas[d.data.area] = d;
             });
             this.watch("open-area", (e, area) => {
                 localStorage.setItem("area", area.id);
@@ -452,11 +441,11 @@ $_("content/index").imports({
         xml: "<List id='stores' xmlns='list'/>",
         fun: function (sys, items, opts) {
             var checked = {};
-            this.watch("/links/select", (e, data) => {
+            this.watch("/links/select", (e, d) => {
                 var tmp, selected;
                 checked.id = localStorage.getItem("store");
                 sys.stores.children().call("remove");
-                data.links.forEach(item => {
+                d.data.links.forEach(item => {
                     item.key = "link";
                     tmp = sys.stores.append("list/Item");
                     tmp.value().init(item);
@@ -482,10 +471,10 @@ $_("content/index").imports({
               #parts > * { margin: 4px }",
         xml: "<div id='parts'/>",
         fun: function (sys, items, opts) {
-            this.watch("/parts/select", (e, data) => {
+            this.watch("/parts/select", (e, d) => {
                 var item, list = sys.parts.children();
-                for ( i = 0; i < data.parts.length; i++ ) {
-                    item = data.parts[i];
+                for ( i = 0; i < d.data.parts.length; i++ ) {
+                    item = d.data.parts[i];
                     list[i] || list.push(sys.parts.append("Thumbnail"));
                     list[i].unwatch(list[i].attr("_id"));
                     list[i].data("data", item).trigger("data", item, false);
