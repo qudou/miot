@@ -504,7 +504,7 @@ $_("content/index").imports({
     },
     Thumbnail: {
         css: "a#thumbnail { -webkit-transition: transform 0.3s; padding-top: 4px; padding-bottom: 4px; height: 100%; -webkit-box-pack: justify; -ms-flex-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%; box-sizing: border-box; display: -webkit-box; display: -ms-flexbox; display: -webkit-flex; display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-box-align: center; -ms-flex-align: center; -webkit-align-items: center; align-items: center; overflow: visible; -webkit-box-flex: 1; -ms-flex: 1; -webkit-box-orient: vertical; -moz-box-orient: vertical; -ms-flex-direction: column; -webkit-flex-direction: column; flex-direction: column; color: #929292; -webkit-flex-shrink: 1; -ms-flex: 0 1 auto; flex-shrink: 1; position: relative; white-space: nowrap; text-overflow: ellipsis; text-decoration: none; outline: 0; color: #8C8185; }\
-              a#thumbnail { width: 66px; height: 66px; border-radius: 10px; background:rgba(255,255,255,0.8) none repeat scroll; }\
+              a#thumbnail { width: calc((100% - 32px) / 4); height: calc((100vw - 56px) / 4); border-radius: 10px; background:rgba(255,255,255,0.8) none repeat scroll; }\
               a#thumbnail:active { transform: scale(1.1); }\
               #label { margin: 3px 0 0; line-height: 1; display: block; letter-spacing: .01em; font-size: 10px; position: relative; text-overflow: ellipsis; white-space: nowrap; }\
               a#active { color: #FF9501; }",

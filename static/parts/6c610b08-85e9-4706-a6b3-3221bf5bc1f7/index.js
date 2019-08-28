@@ -14,7 +14,6 @@ $_().imports({
                 <Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            items.navbar.title(opts.name);
             console.log(opts);
             this.watch("options", (e, options) => {
                 console.log(options);
@@ -29,26 +28,27 @@ $_().imports({
                    <div id='close' class='left'>\
                       <i class='icon f7-icons ios-only'>close</i>\
                    </div>\
-                   <div id='title' class='title'/>\
+                   <div id='title' class='title'>A+便利店</div>\
                    <div class='right'/>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
             sys.close.on("touchend", e => this.trigger("close"));
-            return { title: sys.title.text };
         }
     },
     Content: {
         css: "#content .page-content div { margin-left: 15px; margin-right: 15px; }\
-              #detail { width: 100%; text-align: center; margin: 30px 0 0; }\
+              #detail { width: 100%; text-align: center; margin: 90px 0 0; }\
+              #img { border: 1px solid #AAA; border-radius: 8px; padding: 8px; }\
               #price { color: #ff5745; font-size: 1.35em; }\
-              #buy { margin: 10px 0 0; }",
+              #buy { margin: 10px 0 0; }\
+              button#buy {width: calc(100% - 20px); margin: 10px 10px 0;}",
         xml: "<div id='content' class='page'>\
                 <div id='detail' class='page-content'>\
-                    <img src='http://www.tongyijia365.com/img/goods/06154.jpg'/>\
+                    <img id='img' src='http://www.tongyijia365.com/img/goods/06154.jpg'/>\
                     <div id='price'>￥66.66</div>\
                     <div id='cname'>品名</div>\
-                    <button id='buy'>购买</button>\
+                    <button id='buy' class='button button-fill color-blue'>购买</button>\
                 </div>\
                 <WeixinJSBridge id='wcpay'/>\
               </div>",
@@ -65,9 +65,9 @@ $_().imports({
                 this.trigger("publish", ["/unifiedorder", body]);
             });
             this.watch("options", (e, o) => {
-                G = o.table[Q.ln][Q.col];
-                sys.price.text('￥'+G["零售价"]);
-                sys.cname.text(G["品名"]);
+                //G = o.table[Q.ln][Q.col];
+                //sys.price.text('￥'+G["零售价"]);
+                //sys.cname.text(G["品名"]);
             });
             sys.wcpay.on("wcpay-success", (e) => {
                 //this.trigger("publish", ["drop-goods", {ln: Q.ln, col: Q.col}]);
@@ -81,7 +81,8 @@ $_().imports({
             function onBridgeReady(body){
                 WeixinJSBridge.invoke('getBrandWCPayRequest', body, res => {
                     if(res.err_msg == "get_brand_wcpay_request:ok" )
-                        sys.bridge.trigger("wcpay-success");
+                        return sys.bridge.trigger("wcpay-success");
+                    sys.bridge.trigger("wcpay-error");
                 }); 
             }
             function wcpay(body) {
