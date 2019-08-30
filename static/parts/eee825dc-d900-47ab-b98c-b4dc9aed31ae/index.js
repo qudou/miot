@@ -8,8 +8,8 @@
 xmlplus("eee825dc-d900-47ab-b98c-b4dc9aed31ae", (xp, $_, t) => { //player
 
 $_().imports({
-    Client: {
-        xml: "<div id='client'>\
+    Index: {
+        xml: "<div id='index'>\
                 <Navbar id='navbar'/>\
                 <Content id='content'/>\
               </div>",

@@ -336,7 +336,7 @@ $_("content").imports({
             });
             function loadClient(part) {
                 require([`/parts/${part.class}/index.js`], e => {
-                    let Client = `//${part.class}/Client`;
+                    let Client = `//${part.class}/Index`;
                     (function load() {
                         let com = xp.hasComponent(Client);
                         if (!com)

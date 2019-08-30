@@ -8,8 +8,8 @@
 xmlplus("c135d42e-2bc4-4a06-9f9e-054adf44a35d", (xp, $_, t) => { //auto
 
 $_().imports({
-    Client: {
-        xml: "<div id='client'>\
+    Index: {
+        xml: "<div id='index'>\
                 <Navbar id='navbar'/>\
                 <Content id='content'/>\
               </div>",
