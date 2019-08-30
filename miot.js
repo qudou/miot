@@ -19,7 +19,7 @@ $_().imports({
               </main>",
         map: { share: "sqlite/Sqlite" }
     },
-    Mosca: { // 本 MQTT 服务器用于连接 MQTT 客户端，一般是主机上的客户端，如树莓派等等
+    Mosca: { // 本 MQTT 服务器用于连接 MQTT 客户端，一般是主机上的客户端，如树莓派等
         xml: "<main id='mosca' xmlns:i='mosca'>\
                 <i:Authorize id='auth'/>\
                 <i:Links id='links'/>\
