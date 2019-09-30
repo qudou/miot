@@ -59,12 +59,11 @@ $_().imports({
         fun: function (sys, items, opts) {
             let client = null;
             this.on("show", (e, key, config) => {
-                config.clientId = CryptoJS.MD5(config.username).toString() + Math.random().toString(16).substr(2, 8);
                 client = mqtt.connect(Server, config);
                 client.on("connect", e => {
                     localStorage.setItem("username", config.username);
                     localStorage.setItem("password", config.password);
-                    client.subscribe(config.clientId, err => {
+                    client.subscribe(client.options.clientId, err => {
                         if (err) throw err;
                         this.notify("subscribed");
                     });
@@ -219,7 +218,7 @@ $_("login").imports({
     User: {
         xml: "<Input id='user' placeholder='用户名' maxlength='32'/>",
         fun: function (sys, items, opts) {
-            var patt = /^[a-z][a-z0-9_]{5,31}$/i;
+            var patt = /^[a-z][a-z0-9_]{4,31}$/i;
             function error( msg ) {
                 items.user.focus();
                 sys.user.trigger("message", ["error", msg]);
@@ -228,8 +227,8 @@ $_("login").imports({
                 o.name = items.user.val();
                 if ( o.name === "" ) {
                     error("请输入用户名");
-                } else if ( o.name.length < 6 ) {
-                    error("用户名至少需要6个字符");
+                } else if ( o.name.length < 5 ) {
+                    error("用户名至少需要5个字符");
                 } else if ( !patt.test(o.name) ) {
                     error("您输入的用户名有误");
                 } else {

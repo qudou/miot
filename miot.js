@@ -73,9 +73,7 @@ $_().imports({
         fun: function (sys, items, opts) {
             let server = new mosca.Server(opts);
             server.on("ready", async () => {
-                await items.auth.init();
                 await items.users.offlineAll();
-                delete items.auth.init;
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
                 console.log("Proxy server is up and running"); 
             });
@@ -220,56 +218,8 @@ $_("proxy").imports({
         xml: "<main id='authorize'>\
                 <Login id='login'/>\
                 <Users id='users'/>\
-                <Sqlite id='sqlite' xmlns='/sqlite'/>\
               </main>",
         fun: function (sys, items, opts) {
-            async function init() {
-                let [xpath, doc, auths] = [require("xpath"), await toXML(), await table("authorizations")];
-                for (let auth of auths) {
-                    let arr = [];
-                    let result = xpath.select(auth.parts, doc);
-                    result.forEach(item => arr.push(item.getAttribute('id')));
-                    await updateAuth(auth.id, arr.join(','));
-                }
-            }
-            async function toXML() {
-                let root = xp.parseXML("<areas/>");
-                let [areas,links,parts] = [await table("areas"), await table("links"), await table("parts")];
-                areas.forEach(area => {
-                    let a = root.lastChild.appendChild(Element(root, "area_", area));
-                    links.forEach(link => {
-                        if (link.area == area.id) {
-                            let l = a.appendChild(Element(root, "link_", link));
-                            parts.forEach(part => {
-                                part.link == link.id && l.appendChild(Element(root, "part", part));
-                            });
-                        };
-                    });
-                });
-                return root;
-            }
-            async function updateAuth(id, memo) {
-                return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE authorizations SET memo=? WHERE id=?");
-                    stmt.run(memo, id, err => {
-                        if (err) throw err;
-                        resolve(true);
-                    });
-                });
-            };
-            function Element(root, name, data) {
-                let item = root.createElement(name);
-                item.setAttribute("id", data.id);
-                return item;
-            }
-            async function table(name) {
-                return new Promise((resolve, reject) => {
-                    items.sqlite.all(`SELECT * FROM ${name}`, (err, rows) => {
-                        if (err) throw err;
-                        resolve(rows);
-                    });
-                });
-            }
             async function authenticate(client, user, pass, callback) {
                 let result = await items.login(user, pass + '');
                 if (!result) return callback(true, false);
@@ -279,7 +229,7 @@ $_("proxy").imports({
             async function authorizeSubscribe(client, topic, callback) {
                 callback(null, await items.users.canSubscribe(client, topic));
             }
-            return { init: init, authenticate: authenticate, authorizeSubscribe: authorizeSubscribe };
+            return { authenticate: authenticate, authorizeSubscribe: authorizeSubscribe };
         }
     },
     Login: {
@@ -292,8 +242,8 @@ $_("proxy").imports({
             function checkName(name, pass) {
                 return new Promise(async (resolve, reject) => {
                     let count = await login_count(name);
-                    let stmt = `SELECT users.* FROM users,authorizations AS a
-                                WHERE name="${name}" AND users.id = a.user AND (a.repeat_login=1 OR ${count}=0)`;
+                    let stmt = `SELECT users.* FROM users,auths
+                                WHERE name="${name}" AND auths.user = users.id AND (repeat_login=1 OR ${count}=0)`;
                     items.sqlite.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(!!rows.length && checkPass(pass, rows[0]) && rows[0]);
@@ -332,8 +282,8 @@ $_("proxy").imports({
             }
             function getUsersByMiddle(mid) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT status.* FROM users,authorizations AS a, status
-                                WHERE users.id = status.user_id AND users.id = a.user AND a.memo LIKE '%' || '${mid}' || '%'`;
+                    let stmt = `SELECT distinct status.* FROM users,auths,status
+                                WHERE users.id = status.user_id AND users.id = auths.user AND auths.part = '${mid}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data);
@@ -421,7 +371,7 @@ $_("proxy").imports({
 $_("proxy/login").imports({
     InputCheck: {
         fun: function (sys, items, opts) {
-            var ureg = /^[A-Z0-9]{6,}$/i,
+            var ureg = /^[A-Z0-9]{5,}$/i,
                 ereg = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i;
             var table = { u: user, p: pass, e: email };
             function user( v ) {

@@ -131,11 +131,16 @@ $_("signup").imports({
                 let id = uuidv1();
                 let part = uuidv1();
                 stmt.run(id,part,b.name,b.link,b.class);
+                stmt.finalize(() => insertToAuths(p, id)); 
+            });
+            function insertToAuths(p, part) {
+                let stmt = items.db.prepare("INSERT INTO auths (user,part) VALUES(0,?)");
+                stmt.run(part);
                 stmt.finalize(() => {
                     p.data = {code: 0, desc: "注册成功"};
                     sys.signup.trigger("to-user", p);
                 }); 
-            });
+            }
         }
     }
 });
