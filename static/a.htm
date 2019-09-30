@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+    <body>
+        <script>
+            let Q = {};
+            let r = window.location.search.substr(1).split('&');
+            r.forEach(pair => {
+                let p = pair.split('=');
+                Q[p[0]] = p[1];
+            });
+            window.location.href = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx991a253c49c5afac&redirect_uri=http%3a%2f%2fxmlplus.cn%2f%3fname%3dqudouo%26password%3d123456%26autoOpen%3dtrue%26ln%3d${Q.l}%26col%3d${Q.c}&response_type=code&scope=snsapi_base&state=123#wechat_redirect`;
+        </script>
+    </body>
+</html>

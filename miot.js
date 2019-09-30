@@ -41,7 +41,7 @@ $_().imports({
                 await items.links.update(topic, 0);
                 await items.parts.update(topic, 0);
                 let parts = await items.parts.getPartsByLink(topic);
-                parts.forEach(item => this.notify("to-users", {mid: item.id, online: 0, topic: "options"}));
+                parts.forEach(item => this.notify("to-users", {topic: "data-change", mid: item.id, online: 0}));
             });
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
@@ -49,10 +49,11 @@ $_().imports({
                     let payload = JSON.parse(packet.payload + '');
                     let part = await items.parts.getPartByLink(client.id, payload.pid);
                     if (!part) return;
-                    xp.extend(options[part.id], payload.data);
-                    items.parts.cache(part.id, payload.online, options[part.id]);
+                    if (payload.topic == "data-change") {
+                        xp.extend(options[part.id], payload.data);
+                        items.parts.cache(part.id, payload.online, options[part.id]);
+                    }
                     payload.mid = part.id;
-                    payload.topic = "options";
                     this.notify("to-users", payload);
                 }
             });
@@ -78,17 +79,19 @@ $_().imports({
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
                 console.log("Proxy server is up and running"); 
             });
-            server.on("clientConnected", client => items.users.connected(client));
             server.on("clientDisconnected", client => items.users.disconnected(client));
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 let p = JSON.parse(packet.payload + '');
+                console.log(p);
                 let m = await items.factory.getPartById(packet.topic);
                 try {
-                    p.pid = m.part, p.uid = client.id;
+                    p.pid = m.part, p.cid = client.id;
+                    p.uid = await items.users.getUidByCid(client.id);
                     p.mid = packet.topic, p.link = m.link;
-                    items.factory.create(m['class']).trigger("start", p);
+                    items.factory.create(m['class']).trigger("enter", p);
                 } catch(e) {
+                    console.log(e);
                     let body = { topic: p.topic, body: p.body };
                     this.notify("to-local", [p.link, {pid: p.pid, body: body}]); 
                 }
@@ -173,7 +176,7 @@ $_("mosca").imports({
             }
             function update(linkId, online) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE link = ?");
+                    let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE link = ? AND type <> 0");
                     stmt.run(online, linkId, err => {
                         if (err) throw err;
                         resolve(true);
@@ -182,7 +185,7 @@ $_("mosca").imports({
             }
             function offlineAll() {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare(`UPDATE parts SET online=?`);
+                    let stmt = items.sqlite.prepare(`UPDATE parts SET online=? WHERE type <> 0`);
                     stmt.run(0, err => {
                         if (err) throw err;
                         resolve(true);
@@ -230,20 +233,20 @@ $_("proxy").imports({
                 }
             }
             async function toXML() {
-                let root_ = xp.parseXML("<areas/>");
+                let root = xp.parseXML("<areas/>");
                 let [areas,links,parts] = [await table("areas"), await table("links"), await table("parts")];
                 areas.forEach(area => {
-                    let a = root_.lastChild.appendChild(Element(root_, "area_", area));
+                    let a = root.lastChild.appendChild(Element(root, "area_", area));
                     links.forEach(link => {
                         if (link.area == area.id) {
-                            let l = a.appendChild(Element(root_, "link_", link));
+                            let l = a.appendChild(Element(root, "link_", link));
                             parts.forEach(part => {
-                                part.link == link.id && l.appendChild(Element(root_, "part_", part));
+                                part.link == link.id && l.appendChild(Element(root, "part", part));
                             });
                         };
                     });
                 });
-                return root_;
+                return root;
             }
             async function updateAuth(id, memo) {
                 return new Promise((resolve, reject) => {
@@ -254,8 +257,8 @@ $_("proxy").imports({
                     });
                 });
             };
-            function Element(root_, name, data) {
-                let item = root_.createElement(name);
+            function Element(root, name, data) {
+                let item = root.createElement(name);
                 item.setAttribute("id", data.id);
                 return item;
             }
@@ -269,7 +272,9 @@ $_("proxy").imports({
             }
             async function authenticate(client, user, pass, callback) {
                 let result = await items.login(user, pass + '');
-                callback(result ? null : true, result);
+                if (!result) return callback(true, false);
+                items.users.connected(client, result);
+                callback(null, true);
             }
             async function authorizeSubscribe(client, topic, callback) {
                 callback(null, await items.users.canSubscribe(client, topic));
@@ -285,12 +290,23 @@ $_("proxy").imports({
               </main>",
         fun: function (sys, items, opts) {
             function checkName(name, pass) {
-                return new Promise((resolve, reject) => {
+                return new Promise(async (resolve, reject) => {
+                    let count = await login_count(name);
                     let stmt = `SELECT users.* FROM users,authorizations AS a
-                                WHERE name="${name}" AND users.id = a.user AND (a.repeat_login=1 OR count=0)`;
+                                WHERE name="${name}" AND users.id = a.user AND (a.repeat_login=1 OR ${count}=0)`;
                     items.sqlite.all(stmt, (err, rows) => {
                         if (err) throw err;
-                        resolve(!!rows.length && checkPass(pass, rows[0]));
+                        resolve(!!rows.length && checkPass(pass, rows[0]) && rows[0]);
+                    });
+                });
+            }
+            function login_count(name) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT count(*) as count FROM users,status
+                                WHERE users.id = status.user_id AND users.name = '${name}'`;
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if (err) throw err;
+                        resolve(rows[0].count);
                     });
                 });
             }
@@ -317,20 +333,19 @@ $_("proxy").imports({
             function getUsersByMiddle(mid) {
                 return new Promise((resolve, reject) => {
                     let stmt = `SELECT status.* FROM users,authorizations AS a, status
-                                WHERE users.id = substr(status.client_id,1,32) AND users.id = a.user AND a.memo LIKE '%' || '${mid}' || '%'`;
+                                WHERE users.id = status.user_id AND users.id = a.user AND a.memo LIKE '%' || '${mid}' || '%'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data);
                     });
                 });
             }
-            function connected(client) {
+            function connected(client, user) {
                 return new Promise((resolve, reject) => {
-                    let insert = `INSERT INTO status VALUES(?,(datetime('now','localtime')))`;
+                    let insert = `INSERT INTO status VALUES(?,?,(datetime('now','localtime')))`;
                     let stmt = items.sqlite.prepare(insert);
-                    stmt.run(client.id, async err => {
+                    stmt.run(client.id, user.id, err => {
                         if (err) throw err;
-                        await changeCount(client, +1);
                         resolve(true);
                     });
                 });
@@ -338,17 +353,7 @@ $_("proxy").imports({
             function disconnected(client) {
                 return new Promise((resolve, reject) => {
                     let stmt = items.sqlite.prepare("DELETE FROM status WHERE client_id=?");
-                    stmt.run(client.id, async err => {
-                        if (err) throw err;
-                        await changeCount(client, -1);
-                        resolve(true);
-                    });
-                });
-            }
-            function changeCount(client, inc) {
-                return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare(`UPDATE users SET count=count+${inc} WHERE id=?`);
-                    stmt.run(client.id.substr(0, 32), err => {
+                    stmt.run(client.id, err => {
                         if (err) throw err;
                         resolve(true);
                     });
@@ -357,33 +362,22 @@ $_("proxy").imports({
             function offlineAll() {
                 return new Promise((resolve, reject) => {
                     let stmt = items.sqlite.prepare("DELETE FROM status");
-                    stmt.run(async err => {
-                        if (err) throw err;
-                        await clearCount();
-                        resolve(true);
-                    });
-                });
-            }
-            function clearCount() {
-                return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare(`UPDATE users SET count=0`);
                     stmt.run(err => {
                         if (err) throw err;
                         resolve(true);
                     });
                 });
             }
-            return { canSubscribe: canSubscribe, getUsersByMiddle: getUsersByMiddle, connected: connected, disconnected: disconnected, offlineAll: offlineAll };
-        }
-    },
-    Middle: {
-        fun: function (sys, items, opts) {
-            let first = this.first();
-            this.on("start", (e, payload) => {
-                e.stopPropagation();
-                payload.ptr = [first];
-                first && first.trigger("enter", payload);
-            });
+            function getUidByCid(clientId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT user_id FROM status WHERE client_id = '${clientId}'`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data[0].user_id);
+                    });
+                });
+            }
+            return { canSubscribe: canSubscribe, getUsersByMiddle: getUsersByMiddle, connected: connected, disconnected: disconnected, offlineAll: offlineAll, getUidByCid: getUidByCid };
         }
     },
     Factory: {
@@ -392,7 +386,7 @@ $_("proxy").imports({
             let table = {};
             function create(klass) {
                 if (!table[klass]) {
-                    require(`${__dirname}/parts/${klass}/index.js`);
+                    require(`${__dirname}/middles/${klass}/index.js`);
                     let Middle = `//${klass}/Index`;
                     xp.hasComponent(Middle).map.msgscope = true;
                     table[klass] = sys.sqlite.append(Middle);
@@ -412,7 +406,7 @@ $_("proxy").imports({
                 let p = payload;
                 e.stopPropagation();
                 payload = { mid: p.mid, topic: p.topic, data: p.data };
-                this.notify("to-user", [p.uid, payload]);
+                this.notify("to-user", [p.cid, payload]);
             });
             this.on("to-local", (e, payload) => {
                 let p = payload;
@@ -457,6 +451,76 @@ $_("proxy/login").imports({
                 return cryptoJS.lib.WordArray.random(128/8).toString();
             }
             return { encrypt: encrypt, salt: salt };
+        }
+    }
+});
+
+$_("middle").imports({
+    Flow: {
+        xml: "<main id='flow'/>",
+        fun: function (sys, items, opts) {
+            let first = this.first(),
+                table = this.find("./*[@id]").hash();
+            this.on("enter", (e, d, next) => {
+                d.ptr = d.ptr || [];
+                d.ptr.unshift(first);
+                first.trigger("enter", d, false);
+            });
+            this.on("next", (e, d, next) => {
+                if (e.target == sys.flow) return;
+                e.stopPropagation();
+                if (next == null) {
+                    d.ptr[0] = d.ptr[0].next();
+                    d.ptr[0] ? d.ptr[0].trigger("enter", d, false) : this.trigger("reject", d);
+                } else if (table[next]) {
+                    (d.ptr[0] = table[next]).trigger("enter", d, false);
+                } else {
+                    this.trigger("reject", [d, next]);
+                }
+            });
+            this.on("reject", (e, d, next) => {
+                d.ptr.shift();
+                if (e.target == sys.flow) return;
+                e.stopPropagation();
+                this.trigger("next", [d, next]);
+            });
+        }
+    },
+    Router: {
+        xml: "<ParseURL id='router'/>",
+        opt: { url: "/*" },
+        map: { attrs: {"router": "url"} },
+        fun: function (sys, items, opts) {
+            this.on("enter", (e, d) => {
+                d.args = items.router(d.topic);
+                if (d.args == false)
+                    return this.trigger("reject", d);
+                this.trigger("next", [d,d.args.action]);
+            });
+        }
+    },
+    ParseURL: {
+        fun: function (sys, items, opts) {
+            let pathRegexp = require("path-to-regexp"),
+                regexp = pathRegexp(opts.url || "/", opts.keys = [], {});
+            function decode(val) {
+                if ( typeof val !== "string" || val.length === 0 ) return val;
+                try {
+                    val = decodeURIComponent(val);
+                } catch(e) {}
+                return val;
+            }
+            return path => {
+                let res = regexp.exec(path);
+                if (!res) return false;
+                let params = {};
+                for (let i = 1; i < res.length; i++) {
+                    let key = opts.keys[i - 1], val = decode(res[i]);
+                    if (val !== undefined || !(hasOwnProperty.call(params, key.name)))
+                        params[key.name] = val;
+                }
+                return params;
+            };
         }
     }
 });

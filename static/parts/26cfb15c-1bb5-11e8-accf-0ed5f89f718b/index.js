@@ -15,7 +15,7 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             items.navbar.title(opts.name);
-            this.notify("options", opts.data);
+            this.notify("data-change", opts.data);
         }
     },
     Navbar: {
@@ -50,7 +50,7 @@ $_().imports({
               </div>",
         map: { nofragment: true },
         fun: function (sys, items, opts) {
-            this.watch("options", (e, data) => {
+            this.watch("data-change", (e, data) => {
                 for(let key in items)
                     data[key] && sys[key].text(data[key]);
             });
@@ -58,15 +58,27 @@ $_().imports({
     },
     Reboot: {
         xml: "<div class='list inset'>\
-                <ul><li><a href='#' class='list-button item-link color-red'>重启</a></li></ul>\
+                <Button id='reboot'>重启</Button><br/>\
+                <Button id='shutdown'>关机</Button>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("touchend", e => {
+            sys.reboot.on("touchend", e => {
                 window.app.dialog.confirm("确定重启系统吗？", "温馨提示", e => {
                     this.trigger("publish", ["reboot", {}]);
                 });
             });
+            sys.shutdown.on("touchend", e => {
+                window.app.dialog.confirm("确定关闭系统吗？", "温馨提示", e => {
+                    this.trigger("publish", ["shutdown", {}]);
+                });
+            });
         }
+    },
+    Button: {
+        xml: "<ul><li>\
+                <a id='label' href='#' class='list-button item-link color-red'/>\
+              </li></ul>",
+        map: { appendTo: "label" }
     }
 });
 

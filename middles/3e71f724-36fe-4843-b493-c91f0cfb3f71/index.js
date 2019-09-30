@@ -7,37 +7,32 @@
 
 const xmlplus = require("xmlplus");
 
-xmlplus("c4af113c-e299-4b5c-a376-27dfc6665266", (xp, $_, t) => {
+xmlweb("3e71f724-36fe-4843-b493-c91f0cfb3f71", (xp, $_, t) => { //订货
 
 $_().imports({
     Index: {
         xml: "<i:Middle id='middle' xmlns:i='//miot/proxy'>\
-                <Areas id='areas'/>\
-                <Links id='links'/>\
-                <Parts id='parts'/>\
+                <Goods id='goods'/>\
               </i:Middle>"
     },
-    Areas: {
-        xml: "<i:Flow xmlns:i='areas'>\
-                <i:Router id='router' url='/areas/:action'/>\
+    Goods: {
+        xml: "<i:Flow xmlns:i='goods'>\
+                <i:Router id='router' url='/goods'/>\
                 <i:Select id='select'/>\
               </i:Flow>"
     },
-    Links: {
-        xml: "<i:Flow xmlns:i='areas'>\
-                <i:Router id='router' url='/links/:action'/>\
-                <Select id='select' xmlns='links'/>\
-              </i:Flow>"
-    },
-    Parts: {
-        xml: "<i:Flow xmlns:i='areas'>\
-                <i:Router id='router' url='/parts/:action'/>\
-                <Select id='select' xmlns='parts'/>\
-              </i:Flow>"
+    Sqlite: {
+        fun: function (sys, items, opts) {
+            let sqlite = require("sqlite3").verbose(),
+                db = new sqlite.Database(`${__dirname}/data.db`);
+            db.exec("VACUUM");
+            db.exec("PRAGMA foreign_keys = ON");
+            return db;
+        }
     }
 });
 
-$_("areas").imports({
+$_("goods").imports({
     Flow: {
         xml: "<main id='flow'/>",
         fun: function (sys, items, opts) {
@@ -104,7 +99,7 @@ $_("areas").imports({
         }
     },
     Select: {
-        xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
                 let user = payload.uid.substr(0,32);
@@ -113,45 +108,6 @@ $_("areas").imports({
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     payload.data = data;
-                    this.trigger("to-user", payload);
-                });
-            });
-        }
-    }
-});
-
-$_("links").imports({
-    Select: {
-        xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
-        fun: function (sys, items, opts) {
-            this.on("enter", (e, payload) => {
-                let user = payload.uid.substr(0,32);
-                let stmt = `SELECT distinct links.* FROM links,parts,authorizations AS a
-                            WHERE a.user='${user}' AND a.memo LIKE ('%' || parts.id || '%') AND links.area = '${payload.body.area}' AND links.id = parts.link`;
-                items.sqlite.all(stmt, (err, data) => {
-                    if (err) throw err;
-                    payload.data = {area: payload.body.area, links: data};
-                    this.trigger("to-user", payload);
-                });
-            });
-        }
-    }
-});
-
-$_("parts").imports({
-    Select: {
-        xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
-        fun: function (sys, items, opts) {
-            this.on("enter", (e, payload) => {
-                let user = payload.uid.substr(0,32);
-                let stmt = `SELECT parts.* FROM parts,authorizations AS a
-                            WHERE a.user='${user}' AND a.memo LIKE '%' || parts.id || '%' AND parts.link = '${payload.body.link}'`;
-                items.sqlite.all(stmt, (err, data) => {
-                    if (err) throw err;
-                    payload.data = {link: payload.body.link, parts: []};
-                    data.forEach(i => {
-                        payload.data.parts.push({'mid':i.id,'name':i.name,'class':i['class'],'data':JSON.parse(i.data),'online':i.online});
-                    });
                     this.trigger("to-user", payload);
                 });
             });

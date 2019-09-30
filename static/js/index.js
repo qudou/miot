@@ -22,7 +22,15 @@ $_().imports({
                 <Service id='service'/>\
                 <Login id='login'/>\
                 <Content id='content'/>\
-              </ViewStack>"
+              </ViewStack>",
+        fun: function() {
+            let toast;
+            this.on("message", (e, t, msg) => {
+                window.app.toast.destroy(toast);
+                toast = window.app.toast.create({ text: msg, position: 'top', closeTimeout: 3000});
+                toast.open();
+            });
+        }
     },
     Verify: {
         xml: "<Overlay id='verify' xmlns='verify'/>",
@@ -188,16 +196,11 @@ $_("login").imports({
               </form>",
         map: { "appendTo": "content" },
         fun: function (sys, items, opts) {
-            var toast, ptr, first = this.first();
-            this.on("next", function ( e, r ) {
+            var ptr, first = this.first();
+            this.on("next", function (e, r) {
                 e.stopPropagation();
                 ptr = ptr.next();
                 ptr.trigger("start", r, false);
-            });
-            this.on("message", (e, t, msg) => {
-                app.toast.destroy(toast);
-                toast = app.toast.create({ text: msg, position: 'top', closeTimeout: 3000});
-                toast.open();
             });
             function start() {
                 ptr = first;
@@ -342,8 +345,7 @@ $_("content").imports({
                         if (!com)
                             return setTimeout(load, 100);
                         com.map.msgscope = true;
-                        let client = sys.overlay.before(Client, part);
-                        register(client.notify("options", part.data));
+                        register(sys.overlay.before(Client, part));
                         items.overlay.hide();
                     }());
                 });
@@ -352,10 +354,10 @@ $_("content").imports({
                 sys.client.watch(opts.mid, (e, part) => {
                     if ( part.online == 0 )
                         return sys.client.trigger("close");
-                    if (part.topic == "options" || part.topic == null)
+                    if (part.topic == "data-change")
                         client.notify(part.topic, xp.extend(true, opts.data, part.data));
                     else {
-                        client.notify(part.topic, part.data);
+                        client.notify(part.topic, [part.data]);
                     }
                 }).watch("offline", () => sys.client.trigger("close"));
             }
@@ -488,7 +490,7 @@ $_("content/index").imports({
                 }
             });
             function listener(e, item) {
-                if (item.topic == "options" || item.topic == null)
+                if (item.topic == "data-change" || item.topic == null)
                     e.currentTarget.trigger("data", item, false);
             }
             sys.parts.on("touchend", "*", function (e) {

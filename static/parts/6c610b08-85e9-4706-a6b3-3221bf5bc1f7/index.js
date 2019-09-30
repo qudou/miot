@@ -15,9 +15,7 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             console.log(opts);
-            this.watch("options", (e, options) => {
-                console.log(options);
-            });
+            this.notify("data-change", opts.data);
         }
     },
     Navbar: {
@@ -64,12 +62,17 @@ $_().imports({
                 let body = { code: Q.code, money: 0.01, spbill_create_ip: returnCitySN["cip"], ln: Q.ln, col: Q.col };
                 this.trigger("publish", ["/unifiedorder", body]);
             });
-            this.watch("options", (e, o) => {
-                //G = o.table[Q.ln][Q.col];
-                //sys.price.text('￥'+G["零售价"]);
-                //sys.cname.text(G["品名"]);
+            this.watch("data-change", (e, o) => {
+                if (!Q.ln) return;
+                G = o.table[Q.ln][Q.col];
+                sys.price.text('￥'+G["零售价"]);
+                sys.cname.text(G["品名"]);
             });
             sys.wcpay.on("wcpay-success", (e) => {
+                let text = "正在出货中..., 请耐心等待！";
+                app.dialog.alert(text, "提示", () => {
+                    WeixinJSBridge.call('closeWindow');
+                });
                 //this.trigger("publish", ["drop-goods", {ln: Q.ln, col: Q.col}]);
             });
             this.watch("/unifiedorder", (e, o) => items.wcpay(o));
@@ -83,7 +86,7 @@ $_().imports({
                     if(res.err_msg == "get_brand_wcpay_request:ok" )
                         return sys.bridge.trigger("wcpay-success");
                     sys.bridge.trigger("wcpay-error");
-                }); 
+                });
             }
             function wcpay(body) {
                 if (typeof WeixinJSBridge == "undefined"){
