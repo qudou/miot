@@ -26,7 +26,6 @@ $_().imports({
                 <i:Parts id='parts'/>\
               </main>",
         fun: async function (sys, items, opts) {
-            let options = await items.parts.options();
             let server = new mosca.Server({port: 1883});
             server.on("ready", async () => {
                 await items.links.offlineAll();
@@ -44,15 +43,12 @@ $_().imports({
                 parts.forEach(item => this.notify("to-users", {topic: "data-change", mid: item.id, online: 0}));
             });
             server.on("published", async (packet, client) => {
-                if (client == undefined) return;
                 if (packet.topic == ID) {
                     let payload = JSON.parse(packet.payload + '');
                     let part = await items.parts.getPartByLink(client.id, payload.pid);
                     if (!part) return;
-                    if (payload.topic == "data-change") {
-                        xp.extend(options[part.id], payload.data);
-                        items.parts.cache(part.id, payload.online, options[part.id]);
-                    }
+                    if (payload.topic == "data-change")
+                        items.parts.cache(part.id, payload);
                     payload.mid = part.id;
                     this.notify("to-users", payload);
                 }
@@ -155,7 +151,17 @@ $_("mosca").imports({
     Parts: {
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
-            function options() {
+            let parts = null;
+            async function cache(mid, payload) {
+                let str = "UPDATE parts SET data=?,online=% WHERE id=?";
+                let stmt = items.sqlite.prepare(str.replace('%', payload.online == undefined ? 1 : payload.online));
+                parts = parts || await partList();
+                xp.extend(parts[mid], payload.data);
+                stmt.run(JSON.stringify(parts[mid]), mid, err => {
+                    if (err) throw err;
+                });
+            }
+            function partList() {
                 return new Promise(resolve => {
                     items.sqlite.all("SELECT * FROM parts", (err, rows) => {
                         if (err) throw err;
@@ -163,13 +169,6 @@ $_("mosca").imports({
                         rows.forEach(item => table[item.id] = JSON.parse(item.data));
                         resolve(table);
                     });
-                });
-            }
-            function cache(id, online, data) {
-                let str = "UPDATE parts SET data=?, online=% WHERE id=?";
-                let stmt = items.sqlite.prepare(str.replace('%', online == undefined ? 1 : online));
-                stmt.run(JSON.stringify(data), id, err => {
-                    if (err) throw err;
                 });
             }
             function update(linkId, online) {
@@ -208,7 +207,7 @@ $_("mosca").imports({
                     });
                 });
             }
-            return { options: options, cache: cache, update: update, offlineAll: offlineAll, getPartByLink: getPartByLink, getPartsByLink: getPartsByLink };
+            return { cache: cache, update: update, offlineAll: offlineAll, getPartByLink: getPartByLink, getPartsByLink: getPartsByLink };
         }
     }
 });

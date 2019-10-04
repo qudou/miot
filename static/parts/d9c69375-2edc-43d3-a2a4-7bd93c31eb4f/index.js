@@ -149,7 +149,11 @@ $_("overview").imports({
                <div class='item-content swipeout-content'>\
                  <div class='item-media'><i id='icon' class='icon icon-f7'><Icon/></i></div>\
                  <div class='item-inner'>\
-                   <div id='label' class='item-title'>Swipe left on me please</div>\
+                   <div class='item-title'>\
+                     <div id='type' class='item-header'>普通用户</div>\
+                     <div id='label'/>\
+                     <div id='email' class='item-footer'/>\
+                   </div>\
                  </div>\
                </div>\
                <div class='swipeout-actions-right'>\
@@ -162,6 +166,8 @@ $_("overview").imports({
             function setValue(user) {
                 opts = user;
                 sys.label.text(user.name);
+                sys.email.text(user.email);
+                user.id && sys.type.text("普通用户") || sys.type.text("管理员") && sys.remove.remove();
             }
             sys.remove.on("touchend", () => this.notify("remove", opts));
             return Object.defineProperty({}, "value", { set: setValue});
@@ -199,13 +205,14 @@ $_("signup").imports({
                       <i:User id='user'/>\
                       <i:Email id='email'/>\
                       <i:Pass id='pass'/>\
+                      <i:Relogin id='relogin'/>\
                     </i:Form>\
                     <i:Button id='submit'>注册</i:Button>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
             sys.submit.on("touchend", items.signup.start);
-            sys.pass.on("next", (e, p) => {
+            sys.relogin.on("next", (e, p) => {
                 e.stopPropagation();
                 this.trigger("switch", "service");
                 this.trigger("publish", ["/users/signup", p]);
@@ -317,6 +324,31 @@ $_("signup/form").imports({
             return items.pass;
         }
     },
+    Relogin: {
+        css: "#icon { width: 28px; height: 28px; border-radius: 6px; box-sizing: border-box; }",
+        xml: "<li>\
+               <label class='item-checkbox item-content'>\
+                 <input id='input' type='checkbox'/>\
+                 <i class='icon icon-checkbox'/>\
+                 <div class='item-inner'>\
+                   <div id='label' class='item-title'>重复登录</div>\
+                 </div>\
+               </label>\
+              </li>",
+        fun: function (sys, items, opts) {
+            function setValue(value) {
+                sys.input.prop("checked", !!value);
+            }
+            function getValue() {
+                return sys.input.prop("checked") ? 1 : 0;
+            }
+            this.on("start", (e, p) => {
+                p.relogin = getValue();
+                this.trigger("next", p);
+            });
+            return Object.defineProperty({}, "value", { set: setValue, get: getValue});
+        }
+    },
 	Button: {
 		xml: "<div class='list'><ul><li>\
                 <a id='label' href='#' class='item-link list-button'/>\
@@ -359,6 +391,7 @@ $_("update").imports({
                     <i:Form id='update'>\
                       <i:User id='user'/>\
                       <i:Email id='email'/>\
+                      <Relogin id='relogin' xmlns='/signup/form'/>\
                     </i:Form>\
                     <i:Button id='submit'>确定更新</i:Button>\
                     <i:Button id='chpasswd'>密码修改</i:Button>\
@@ -370,10 +403,11 @@ $_("update").imports({
                 opts = value;
                 items.user.val(value.name);
                 items.email.val(value.email);
+                items.relogin.value = value.repeat_login;
             }
             sys.email.on("next", (e) => {
                 e.stopPropagation();
-                let p = {id:opts.id, name:items.user.val(),email:items.email.val()};
+                let p = {id:opts.id, name:items.user.val(),email:items.email.val(), relogin: items.relogin.value};
                 this.trigger("switch", "service");
                 this.trigger("publish", ["/users/update", p]);
                 this.glance("/users/update", callback);

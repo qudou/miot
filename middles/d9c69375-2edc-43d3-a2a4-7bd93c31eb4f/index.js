@@ -25,12 +25,12 @@ $_().imports({
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, p) => {
-                let stmt = `SELECT id,name,email FROM users`;
+                let stmt = `SELECT id,name,email,repeat_login FROM users`;
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = [];
                     data.forEach(i => {
-                        p.data.push({'id':i.id,'name':i.name,'email':i.email});
+                        p.data.push({'id':i.id,'name':i.name,'email':i.email,'repeat_login':i.repeat_login});
                     });
                     this.trigger("to-user", p);
                 });
@@ -49,7 +49,7 @@ $_().imports({
               </main>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, p) => {
-                let remove = "DELETE FROM users WHERE id=?";
+                let remove = "DELETE FROM users WHERE id=? AND id<>0";
                 let stmt = items.db.prepare(remove);
                 stmt.run(p.body.id, function (err) {
                     if (err) throw err;
@@ -118,8 +118,8 @@ $_("signup").imports({
             this.on("enter", (e, p) => {
                 var salt = items.crypto.salt(),
                     pass = items.crypto.encrypt(p.body.pass, salt);
-                    stmt = items.db.prepare("INSERT INTO users (email,name,pass,salt) VALUES(?,?,?,?)");
-                stmt.run(p.body.email, p.body.name, pass, salt);
+                    stmt = items.db.prepare("INSERT INTO users (email,name,pass,salt,repeat_login) VALUES(?,?,?,?,?)");
+                stmt.run(p.body.email, p.body.name, pass, salt, p.body.relogin);
                 stmt.finalize(() => {
                     p.data = {code: 0, desc: "注册成功"};
                     sys.signup.trigger("to-user", p);
@@ -209,9 +209,9 @@ $_("update").imports({
               </main>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, p) => {
-                let update = "UPDATE users SET name=?, email=? WHERE id=?";
+                let update = "UPDATE users SET name=?,email=?,repeat_login=? WHERE id=?";
                 let stmt = items.db.prepare(update);
-                stmt.run(p.body.name,p.body.email,p.body.id, err => {
+                stmt.run(p.body.name,p.body.email,p.body.relogin,p.body.id, err => {
                     if (err) throw err;
                     p.data = {code: 0, desc: "更新成功"};
                     this.trigger("to-user", p);
