@@ -244,7 +244,10 @@ $_("partlist").imports({
                <div class='item-content swipeout-content'>\
                  <div class='item-media'><i id='icon' class='icon icon-f7'><Icon/></i></div>\
                  <div class='item-inner'>\
-                   <div id='label' class='item-title'/>\
+                   <div class='item-title'>\
+                     <div id='label'/>\
+                     <div id='part' class='item-footer'/>\
+                   </div>\
                  </div>\
                </div>\
                <div class='swipeout-actions-right'>\
@@ -257,6 +260,7 @@ $_("partlist").imports({
             function setValue(part) {
                 opts = part;
                 sys.label.text(part.name);
+                sys.part.text(part.part);
             }
             sys.remove.on("touchend", () => this.notify("remove", opts));
             return Object.defineProperty({}, "value", { set: setValue});
@@ -295,13 +299,14 @@ $_("signup").imports({
                       <i:Area id='area'/>\
                       <i:Link id='link'/>\
                       <i:Class id='klass'/>\
+                      <i:Type id='type'/>\
                     </i:Form>\
                     <i:Button id='submit'>注册</i:Button>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
             sys.submit.on("touchend", items.signup.start);
-            sys.klass.on("next", (e, p) => {
+            sys.type.on("next", (e, p) => {
                 opts = p;
                 e.stopPropagation();
                 this.trigger("switch", "service");
@@ -400,7 +405,7 @@ $_("signup/form").imports({
     Class: {
         xml: "<Picker id='class' label='模板' setid='1'/>",
         fun: function (sys, items, opts) {
-            let picker, table = {}; 
+            let table = {}; 
             this.watch("/parts/classes", (e, data) => {
                 items.class.init(data);
                 data.map(i=>table[i.id]=i);
@@ -411,6 +416,23 @@ $_("signup/form").imports({
             });
             function setValue(classId) {
                 items.class.setValue(table[classId]);
+            }
+            return { setValue: setValue };
+        }
+    },
+    Type: {
+        xml: "<Picker id='type' label='类型'/>",
+        fun: function (sys, items, opts) {
+            let table = {}; 
+            let data = [{id: 1, name: "仅中间件"},{id: 2, name: "中间件+配件"}];
+            items.type.init(data);
+            data.map(i=>table[i.id]=i);
+            this.on("start", (e, p) => {
+                p.type = items.type.getValue().id;
+                this.trigger("next", p);
+            });
+            function setValue(typeId) {
+                items.type.setValue(table[typeId]);
             }
             return { setValue: setValue };
         }
@@ -445,7 +467,7 @@ $_("signup/form").imports({
                 setValue(data[0]);
             }
             function change(picker, value) {
-                setTimeout(e => sys.picker.trigger("value-change", table[value]), 0);
+                setTimeout(e => setValue(table[value]), 0);
             }
             function getValue() {
                 return table[picker.value[0]];
@@ -475,7 +497,7 @@ $_("signup/form").imports({
                  </div>\
                </div>\
               </li>",
-		map: { attrs: { text: "name value type maxlength placeholder disabled" } },
+		map: { attrs: { text: "name value type maxlength placeholder disabled style" } },
 		fun: function (sys, items, opts) { 
             sys.label.text(opts.label);
 			function focus() {
@@ -498,18 +520,20 @@ $_("update").imports({
         xml: "<div id='content' class='page'>\
                 <div class='page-content' xmlns:i='../signup/form'>\
                     <i:Form id='update'>\
-                      <GUID id='guid'/>\
+                      <GUID id='guid' label='全局标识符'/>\
+                      <GUID id='part' label='局部标识符'/>\
                       <i:Name id='nane'/>\
                       <i:Area id='area'/>\
                       <i:Link id='link'/>\
                       <i:Class id='class'/>\
+                      <i:Type id='type'/>\
                     </i:Form>\
                     <i:Button id='submit'>确定更新</i:Button>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
             sys.submit.on("touchend", items.update.start);
-            sys.class.on("next", (e, p) => {
+            sys.type.on("next", (e, p) => {
                 opts = p;
                 e.stopPropagation();
                 this.trigger("switch", "service");
@@ -524,22 +548,35 @@ $_("update").imports({
             }
             function init(data) {
                 items.guid.val(data.id);
+                items.part.val(data.part);
                 items.nane.val(data.name);
                 items.area.setValue(data.link.area);
                 items.link.setValue(data.link);
                 items.class.setValue(data.class);
+                items.type.setValue(data.type);
             }
             return {init: init};
         }
     },
     GUID: {
-        xml: "<div id='guid' style='display:none;'/>",
+        css: "#guid { font-size: 14px; }\
+              #text { height: 44px; line-height: 44px; }",
+		xml: "<li id='guid'>\
+               <div class='item-content item-input'>\
+                 <div class='item-inner'>\
+                   <div id='label' class='item-title item-label'>Name</div>\
+                   <div class='item-input-wrap'>\
+                     <div id='text'/>\
+                   </div>\
+                 </div>\
+               </div>\
+              </li>",
         fun: function (sys, items, opts) {
+            sys.label.text(opts.label);
             this.on("start", (e, p) => {
-                p.id = sys.guid.text();
-                this.trigger("next", p);
+                sys.guid.trigger("next", p);
             });
-            return {val: sys.guid.text}
+            return {val: sys.text.text};
         }
     }
 });

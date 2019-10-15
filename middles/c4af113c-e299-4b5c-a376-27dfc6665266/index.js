@@ -77,12 +77,12 @@ $_("parts").imports({
         fun: function (sys, items, opts) {
             this.on("enter", (e, payload) => {
                 let stmt = `SELECT parts.* FROM parts,auths
-                            WHERE parts.link = '${payload.body.link}' AND parts.id = auths.part AND auths.user=${payload.uid} AND parts.type<>9`;
+                            WHERE parts.link = '${payload.body.link}' AND parts.id = auths.part AND auths.user=${payload.uid}`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     payload.data = {link: payload.body.link, parts: []};
                     data.forEach(i => {
-                        payload.data.parts.push({'mid':i.id,'name':i.name,'class':i.class,'data':JSON.parse(i.data),'online':i.online});
+                        payload.data.parts.push({'mid':i.id,'name':i.name,'class':i.class,'type':i.type,'data':JSON.parse(i.data),'online':i.online});
                     });
                     this.trigger("to-user", payload);
                 });

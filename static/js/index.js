@@ -5,8 +5,7 @@
  * Released under the MIT license
  */
 
-const Server = "ws://xmlplus.cn:8082";
-const QueryData = {};
+const Server = "wss://xmlplus.cn:443";
 window.app = new Framework7({theme: "ios", dialog:{buttonOk: '确定', buttonCancel: "取消"}});
 
 xmlplus("miot", (xp, $_, t) => {
@@ -23,7 +22,7 @@ $_().imports({
                 <Login id='login'/>\
                 <Content id='content'/>\
               </ViewStack>",
-        fun: function() {
+        fun: function(sys, items, opts) {
             let toast;
             this.on("message", (e, t, msg) => {
                 window.app.toast.destroy(toast);
@@ -35,14 +34,15 @@ $_().imports({
     Verify: {
         xml: "<Overlay id='verify' xmlns='verify'/>",
         fun: function (sys, items, opts) {
-            let r = window.location.search.substr(1).split('&');
+            let r = location.search.substr(1).split('&');
+            window.Q = {};
             r.forEach(pair => {
                 let p = pair.split('=');
-                QueryData[p[0]] = p[1];
+                Q[p[0]] = p[1]; 
             });
-            var o = {
-                username: QueryData["name"] || localStorage.getItem("username"),
-                password: QueryData["password"] || localStorage.getItem("password")
+            let o = {
+                username: window.Q["name"] || localStorage.getItem("username"),
+                password: window.Q["password"] || localStorage.getItem("password")
             };
             setTimeout(e => {
                 if (o.username && o.password) {
@@ -162,7 +162,7 @@ $_().imports({
 
 $_("verify").imports({
     Overlay: {
-        css: "#overlay { position: fixed; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,.4); z-index: 13000; visibility: hidden; opacity: 0; -webkit-transition-duration: .4s; transition-duration: .4s; }\
+        css: "#overlay { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,.4); z-index: 13000; visibility: hidden; opacity: 0; -webkit-transition-duration: .4s; transition-duration: .4s; }\
               #visible { visibility: visible; opacity: 1; }",
         xml: "<div id='overlay'>\
                 <Loader/>\
@@ -218,21 +218,21 @@ $_("login").imports({
     User: {
         xml: "<Input id='user' placeholder='用户名' maxlength='32'/>",
         fun: function (sys, items, opts) {
-            var patt = /^[a-z][a-z0-9_]{4,31}$/i;
+            var patt = /^[a-z0-9_]{4,31}$/i;
             function error( msg ) {
                 items.user.focus();
                 sys.user.trigger("message", ["error", msg]);
             }
-            this.on("start", function ( e, o ) {
-                o.name = items.user.val();
-                if ( o.name === "" ) {
+            this.on("start", function (e, p) {
+                p.name = items.user.val();
+                if (p.name === "") {
                     error("请输入用户名");
-                } else if ( o.name.length < 5 ) {
-                    error("用户名至少需要5个字符");
-                } else if ( !patt.test(o.name) ) {
+                } else if (p.name.length < 4) {
+                    error("用户名至少需要4个字符");
+                } else if (!patt.test(p.name)) {
                     error("您输入的用户名有误");
                 } else {
-                    sys.user.trigger("next", o);
+                    sys.user.trigger("next", p);
                 }
             });
             return items.user;
@@ -299,7 +299,7 @@ $_("login").imports({
 $_("content").imports({
     Index: {
         css: "#index { padding: 12px; }\
-              #parts { max-height: calc(100% - 130px); overflow: auto; }",
+              #parts { max-height: calc(100% - 130px); overflow: hidden; }",
         xml: "<div id='index' xmlns:i='index'>\
                 <i:Header id='header'/>\
                 <i:Areas id='areas'/>\
@@ -312,7 +312,7 @@ $_("content").imports({
                 sys.title.text(store.name);
                 this.trigger("publish", {topic: "/parts/select", body: {link: store.id}});
             });
-            sys.title.on("click", e => this.notify("show-stores"));
+            sys.title.on("touchend", e => this.notify("show-stores"));
         }
     },
     About: {
@@ -324,7 +324,7 @@ $_("content").imports({
               </div>"
     },
     Client: {
-        css: "#client { -webkit-transition-duration: .3s; transition-duration: .3s; position: fixed; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
+        css: "#client { -webkit-transition-duration: .3s; transition-duration: .3s; position: absolute; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
               #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}\
               #client > * { width: 100%; height: 100%; }",
         xml: "<div id='client'>\
@@ -353,7 +353,7 @@ $_("content").imports({
                 sys.client.watch(opts.mid, (e, part) => {
                     if ( part.online == 0 )
                         return sys.client.trigger("close");
-                    if (part.topic == "$data")
+                    if (part.topic == "data-change")
                         client.notify(part.topic, xp.extend(true, opts.data, part.data));
                     else {
                         client.notify(part.topic, [part.data]);
@@ -468,28 +468,30 @@ $_("content/index").imports({
         xml: "<h3 id='title'/>"
     },
     Parts: {
-        css: "#parts { display: flex; overflow: auto; flex-wrap: wrap; }\
+        css: "#parts { display: flex; overflow: hidden; flex-wrap: wrap; }\
               #parts > * { margin: 4px }",
         xml: "<div id='parts'/>",
         fun: function (sys, items, opts) {
             this.watch("/parts/select", (e, d) => {
-                var item, list = sys.parts.children();
-                for ( i = 0; i < d.data.parts.length; i++ ) {
-                    item = d.data.parts[i];
+                let table = {};
+                let list = sys.parts.children();
+                for (var i = 0; i < d.data.parts.length; i++) {
+                    let item = d.data.parts[i];
                     list[i] || list.push(sys.parts.append("Thumbnail"));
-                    list[i].unwatch(list[i].attr("_id"));
+                    list[i].unwatch(list[i].attr("_id") + '');
                     list[i].data("data", item).trigger("data", item, false);
                     list[i].watch(item.mid + '', listener).attr("_id", item.mid + '').show();
+                    table[item.mid] = list[i];
                 }
                 for ( var k = i; k < list.length; k++ )
                     list[k].unwatch(list[i].attr("_id")).hide();
-                if (QueryData.autoOpen && list[0]) {
-                    delete QueryData.autoOpen;
-                    list[0].trigger("touchend");
+                if (table[Q.open]) {
+                    table[Q.open].trigger("touchend");
+                    delete Q.open;
                 }
             });
             function listener(e, item) {
-                if (item.topic == "$data" || item.topic == null)
+                if (item.topic == "data-change" || item.topic == null)
                     e.currentTarget.trigger("data", item, false);
             }
             sys.parts.on("touchend", "*", function (e) {
@@ -599,7 +601,7 @@ $_("content/index/areas").imports({
 
 $_("content/index/list").imports({
     List: {
-        css: "#list { -webkit-transition-duration: .3s; transition-duration: .3s; position: fixed; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
+        css: "#list { -webkit-transition-duration: .3s; transition-duration: .3s; position: absolute; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
               #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}",
         xml: "<div id='list'>\
                 <Overlay id='overlay'/>\

@@ -69,7 +69,7 @@ $_().imports({
                     this.trigger("publish", ["/users/remove", {id: p.id}]);
                     this.watch("/users/remove", (m, p) => {
                         this.trigger("message", ["msg", p.desc]);
-                        p.code == 0 && e.target.remove();
+                        p.code == 0 && e.target.hide();
                     });
                 });
             });
@@ -260,7 +260,7 @@ $_("signup/form").imports({
         xml: "<Input id='user' label='用户名' placeholder='username' maxlength='32'/>",
         map: { attrs: { user: "disabled" } },
         fun: function (sys, items, opts) {
-            var patt = /^[a-z][a-z0-9_]{4,31}$/i;
+            var patt = /^[a-z0-9_]{4,31}$/i;
             function error( msg ) {
                 items.user.focus();
                 sys.user.trigger("message", ["error", msg]);
@@ -269,8 +269,8 @@ $_("signup/form").imports({
                 o.name = items.user.val();
                 if (o.name === "") {
                     error("请输入用户名");
-                } else if (o.name.length < 5) {
-                    error("用户名至少需要5个字符");
+                } else if (o.name.length < 4) {
+                    error("用户名至少需要4个字符");
                 } else if (!patt.test(o.name)) {
                     error("您输入的用户名有误");
                 } else {

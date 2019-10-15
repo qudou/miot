@@ -8,6 +8,8 @@
 const mosca = require("mosca");
 const xmlplus = require("xmlplus");
 const ID = "c55d5e0e-f506-4933-8962-c87932e0bc2a";
+const SECURE_KEY = __dirname + '/cert/2933686_xmlplus.cn.key';
+const SECURE_CERT = __dirname + '/cert/2933686_xmlplus.cn.pem';
 
 xmlplus("miot", (xp, $_, t) => {
 
@@ -48,7 +50,7 @@ $_().imports({
                     let part = await items.parts.getPartByLink(client.id, payload.pid);
                     if (!part) return;
                     if (payload.topic == "data-change")
-                        items.parts.cache(part.id, payload);
+                        await items.parts.cache(part.id, payload);
                     payload.mid = part.id;
                     this.notify("to-users", payload);
                 }
@@ -65,7 +67,7 @@ $_().imports({
                 <i:Users id='users'/>\
                 <i:Factory id='factory'/>\
               </main>",
-        opt: { port: 1885, http: { port: 8082, bundle: true, static: `${__dirname}/static` } },
+        opt: { port: 1885, https: { port: 443, bundle: true, static: `${__dirname}/static` }, secure: { keyPath: SECURE_KEY, certPath: SECURE_CERT } },
         fun: function (sys, items, opts) {
             let server = new mosca.Server(opts);
             server.on("ready", async () => {
@@ -80,9 +82,11 @@ $_().imports({
                 console.log(p);
                 let m = await items.factory.getPartById(packet.topic);
                 try {
-                    p.pid = m.part, p.cid = client.id;
+                    p.pid = m.part;
+                    p.cid = client.id;
                     p.uid = await items.users.getUidByCid(client.id);
-                    p.mid = packet.topic, p.link = m.link;
+                    p.mid = packet.topic;
+                    p.link = m.link;
                     items.factory.create(m['class']).trigger("enter", p);
                 } catch(e) {
                     console.log(e);
@@ -173,7 +177,7 @@ $_("mosca").imports({
             }
             function update(linkId, online) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE link = ? AND type <> 0");
+                    let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE link=? AND type>1");
                     stmt.run(online, linkId, err => {
                         if (err) throw err;
                         resolve(true);
@@ -182,7 +186,7 @@ $_("mosca").imports({
             }
             function offlineAll() {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare(`UPDATE parts SET online=? WHERE type <> 0`);
+                    let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE type>1");
                     stmt.run(0, err => {
                         if (err) throw err;
                         resolve(true);
@@ -370,7 +374,7 @@ $_("proxy").imports({
 $_("proxy/login").imports({
     InputCheck: {
         fun: function (sys, items, opts) {
-            var ureg = /^[A-Z0-9]{5,}$/i,
+            var ureg = /^[A-Z0-9]{4,}$/i,
                 ereg = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i;
             var table = { u: user, p: pass, e: email };
             function user( v ) {

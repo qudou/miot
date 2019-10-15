@@ -144,7 +144,10 @@ $_("overview").imports({
                <div class='item-content swipeout-content'>\
                  <div class='item-media'><i id='icon' class='icon icon-f7'><Icon/></i></div>\
                  <div class='item-inner'>\
-                   <div id='label' class='item-title'>Swipe left on me please</div>\
+                   <div class='item-title'>\
+                     <div id='label'/>\
+                     <div id='id' class='item-footer'/>\
+                   </div>\
                  </div>\
                </div>\
                <div class='swipeout-actions-right'>\
@@ -157,6 +160,7 @@ $_("overview").imports({
             function setValue(link) {
                 opts = link;
                 sys.label.text(link.name);
+                sys.id.text(link.id);
             }
             sys.remove.on("touchend", () => this.notify("remove", opts));
             return Object.defineProperty({}, "value", { set: setValue});
@@ -317,7 +321,7 @@ $_("signup/form").imports({
                  </div>\
                </div>\
               </li>",
-		map: { attrs: { text: "name value type maxlength placeholder disabled" } },
+		map: { attrs: { text: "name value type maxlength placeholder disabled style" } },
 		fun: function (sys, items, opts) { 
             sys.label.text(opts.label);
 			function focus() {
@@ -340,6 +344,7 @@ $_("update").imports({
         xml: "<div id='content' class='page'>\
                 <div class='page-content' xmlns:i='../signup/form'>\
                     <i:Form id='update'>\
+                      <GUID id='id'/>\
                       <i:Link id='link'/>\
                       <i:Area id='area'/>\
                     </i:Form>\
@@ -351,6 +356,7 @@ $_("update").imports({
             sys.submit.on("touchend", items.update.start);
             function val(value) {
                 opts = value;
+                items.id.val(value.id);
                 items.link.val(value.name);
                 items.area.setValue(value.areaName);
             }
@@ -368,6 +374,16 @@ $_("update").imports({
                 e.target.trigger("publish", "/links/select").trigger("switch", "overview");
             }
             return {val: val};
+        }
+    },
+    GUID: {
+        xml: "<Input id='id' label='标识符' disabled='true' style='font-size:14px;' maxlength='32' xmlns='../signup/form'/>",
+        fun: function (sys, items, opts) {
+            this.on("start", (e, o) => {
+                o.id = items.id.val();
+                sys.id.trigger("next", o);
+            });
+            return items.id;
         }
     }
 });

@@ -137,7 +137,10 @@ $_("overview").imports({
                <div class='item-content swipeout-content'>\
                  <div class='item-media'><i id='icon' class='icon icon-f7'><Icon/></i></div>\
                  <div class='item-inner'>\
-                   <div id='label' class='item-title'/>\
+                   <div class='item-title'>\
+                     <div id='label'/>\
+                     <div id='id' class='item-footer'/>\
+                   </div>\
                  </div>\
                </div>\
                <div class='swipeout-actions-right'>\
@@ -149,9 +152,9 @@ $_("overview").imports({
             let klass;
             sys.edit.on("touchend", () => this.trigger("switch", ["update", klass]));
             function setValue(value) {
-                console.log(value);
                 klass = value;
                 sys.label.text(klass.name);
+                sys.id.text(klass.id);
             }
             sys.remove.on("touchend", () => this.notify("remove", klass));
             return Object.defineProperty({}, "value", { set: setValue});
@@ -286,7 +289,7 @@ $_("signup/form").imports({
                  </div>\
                </div>\
               </li>",
-		map: { attrs: { text: "name value type maxlength placeholder disabled" } },
+		map: { attrs: { text: "name value type maxlength placeholder disabled style" } },
 		fun: function (sys, items, opts) { 
             sys.label.text(opts.label);
 			function focus() {
@@ -309,7 +312,7 @@ $_("update").imports({
         xml: "<div id='content' class='page'>\
                 <div class='page-content' xmlns:i='../signup/form'>\
                     <i:Form id='update'>\
-                      <ID id='id'/>\
+                      <GUID id='id'/>\
                       <i:Class id='klass'/>\
                       <i:Desc id='desc'/>\
                     </i:Form>\
@@ -339,9 +342,8 @@ $_("update").imports({
             return {val: val};
         }
     },
-    ID: {
-        css: "#id { font-size: 14px; }",
-        xml: "<Input id='id' label='标识符' disabled='true' placeholder='identification' maxlength='32' xmlns='../signup/form'/>",
+    GUID: {
+        xml: "<Input id='id' label='标识符' disabled='true' style='font-size:14px;' maxlength='32' xmlns='../signup/form'/>",
         fun: function (sys, items, opts) {
             this.on("start", function (e, o) {
                 o.id = items.id.val();

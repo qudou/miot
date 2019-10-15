@@ -146,7 +146,7 @@ $_("signup").imports({
     },
     InputCheck: {
         fun: function (sys, items, opts) {
-            var ureg = /^[A-Z0-9]{5,}$/i,
+            var ureg = /^[A-Z0-9]{4,}$/i,
                 ereg = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i;
             var table = {u: user, p: pass, e: email};
             function user( v ) {

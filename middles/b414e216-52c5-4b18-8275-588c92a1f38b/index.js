@@ -52,7 +52,7 @@ $_().imports({
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("enter", (e, p) => {
-                let stmt = `SELECT id,name,link,class FROM parts WHERE link='${p.body.link}' AND type<>0`;
+                let stmt = `SELECT id,part,name,link,class,type FROM parts WHERE link='${p.body.link}' AND type<>0`;
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -125,12 +125,14 @@ $_("signup").imports({
               </main>",
         fun: function (sys, items, opts) {
             let uuidv1 = require("uuid/v1");
+            let str = "INSERT INTO parts (id,part,name,link,class,type,online) VALUES(?,?,?,?,?,?,?)";
             this.on("enter", (e, p) => {
-                let stmt = items.db.prepare("INSERT INTO parts (id,part,name,link,class) VALUES(?,?,?,?,?)");
+                let stmt = items.db.prepare(str);
                 let b = p.body;
                 let id = uuidv1();
                 let part = uuidv1();
-                stmt.run(id,part,b.name,b.link,b.class);
+                let online = b.type > 1 ? 0 : 1;
+                stmt.run(id,part,b.name,b.link,b.class,b.type,online);
                 stmt.finalize(() => insertToAuths(p, id)); 
             });
             function insertToAuths(p, part) {
@@ -139,7 +141,7 @@ $_("signup").imports({
                 stmt.finalize(() => {
                     p.data = {code: 0, desc: "注册成功"};
                     sys.signup.trigger("to-user", p);
-                }); 
+                });
             }
         }
     }
@@ -154,11 +156,12 @@ $_("update").imports({
                 <Sqlite id='db' xmlns='//miot/sqlite'/>\
               </main>",
         fun: function (sys, items, opts) {
-            let update = "UPDATE parts SET name=?,link=?,class=? WHERE id=?";
+            let update = "UPDATE parts SET name=?,link=?,class=?,type=?,online=? WHERE id=?";
             this.on("enter", (e, p) => {
                 let b = p.body;
                 let stmt = items.db.prepare(update);
-                stmt.run(b.name,b.link,b.class,b.id, err => {
+                let online = b.type > 1 ? 0 : 1;
+                stmt.run(b.name,b.link,b.class,b.type,online,b.id, err => {
                     if (err) throw err;
                     p.data = {code: 0, desc: "更新成功"};
                     this.trigger("to-user", p);

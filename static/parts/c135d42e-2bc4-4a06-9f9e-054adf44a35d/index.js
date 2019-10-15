@@ -52,8 +52,8 @@ $_().imports({
                 sys.content.trigger("publish", ["schedule", {schedule: payload}]);
             }
             this.watch("data-change", (e, array) => {
-                let list = sys.list.children();
-                for ( let i = 0; i < array.schedule.length; i++ )
+                let i, list = sys.list.children();
+                for ( i = 0; i < array.schedule.length; i++ )
                     (list[i] || sys.list.append("Item")).show().value().init(array.schedule[i]);
                 for ( let k = i; k < list.length; k++ )
                     list[k].remove();
