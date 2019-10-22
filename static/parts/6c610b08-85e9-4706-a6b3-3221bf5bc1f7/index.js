@@ -5,19 +5,63 @@
  * Released under the MIT license
  */
 
-xmlplus("6c610b08-85e9-4706-a6b3-3221bf5bc1f7", (xp, $_, t) => { //sysinfo
+xmlplus("6c610b08-85e9-4706-a6b3-3221bf5bc1f7", (xp, $_, t) => {
 
 $_().imports({
     Index: {
-        xml: "<div id='index'>\
-                <Navbar id='navbar'/>\
-                <Content id='content'/>\
-              </div>",
+        xml: "<ViewStack id='index'>\
+                <Service id='service'/>\
+                <Cashier id='cashier'/>\
+                <Inventory id='inventory'/>\
+              </ViewStack>"
+    },
+    Service: {
+        css: "#service { visibility: visible; opacity: 1; background: #EFEFF4; }",
+        xml: "<Overlay id='service' xmlns='//miot/verify'/>",
         fun: function (sys, items, opts) {
-            console.log(opts);
-            this.notify("data-change", opts.data);
+            this.trigger("publish", "/ready");
+            this.watch("/ready", (e, p) => {
+                if (!Q.ln) Q.ln = 3, Q.col = 3;
+                let g = p[Q.ln][Q.col];
+                if (g["库存"] > 0)
+                    return this.notify("to-buy", g);
+                this.trigger("switch", "inventory").notify("inventory", g);
+            });
         }
     },
+    Cashier: {
+        xml: "<div id='cashier' xmlns:i='cashier'>\
+                <i:Navbar id='navbar'/>\
+                <i:Content id='content'/>\
+              </div>"
+    },
+    Inventory: {
+        xml: "<div id='inventory' xmlns:i='inventory'>\
+                <Navbar id='navbar' xmlns='cashier'/>\
+                <i:Content id='content'/>\
+              </div>"
+    },
+    ViewStack: {
+        xml: "<div id='viewstack'/>",
+        fun: function (sys, items, opts) {
+            var args, children = this.children(),
+                table = children.call("hide").hash(),
+                ptr = table[opts.index] || children[0];
+            if (ptr) ptr = ptr.trigger("show", null, false).show();
+            this.on("switch", function (e, to) {
+                table = this.children().hash();
+                if ( !table[to] || table[to] == ptr ) return;
+                e.stopPropagation();
+                args = [].slice.call(arguments).slice(2);
+                ptr.trigger("hide", [to+''].concat(args)).hide();
+                ptr = table[to].trigger("show", [ptr+''].concat(args), false).show();
+            });
+            return Object.defineProperty({}, "selected", { get: () => {return ptr}});
+        }
+    }
+});
+
+$_("cashier").imports({
     Navbar: {
         css: ".ios .navbar-inner { padding: 0 14px; }\
               .ios .navbar #close { margin-right: 0; padding-right: 10px; }",
@@ -37,13 +81,13 @@ $_().imports({
     Content: {
         css: "#content .page-content div { margin-left: 15px; margin-right: 15px; }\
               #detail { width: 100%; text-align: center; margin: 90px 0 0; }\
-              #img { border: 1px solid #AAA; border-radius: 8px; padding: 8px; }\
+              #img { border: 1px solid #AAA; border-radius: 8px; padding: 8px; max-width: calc(80%); max-height: calc(50%); }\
               #price { color: #ff5745; font-size: 1.35em; }\
               #buy { margin: 10px 0 0; }\
               button#buy {width: calc(100% - 20px); margin: 10px 10px 0;}",
         xml: "<div id='content' class='page'>\
                 <div id='detail' class='page-content'>\
-                    <img id='img' src='http://www.tongyijia365.com/img/goods/06154.jpg'/>\
+                    <img id='img'/>\
                     <div id='price'>￥66.66</div>\
                     <div id='cname'>品名</div>\
                     <button id='buy' class='button button-fill color-blue'>购买</button>\
@@ -52,28 +96,21 @@ $_().imports({
               </div>",
         map: { nofragment: true },
         fun: function (sys, items, opts) {
-            let G = {}, Q = {};
-            let r = window.location.search.substr(1).split('&');
-            r.forEach(pair => {
-                let p = pair.split('=');
-                Q[p[0]] = p[1];
-            });
             sys.buy.on("click", e => {
                 let body = { code: Q.code, money: 0.01, spbill_create_ip: returnCitySN["cip"], ln: Q.ln, col: Q.col };
                 this.trigger("publish", ["/unifiedorder", body]);
             });
-            this.watch("data-change", (e, o) => {
-                if (!Q.ln) return;
-                G = o.table[Q.ln][Q.col];
-                sys.price.text('￥'+G["零售价"]);
-                sys.cname.text(G["品名"]);
+            this.watch("to-buy", (e, g) => {
+                sys.price.text('￥'+g["售价"]);
+                sys.cname.text(g["品名"]);
+                sys.img.attr("src", g["图片"]);
+                this.trigger("switch", "cashier");
             });
             sys.wcpay.on("wcpay-success", (e) => {
                 let text = "正在出货中..., 请耐心等待！";
                 app.dialog.alert(text, "提示", () => {
                     WeixinJSBridge.call('closeWindow');
                 });
-                //this.trigger("publish", ["drop-goods", {ln: Q.ln, col: Q.col}]);
             });
             this.watch("/unifiedorder", (e, o) => items.wcpay(o));
         }
@@ -101,6 +138,37 @@ $_().imports({
                 }
             }
             return wcpay;
+        }
+    }
+});
+
+$_("inventory").imports({
+    Content: {
+        css: "#content .page-content div { margin-left: 15px; margin-right: 15px; }\
+              #detail { width: 100%; text-align: center; margin: 90px 0 0; }\
+              #img { border: 1px solid #AAA; border-radius: 8px; padding: 8px; max-width: calc(80%); max-height: calc(50%); }\
+              #price { color: #ff5745; font-size: 1.35em; }\
+              #confirm { margin: 10px 0 0; }\
+              button#comfirm {width: calc(100% - 20px); margin: 10px 10px 0;}\
+              #label { color: red; }",
+        xml: "<div id='content' class='page'>\
+                <div id='detail' class='page-content'>\
+                    <img id='img'/>\
+                    <div id='price'>￥66.66</div>\
+                    <div id='cname'>品名</div>\
+                    <div id='label'>此商品库存不足，暂时无法购买！</div>\
+                    <button id='confirm' class='button button-fill color-blue'>确定</button>\
+                </div>\
+              </div>",
+        fun: function (sys, items, opts) {
+            sys.confirm.on("touchend", () => {
+                WeixinJSBridge.call('closeWindow');
+            });
+            this.watch("inventory", (e, g) => {
+                sys.price.text('￥'+g["售价"]);
+                sys.cname.text(g["品名"]);
+                sys.img.attr("src", g["图片"]);
+            });
         }
     }
 });

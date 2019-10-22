@@ -42,7 +42,7 @@ $_().imports({
                     <div class='block-title'>系统信息</div>\
                     <div>更新时间：<span id='dateTime'/></div>\
                     <div>　制造商：<span id='manufacturer'/></div>\
-                    <div>　　品牌：<span id='brand'/></div>\
+                    <div>　　ＩＰ：<span id='ip'/></div>\
                     <div>　ＣＰＵ：<span id='temp'/></div>\
                     <div>磁盘容量：<span id='diskspace'/></div>\
                     <Reboot id='reboot'/>\

@@ -11,20 +11,19 @@ xmlplus("d9c69375-2edc-43d3-a2a4-7bd93c31eb4f", (xp, $_) => {
 
 $_().imports({
     Index: {
-        xml: "<i:Flow id='index' xmlns:i='//miot/middle'>\
-                <i:Router id='router' url='/users/:action'/>\
+        xml: "<main id='index'>\
                 <Select id='select'/>\
                 <Signup id='signup'/>\
                 <Remove id='remove'/>\
                 <Update id='update'/>\
                 <Chpasswd id='chpasswd'/>\
-              </i:Flow>",
+              </main>",
         map: { share: "signup/Crypto signup/InputCheck" }
     },
     Select: {
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.watch("/users/select", (e, p) => {
                 let stmt = `SELECT id,name,email,repeat_login FROM users`;
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
@@ -38,17 +37,20 @@ $_().imports({
         }
     },
     Signup: {
-        xml: "<Flow xmlns='//miot/middle' xmlns:i='signup'>\
+        xml: "<Flow id='signup' xmlns:i='signup'>\
                 <i:Validate id='validate'/>\
-                <i:Signup id='signup'/>\
-              </Flow>"
+                <i:Signup id='signup_'/>\
+              </Flow>",
+        fun: function (sys, items, opts) {
+            this.watch("/users/signup", items.signup.start);
+        }
     },
     Remove: {
         xml: "<main id='remove'>\
                 <Sqlite id='db' xmlns='//miot/sqlite'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.watch("/users/remove", (e, p) => {
                 let remove = "DELETE FROM users WHERE id=? AND id<>0";
                 let stmt = items.db.prepare(remove);
                 stmt.run(p.body.id, function (err) {
@@ -60,16 +62,37 @@ $_().imports({
         }
     },
     Update: {
-        xml: "<Flow xmlns='//miot/middle' xmlns:i='update'>\
+        xml: "<Flow id='update' xmlns:i='update'>\
                 <i:Validate id='validate'/>\
-                <i:Update id='update'/>\
-              </Flow>"
+                <i:Update id='update_'/>\
+              </Flow>",
+        fun: function (sys, items, opts) {
+            this.watch("/users/update", items.update.start);
+        }
     },
     Chpasswd: {
-        xml: "<Flow xmlns='//miot/middle' xmlns:i='chpasswd'>\
+        xml: "<Flow id='chpasswd' xmlns:i='chpasswd'>\
                 <i:Validate id='validate'/>\
-                <i:Chpasswd id='chpasswd'/>\
-              </Flow>"
+                <i:Chpasswd id='chpasswd_'/>\
+              </Flow>",
+        fun: function (sys, items, opts) {
+            this.watch("/users/chpasswd", items.chpasswd.start);
+        }
+    },
+    Flow: {
+        fun: function (sys, items, opts) {
+            var ptr, first = this.first();
+            this.on("next", (e, p) => {
+                e.stopPropagation();
+                ptr = ptr.next();
+                ptr.trigger("exec", p, false);
+            });
+            function start(e, p) {
+                ptr = first;
+                ptr.trigger("exec", p, false);
+            }
+            return { start: start };
+        }
     }
 });
 
@@ -80,7 +103,7 @@ $_("signup").imports({
                 <InputCheck id='check'/>\
               </main>",
         fun: function ( sys, items, opts ) {
-            this.on("enter", (e, p) => {
+            this.on("exec", (e, p) => {
                 e.stopPropagation();
                 if (items.check("e", p.body.email) && items.check("u", p.body.name) || items.check("p", p.body.pass))
                     return checkName(p);
@@ -115,7 +138,7 @@ $_("signup").imports({
                 <Crypto id='crypto'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.on("exec", (e, p) => {
                 var salt = items.crypto.salt(),
                     pass = items.crypto.encrypt(p.body.pass, salt);
                     stmt = items.db.prepare("INSERT INTO users (email,name,pass,salt,repeat_login) VALUES(?,?,?,?,?)");
@@ -173,7 +196,7 @@ $_("update").imports({
                 <InputCheck id='check' xmlns='../signup'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.on("exec", (e, p) => {
                 e.stopPropagation();
                 if (items.check("e", p.body.email) && items.check("u", p.body.name))
                     return checkName(p);
@@ -208,7 +231,7 @@ $_("update").imports({
                 <Crypto id='crypto' xmlns='../signup'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.on("exec", (e, p) => {
                 let update = "UPDATE users SET name=?,email=?,repeat_login=? WHERE id=?";
                 let stmt = items.db.prepare(update);
                 stmt.run(p.body.name,p.body.email,p.body.relogin,p.body.id, err => {
@@ -229,7 +252,7 @@ $_("chpasswd").imports({
                 <i:Crypto id='crypto'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.on("exec", (e, p) => {
                 e.stopPropagation();
                 let stmt = `SELECT * FROM users WHERE id='${p.body.id}'`;
                 items.db.all(stmt, (err, rows) => {
@@ -257,7 +280,7 @@ $_("chpasswd").imports({
                 <i:Crypto id='crypto'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.on("exec", (e, p) => {
                 let update = "UPDATE users SET pass=?,salt=? WHERE id=?";
                 let salt = items.crypto.salt();
                 let pass = items.crypto.encrypt(p.body.new_pass, salt);

@@ -11,19 +11,18 @@ xmlplus("9dd8a38b-a406-4679-82d5-dd8b7e3a30b7", (xp, $_) => {
 
 $_().imports({
     Index: {
-        xml: "<i:Flow id='index' xmlns:i='//miot/middle'>\
-                <i:Router id='router' url='/auths/:action'/>\
+        xml: "<main id='index'>\
                 <Users id='users'/>\
                 <Areas id='areas'/>\
                 <Links id='links'/>\
                 <Parts id='parts'/>\
                 <Auth id='auth'/>\
-              </i:Flow>"
+              </main>"
     },
     Users: {
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.watch("/auths/users", (e, p) => {
                 let stmt = `SELECT id,name,email FROM users WHERE id<>0`;
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
@@ -40,7 +39,7 @@ $_().imports({
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             let stmt = "SELECT id, name FROM areas WHERE id <> 0";
-            this.on("enter", (e, p) => {
+            this.watch("/auths/areas", (e, p) => {
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -53,7 +52,7 @@ $_().imports({
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             let stmt = "SELECT id, name, area FROM links WHERE area<>0 ORDER BY area";
-            this.on("enter", (e, p) => {
+            this.watch("/auths/links", (e, p) => {
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -65,7 +64,7 @@ $_().imports({
     Parts: {
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.on("enter", async (e, p) => {
+            this.watch("/auths/parts", async (e, p) => {
                 let table = {};
                 let parts = await getParts(p.body.link);
                 parts.forEach(i=>table[i.id]=i);
@@ -97,7 +96,7 @@ $_().imports({
     Auth: {
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.watch("/auths/auth", (e, p) => {
                 p.body.auth ? exists(p) : remove(p);
             });
             function exists(p) {

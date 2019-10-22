@@ -260,7 +260,7 @@ $_("partlist").imports({
             function setValue(part) {
                 opts = part;
                 sys.label.text(part.name);
-                sys.part.text(part.part);
+                sys.part.text(part.id);
             }
             sys.remove.on("touchend", () => this.notify("remove", opts));
             return Object.defineProperty({}, "value", { set: setValue});
@@ -521,7 +521,6 @@ $_("update").imports({
                 <div class='page-content' xmlns:i='../signup/form'>\
                     <i:Form id='update'>\
                       <GUID id='guid' label='全局标识符'/>\
-                      <GUID id='part' label='局部标识符'/>\
                       <i:Name id='nane'/>\
                       <i:Area id='area'/>\
                       <i:Link id='link'/>\
@@ -535,6 +534,7 @@ $_("update").imports({
             sys.submit.on("touchend", items.update.start);
             sys.type.on("next", (e, p) => {
                 opts = p;
+                p.id = items.guid.val();
                 e.stopPropagation();
                 this.trigger("switch", "service");
                 this.trigger("publish", ["/parts/update", p]);
@@ -548,7 +548,6 @@ $_("update").imports({
             }
             function init(data) {
                 items.guid.val(data.id);
-                items.part.val(data.part);
                 items.nane.val(data.name);
                 items.area.setValue(data.link.area);
                 items.link.setValue(data.link);

@@ -8,7 +8,7 @@
 const Server = "wss://xmlplus.cn:443";
 window.app = new Framework7({theme: "ios", dialog:{buttonOk: '确定', buttonCancel: "取消"}});
 
-xmlplus("miot", (xp, $_, t) => {
+xmlplus("miot", (xp, $_) => {
 
 $_().imports({
     Index: {
@@ -92,11 +92,11 @@ $_().imports({
         css: "#logo { margin: 60px auto 25px; display: block; width: 50%; height: auto; }",
         xml: "<div class='page'><div class='page-content login-screen-content' xmlns:i='login'>\
                 <i:Logo id='logo'/>\
-                <i:From id='login'>\
+                <i:Form id='login'>\
                   <i:User id='user'/>\
                   <i:Pass id='pass'/>\
                   <i:Submit id='submit'/>\
-                </i:From>\
+                </i:Form>\
               </div></div>",
         fun: function (sys, items, opts) {
             function keypress( e ) {
@@ -189,7 +189,7 @@ $_("verify").imports({
 });
 
 $_("login").imports({
-    From: {
+    Form: {
         xml: "<form id='form' class='list form-store-data'>\
                 <ul id='content'/>\
               </form>",

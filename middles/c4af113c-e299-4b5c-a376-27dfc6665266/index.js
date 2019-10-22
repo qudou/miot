@@ -11,37 +11,16 @@ xmlplus("c4af113c-e299-4b5c-a376-27dfc6665266", (xp, $_) => {
 
 $_().imports({
     Index: {
-        xml: "<i:Flow id='index' xmlns:i='//miot/middle'>\
+        xml: "<main id='index'>\
                 <Areas id='areas'/>\
                 <Links id='links'/>\
                 <Parts id='parts'/>\
-              </i:Flow>"
+              </main>"
     },
     Areas: {
-        xml: "<i:Flow xmlns:i='//miot/middle'>\
-                <i:Router id='router' url='/areas/:action'/>\
-                <Select id='select' xmlns='areas'/>\
-              </i:Flow>"
-    },
-    Links: {
-        xml: "<i:Flow xmlns:i='//miot/middle'>\
-                <i:Router id='router' url='/links/:action'/>\
-                <Select id='select' xmlns='links'/>\
-              </i:Flow>"
-    },
-    Parts: {
-        xml: "<i:Flow xmlns:i='//miot/middle'>\
-                <i:Router id='router' url='/parts/:action'/>\
-                <Select id='select' xmlns='parts'/>\
-              </i:Flow>"
-    }
-});
-
-$_("areas").imports({
-    Select: {
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, payload) => {
+            this.watch("/areas/select", (e, payload) => {
                 let stmt = `SELECT distinct areas.* FROM areas,links,parts,auths
                             WHERE areas.id = links.area AND links.id = parts.link AND parts.id = auths.part AND auths.user=${payload.uid}`
                 items.sqlite.all(stmt, (err, data) => {
@@ -51,14 +30,11 @@ $_("areas").imports({
                 });
             });
         }
-    }
-});
-
-$_("links").imports({
-    Select: {
+    },
+    Links: {
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, payload) => {
+            this.watch("/links/select", (e, payload) => {
                 let stmt = `SELECT distinct links.* FROM links,parts,auths
                             WHERE links.area = '${payload.body.area}' AND links.id = parts.link AND parts.id = auths.part AND auths.user=${payload.uid} `;
                 items.sqlite.all(stmt, (err, data) => {
@@ -68,14 +44,11 @@ $_("links").imports({
                 });
             });
         }
-    }
-});
-
-$_("parts").imports({
-    Select: {
+    },
+    Parts: {
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, payload) => {
+            this.watch("/parts/select", (e, payload) => {
                 let stmt = `SELECT parts.* FROM parts,auths
                             WHERE parts.link = '${payload.body.link}' AND parts.id = auths.part AND auths.user=${payload.uid}`;
                 items.sqlite.all(stmt, (err, data) => {

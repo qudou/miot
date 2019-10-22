@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
     <body>
+        <a id='url'></a>
         <script>
             let Q = {};
             let r = window.location.search.substr(1).split('&');
@@ -8,7 +9,9 @@
                 let p = pair.split('=');
                 Q[p[0]] = p[1];
             });
-            window.location.href = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx991a253c49c5afac&redirect_uri=http%3a%2f%2fxmlplus.cn%2f%3fname%3dqudouo%26password%3d123456%26autoOpen%3dtrue%26ln%3d${Q.l}%26col%3d${Q.c}&response_type=code&scope=snsapi_base&state=123#wechat_redirect`;
+            let redirect_uri = `https%3A%2F%2Fxmlplus.cn%2F%3Fname%3D8001%26password%3D8123456%26open%3Dc620aa48-4701-4de5-9432-08d5c500f683%26ln%3D${Q.l}%26col%3D${Q.c}`;
+            let url = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx991a253c49c5afac&redirect_uri=${redirect_uri}&response_type=code&scope=snsapi_base&state=123#wechat_redirect`;
+            window.location.href = url;
         </script>
     </body>
 </html>

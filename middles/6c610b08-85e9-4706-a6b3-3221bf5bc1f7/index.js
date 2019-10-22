@@ -15,24 +15,28 @@ const mchkey = "c431eda71215891bced9de7991afa73d";  // 安全密钥
 
 let CurrentOrder = null;
 
-xmlweb("6c610b08-85e9-4706-a6b3-3221bf5bc1f7", (xp, $_, t) => { //leyaoyao
+xmlweb("6c610b08-85e9-4706-a6b3-3221bf5bc1f7", (xp, $_) => { //leyaoyao
 
 $_().imports({
     Index: {
-        xml: "<i:Middle id='middle' xmlns:i='//miot/proxy'>\
+        xml: "<main id='index'>\
                 <Unifiedorder id='unifiedorder'/>\
-                <DropGoods id='dropGoods'/>\
                 <ReceiveNotice id='receiveNotice'/>\
-              </i:Middle>"
+              </main>",
+        fun: function (sys, items, opts) {
+            this.watch("/ready", (e, p) => this.trigger("to-local", p));
+        }
     },
     Unifiedorder: {
-        xml: "<i:Flow xmlns:i='unifiedorder'>\
-                <i:Router id='router' url='/unifiedorder'/>\
+        xml: "<Flow id='unifiedorder' xmlns:i='unifiedorder'>\
                 <i:AccessToken id='accessToken'/>\
                 <i:Sign id='sign'/>\
-                <i:Unifiedorder id='unifiedorder'/>\
-              </i:Flow>",
-        map: { share: "unifiedorder/PaySignApi" }
+                <i:Unifiedorder id='unifiedorder2'/>\
+              </Flow>",
+        map: { share: "unifiedorder/PaySignApi" },
+        fun: function (sys, items, opts) {
+            this.watch("/unifiedorder", sys.unifiedorder.start);
+        }
     },
     ReceiveNotice: {
         xml: "<i:HTTP xmlns:i='//xmlweb' listen='8000'>\
@@ -45,84 +49,34 @@ $_().imports({
                 d.res.setHeader("Content-Type", "text/html");
                 d.res.end(R);
                 let b = JSON.parse(CurrentOrder.body.text());
-                let body = { topic: "drop-goods", body: {ln:b.ln,col:b.col} };
-                let payload = { link: b.link, pid: b.pid, body: body };
+                console.log(b);
+                let payload = { link: b.link, pid: b.pid, topic: "/drop", body: {ln:b.ln,col:b.col} };
                 this.trigger("to-local", payload);
             });
+        }
+    },
+    Flow: {
+        fun: function (sys, items, opts) {
+            var ptr, first = this.first();
+            this.on("next", (e, r) => {
+                e.stopPropagation();
+                ptr = ptr.next();
+                ptr.trigger("exec", r, false);
+            });
+            function start(e, p) {
+                ptr = first;
+                ptr.trigger("exec", p, false);
+            }
+            return { start: start };
         }
     }
 });
 
 $_("unifiedorder").imports({
-    Flow: {
-        xml: "<main id='flow'/>",
-        fun: function (sys, items, opts) {
-            let first = this.first(),
-                table = this.find("./*[@id]").hash();
-            this.on("enter", (e, d, next) => {
-                d.ptr.unshift(first);
-                first.trigger("enter", d, false);
-            });
-            this.on("next", (e, d, next) => {
-                if ( e.target == sys.flow ) return;
-                e.stopPropagation();
-                if ( next == null ) {
-                    d.ptr[0] = d.ptr[0].next();
-                    d.ptr[0] ? d.ptr[0].trigger("enter", d, false) : this.trigger("reject", [d, next]);
-                } else if ( table[next] ) {
-                    (d.ptr[0] = table[next]).trigger("enter", d, false);
-                } else {
-                    this.trigger("reject", [d, next]);
-                }
-            });
-            this.on("reject", (e, d, next) => {
-                d.ptr.shift();
-                e.stopPropagation();
-                this.trigger("next", [d, next]);
-            });
-        }
-    },
-    Router: {
-        xml: "<ParseURL id='router'/>",
-        opt: { url: "/*" },
-        map: { attrs: {"router": "url"} },
-        fun: function (sys, items, opts) {
-            this.on("enter", (e, d) => {
-                d.args = items.router(d.topic);
-                if ( d.args == false )
-                    return this.trigger("reject", d);
-                this.trigger("next", d);
-            });
-        }
-    },
-    ParseURL: {
-        fun: function (sys, items, opts) {
-            let pathRegexp = require("path-to-regexp"),
-                regexp = pathRegexp(opts.url || "/", opts.keys = [], {});
-            function decode(val) {
-                if ( typeof val !== "string" || val.length === 0 ) return val;
-                try {
-                    val = decodeURIComponent(val);
-                } catch(e) {}
-                return val;
-            }
-            return path => {
-                let res = regexp.exec(path);
-                if (!res) return false;
-                let params = {};
-                for (let i = 1; i < res.length; i++) {
-                    let key = opts.keys[i - 1], val = decode(res[i]);
-                    if (val !== undefined || !(hasOwnProperty.call(params, key.name)))
-                        params[key.name] = val;
-                }
-                return params;
-            };
-        }
-    },
     AccessToken: {
         fun: function (sys, items, opts) {
             const head = "https://api.weixin.qq.com/sns/oauth2/access_token";
-            this.on("enter", (e, payload) => {
+            this.on("exec", (e, payload) => {
                 let url = `${head}?appid=${appid}&secret=${secret}&code=${payload.body.code}&grant_type=authorization_code`;
                 request.get(url, (error, response, body) => {
                     if (error || response.statusCode !== 200)
@@ -139,11 +93,12 @@ $_("unifiedorder").imports({
         fun: function (sys, items, opts) {
             let uuidv4 = require("uuid/v4");
             let api = items.api;
-            this.on("enter", (e, payload) => {
+            this.on("exec", (e, payload) => {
                 let b = payload.body;
                 b.nonce_str = api.createNonceStr();
                 b.timestamp = api.createTimeStamp();
                 b.body = JSON.stringify({ln:b.ln,col:b.col,link:payload.link,pid:payload.pid});
+                console.log("hello", b.ln, b.col);
                 b.out_trade_no = uuidv4().replace(/\-/g, '');
                 b.total_fee = api.getMoney(b.money);
                 b.spbill_create_ip = b.spbill_create_ip;
@@ -158,7 +113,7 @@ $_("unifiedorder").imports({
         xml: "<PaySignApi id='api'/>",
         fun: function (sys, items, opts) {
             const url = 'https://api.mch.weixin.qq.com/pay/unifiedorder';
-            this.on("enter", (e, payload) => {
+            this.on("exec", (e, payload) => {
                 let b = payload.body, formData =
                 `<xml>
                     <appid>${appid}</appid>

@@ -82,12 +82,12 @@ $_().imports({
                 console.log(p);
                 let m = await items.factory.getPartById(packet.topic);
                 try {
-                    p.pid = m.part;
+                    p.pid = m.class;
                     p.cid = client.id;
                     p.uid = await items.users.getUidByCid(client.id);
                     p.mid = packet.topic;
                     p.link = m.link;
-                    items.factory.create(m['class']).trigger("enter", p);
+                    items.factory.create(m['class'], p);
                 } catch(e) {
                     console.log(e);
                     let body = { topic: p.topic, body: p.body };
@@ -195,7 +195,7 @@ $_("mosca").imports({
             }
             function getPartByLink(linkId, partId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM parts WHERE link='${linkId}' AND part = '${partId}'`;
+                    let stmt = `SELECT * FROM parts WHERE link='${linkId}' AND class = '${partId}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data[0]);
@@ -337,14 +337,19 @@ $_("proxy").imports({
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
             let table = {};
-            function create(klass) {
+            function create(klass, p) {
                 if (!table[klass]) {
                     require(`${__dirname}/middles/${klass}/index.js`);
-                    let Middle = `//${klass}/Index`;
-                    xp.hasComponent(Middle).map.msgscope = true;
-                    table[klass] = sys.sqlite.append(Middle);
+                    let c = {map: {}, fun: fun};
+                    c.xml = `<Index xmlns='//${klass}'/>`;
+                    c.map.msgscope = true;
+                    $_("proxy").imports({Middle: c});
+                    table[klass] = sys.sqlite.append("Middle");
                 }
-                return table[klass];
+                table[klass].trigger("/SYS", p, false);
+            }
+            function fun(sys, items, opts) {
+                this.on("/SYS", (e, p) => this.notify(p.topic, p));
             }
             function getPartById(partId) {
                 return new Promise((resolve, reject) => {
@@ -364,7 +369,8 @@ $_("proxy").imports({
             this.on("to-local", (e, payload) => {
                 let p = payload;
                 e.stopPropagation();
-                this.notify("to-local", [p.link, {pid: p.pid, body: p.body}]);
+                let body = { topic: p.topic, body: p.body };
+                this.notify("to-local", [p.link, {pid: p.pid, body: body}]);
             });
             return { create: create, getPartById: getPartById };
         }
@@ -404,76 +410,6 @@ $_("proxy/login").imports({
                 return cryptoJS.lib.WordArray.random(128/8).toString();
             }
             return { encrypt: encrypt, salt: salt };
-        }
-    }
-});
-
-$_("middle").imports({
-    Flow: {
-        xml: "<main id='flow'/>",
-        fun: function (sys, items, opts) {
-            let first = this.first(),
-                table = this.find("./*[@id]").hash();
-            this.on("enter", (e, d, next) => {
-                d.ptr = d.ptr || [];
-                d.ptr.unshift(first);
-                first.trigger("enter", d, false);
-            });
-            this.on("next", (e, d, next) => {
-                if (e.target == sys.flow) return;
-                e.stopPropagation();
-                if (next == null) {
-                    d.ptr[0] = d.ptr[0].next();
-                    d.ptr[0] ? d.ptr[0].trigger("enter", d, false) : this.trigger("reject", d);
-                } else if (table[next]) {
-                    (d.ptr[0] = table[next]).trigger("enter", d, false);
-                } else {
-                    this.trigger("reject", [d, next]);
-                }
-            });
-            this.on("reject", (e, d, next) => {
-                d.ptr.shift();
-                if (e.target == sys.flow) return;
-                e.stopPropagation();
-                this.trigger("next", [d, next]);
-            });
-        }
-    },
-    Router: {
-        xml: "<ParseURL id='router'/>",
-        opt: { url: "/*" },
-        map: { attrs: {"router": "url"} },
-        fun: function (sys, items, opts) {
-            this.on("enter", (e, d) => {
-                d.args = items.router(d.topic);
-                if (d.args == false)
-                    return this.trigger("reject", d);
-                this.trigger("next", [d,d.args.action]);
-            });
-        }
-    },
-    ParseURL: {
-        fun: function (sys, items, opts) {
-            let pathRegexp = require("path-to-regexp"),
-                regexp = pathRegexp(opts.url || "/", opts.keys = [], {});
-            function decode(val) {
-                if ( typeof val !== "string" || val.length === 0 ) return val;
-                try {
-                    val = decodeURIComponent(val);
-                } catch(e) {}
-                return val;
-            }
-            return path => {
-                let res = regexp.exec(path);
-                if (!res) return false;
-                let params = {};
-                for (let i = 1; i < res.length; i++) {
-                    let key = opts.keys[i - 1], val = decode(res[i]);
-                    if (val !== undefined || !(hasOwnProperty.call(params, key.name)))
-                        params[key.name] = val;
-                }
-                return params;
-            };
         }
     }
 });

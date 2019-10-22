@@ -11,19 +11,18 @@ xmlplus("9cd179c0-7231-4d08-b015-0fccf2086302", (xp, $_) => {
 
 $_().imports({
     Index: {
-        xml: "<i:Flow id='index' xmlns:i='//miot/middle'>\
-                <i:Router id='router' url='/links/:action'/>\
+        xml: "<main id='index'>\
                 <Areas id='areas'/>\
                 <Select id='select'/>\
                 <Signup id='signup'/>\
                 <Remove id='remove'/>\
                 <Update id='update'/>\
-              </i:Flow>"
+              </main>"
     },
     Areas: {
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.watch("/links/areas", (e, p) => {
                 let stmt = `SELECT * FROM areas WHERE id<>0`;
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
@@ -43,7 +42,7 @@ $_().imports({
                         FROM links, areas
                         WHERE links.area = areas.id AND area <> 0
                         ORDER BY links.area`;
-            this.on("enter", (e, p) => {
+            this.watch("/links/select", (e, p) => {
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -53,17 +52,20 @@ $_().imports({
         }
     },
     Signup: {
-        xml: "<Flow xmlns='//miot/middle' xmlns:i='signup'>\
+        xml: "<Flow id='signup' xmlns:i='signup'>\
                 <i:Validate id='validate'/>\
-                <i:Signup id='signup'/>\
-              </Flow>"
+                <i:Signup id='sign'/>\
+              </Flow>",
+        fun: function (sys, items, opts) {
+            this.watch("/links/signup", items.signup.start);
+        }
     },
     Remove: {
         xml: "<main id='remove'>\
                 <Sqlite id='db' xmlns='//miot/sqlite'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.watch("/links/remove", (e, p) => {
                 let remove = "DELETE FROM links WHERE id=?";
                 let stmt = items.db.prepare(remove);
                 stmt.run(p.body.id, function (err) {
@@ -75,10 +77,28 @@ $_().imports({
         }
     },
     Update: {
-        xml: "<Flow xmlns='//miot/middle' xmlns:i='update'>\
+        xml: "<Flow id='update' xmlns:i='update'>\
                 <i:Validate id='validate'/>\
-                <i:Update id='update'/>\
-              </Flow>"
+                <i:Update id='update_'/>\
+              </Flow>",
+        fun: function (sys, items, opts) {
+            this.watch("/links/update", items.update.start);
+        }
+    },
+    Flow: {
+        fun: function (sys, items, opts) {
+            var ptr, first = this.first();
+            this.on("next", (e, p) => {
+                e.stopPropagation();
+                ptr = ptr.next();
+                ptr.trigger("exec", p, false);
+            });
+            function start(e, p) {
+                ptr = first;
+                ptr.trigger("exec", p, false);
+            }
+            return { start: start };
+        }
     }
 });
 
@@ -88,7 +108,7 @@ $_("signup").imports({
                 <Sqlite id='db' xmlns='//miot/sqlite'/>\
               </main>",
         fun: function ( sys, items, opts ) {
-            this.on("enter", (e, p) => {
+            this.on("exec", (e, p) => {
                 e.stopPropagation();
                 if (p.body.name.length > 1)
                     return this.trigger("next", p);
@@ -102,7 +122,7 @@ $_("signup").imports({
                 <Sqlite id='db' xmlns='//miot/sqlite'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.on("exec", (e, p) => {
                 let stmt = items.db.prepare("INSERT INTO links (id,name,area) VALUES(?,?,?)");
                 let id = require("uuid/v1")();
                 stmt.run(id, p.body.name, p.body.area);
@@ -124,7 +144,7 @@ $_("update").imports({
                 <Sqlite id='db' xmlns='//miot/sqlite'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.on("exec", (e, p) => {
                 let update = "UPDATE links SET name=?, area=? WHERE id=?";
                 let stmt = items.db.prepare(update);
                 stmt.run(p.body.name,p.body.area,p.body.id, err => {

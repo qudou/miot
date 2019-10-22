@@ -11,8 +11,7 @@ xmlplus("b414e216-52c5-4b18-8275-588c92a1f38b", (xp, $_) => {
 
 $_().imports({
     Index: {
-        xml: "<i:Flow id='index' xmlns:i='//miot/middle'>\
-                <i:Router id='router' url='/parts/:action'/>\
+        xml: "<main id='index'>\
                 <Areas id='areas'/>\
                 <Links id='links'/>\
                 <Parts id='parts'/>\
@@ -20,13 +19,13 @@ $_().imports({
                 <Signup id='signup'/>\
                 <Remove id='remove'/>\
                 <Update id='update'/>\
-              </i:Flow>"
+              </main>"
     },
     Areas: {
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             let stmt = "SELECT id, name FROM areas WHERE id <> 0";
-            this.on("enter", (e, p) => {
+            this.watch("/parts/areas", (e, p) => {
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -39,7 +38,7 @@ $_().imports({
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             let stmt = "SELECT id, name, area FROM links WHERE area<>0 ORDER BY area";
-            this.on("enter", (e, p) => {
+            this.watch("/parts/links", (e, p) => {
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -51,8 +50,8 @@ $_().imports({
     Parts: {
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
-                let stmt = `SELECT id,part,name,link,class,type FROM parts WHERE link='${p.body.link}' AND type<>0`;
+            this.watch("/parts/parts", (e, p) => {
+                let stmt = `SELECT id,name,link,class,type FROM parts WHERE link='${p.body.link}' AND type<>0`;
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -64,7 +63,7 @@ $_().imports({
     Classes: {
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.watch("/parts/classes", (e, p) => {
                 let stmt = `SELECT id,name,desc FROM classes WHERE type<>0`;
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
@@ -75,17 +74,20 @@ $_().imports({
         }
     },
     Signup: {
-        xml: "<Flow xmlns='//miot/middle' xmlns:i='signup'>\
+        xml: "<Flow id='signup' xmlns:i='signup'>\
                 <i:Validate id='validate'/>\
-                <i:Signup id='signup'/>\
-              </Flow>"
+                <i:Signup id='signup_'/>\
+              </Flow>",
+        fun: function (sys, items, opts) {
+            this.watch("/parts/signup", items.signup.start);
+        }
     },
     Remove: {
         xml: "<main id='remove'>\
                 <Sqlite id='db' xmlns='//miot/sqlite'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("enter", (e, p) => {
+            this.watch("/parts/remove", (e, p) => {
                 let remove = "DELETE FROM parts WHERE id=?";
                 let stmt = items.db.prepare(remove);
                 stmt.run(p.body.id, function (err) {
@@ -97,10 +99,28 @@ $_().imports({
         }
     },
     Update: {
-        xml: "<Flow xmlns='//miot/middle' xmlns:i='update'>\
+        xml: "<Flow id='update' xmlns:i='update'>\
                 <i:Validate id='validate'/>\
-                <i:Update id='update'/>\
-              </Flow>"
+                <i:Update id='update_'/>\
+              </Flow>",
+        fun: function (sys, items, opts) {
+            this.watch("/parts/update", items.update.start);
+        }
+    },
+    Flow: {
+        fun: function (sys, items, opts) {
+            var ptr, first = this.first();
+            this.on("next", (e, p) => {
+                e.stopPropagation();
+                ptr = ptr.next();
+                ptr.trigger("exec", p, false);
+            });
+            function start(e, p) {
+                ptr = first;
+                ptr.trigger("exec", p, false);
+            }
+            return { start: start };
+        }
     }
 });
 
@@ -110,7 +130,7 @@ $_("signup").imports({
                 <Sqlite id='db' xmlns='//miot/sqlite'/>\
               </main>",
         fun: function ( sys, items, opts ) {
-            this.on("enter", (e, p) => {
+            this.on("exec", (e, p) => {
                 e.stopPropagation();
                 if (p.body.name.length > 1)
                     return this.trigger("next", p);
@@ -125,19 +145,18 @@ $_("signup").imports({
               </main>",
         fun: function (sys, items, opts) {
             let uuidv1 = require("uuid/v1");
-            let str = "INSERT INTO parts (id,part,name,link,class,type,online) VALUES(?,?,?,?,?,?,?)";
-            this.on("enter", (e, p) => {
+            let str = "INSERT INTO parts (id,name,link,class,type,online) VALUES(?,?,?,?,?,?)";
+            this.on("exec", (e, p) => {
                 let stmt = items.db.prepare(str);
                 let b = p.body;
                 let id = uuidv1();
-                let part = uuidv1();
                 let online = b.type > 1 ? 0 : 1;
-                stmt.run(id,part,b.name,b.link,b.class,b.type,online);
+                stmt.run(id,b.name,b.link,b.class,b.type,online);
                 stmt.finalize(() => insertToAuths(p, id)); 
             });
-            function insertToAuths(p, part) {
+            function insertToAuths(p, partId) {
                 let stmt = items.db.prepare("INSERT INTO auths (user,part) VALUES(0,?)");
-                stmt.run(part);
+                stmt.run(partId);
                 stmt.finalize(() => {
                     p.data = {code: 0, desc: "注册成功"};
                     sys.signup.trigger("to-user", p);
@@ -157,7 +176,7 @@ $_("update").imports({
               </main>",
         fun: function (sys, items, opts) {
             let update = "UPDATE parts SET name=?,link=?,class=?,type=?,online=? WHERE id=?";
-            this.on("enter", (e, p) => {
+            this.on("exec", (e, p) => {
                 let b = p.body;
                 let stmt = items.db.prepare(update);
                 let online = b.type > 1 ? 0 : 1;
