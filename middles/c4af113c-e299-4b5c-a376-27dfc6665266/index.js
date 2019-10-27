@@ -55,7 +55,7 @@ $_().imports({
                     if (err) throw err;
                     payload.data = {link: payload.body.link, parts: []};
                     data.forEach(i => {
-                        payload.data.parts.push({'mid':i.id,'name':i.name,'class':i.class,'type':i.type,'data':JSON.parse(i.data),'online':i.online});
+                        payload.data.parts.push({'mid':i.id,'name':i.name,'class':i.class,'type':i.type,'online':i.online});
                     });
                     this.trigger("to-user", payload);
                 });

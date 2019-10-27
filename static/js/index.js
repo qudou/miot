@@ -353,11 +353,7 @@ $_("content").imports({
                 sys.client.watch(opts.mid, (e, part) => {
                     if ( part.online == 0 )
                         return sys.client.trigger("close");
-                    if (part.topic == "data-change")
-                        client.notify(part.topic, xp.extend(true, opts.data, part.data));
-                    else {
-                        client.notify(part.topic, [part.data]);
-                    }
+                    client.notify(part.topic, [part.data]);
                 }).watch("offline", () => sys.client.trigger("close"));
             }
             this.watch("open-part", (e, data) => {
@@ -491,7 +487,7 @@ $_("content/index").imports({
                 }
             });
             function listener(e, item) {
-                if (item.topic == "data-change" || item.topic == null)
+                if (item.topic == "/SYS" || item.topic == null)
                     e.currentTarget.trigger("data", item, false);
             }
             sys.parts.on("touchend", "*", function (e) {

@@ -42,14 +42,14 @@ $_().imports({
                 await items.links.update(topic, 0);
                 await items.parts.update(topic, 0);
                 let parts = await items.parts.getPartsByLink(topic);
-                parts.forEach(item => this.notify("to-users", {topic: "data-change", mid: item.id, online: 0}));
+                parts.forEach(item => this.notify("to-users", {topic: "/SYS", mid: item.id, online: 0}));
             });
             server.on("published", async (packet, client) => {
                 if (packet.topic == ID) {
                     let payload = JSON.parse(packet.payload + '');
                     let part = await items.parts.getPartByLink(client.id, payload.pid);
                     if (!part) return;
-                    if (payload.topic == "data-change")
+                    if (payload.topic == "/SYS")
                         await items.parts.cache(part.id, payload);
                     payload.mid = part.id;
                     this.notify("to-users", payload);
@@ -79,7 +79,6 @@ $_().imports({
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 let p = JSON.parse(packet.payload + '');
-                console.log(p);
                 let m = await items.factory.getPartById(packet.topic);
                 try {
                     p.pid = m.class;
@@ -155,24 +154,11 @@ $_("mosca").imports({
     Parts: {
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
-            let parts = null;
             async function cache(mid, payload) {
-                let str = "UPDATE parts SET data=?,online=% WHERE id=?";
+                let str = "UPDATE parts SET online=% WHERE id=?";
                 let stmt = items.sqlite.prepare(str.replace('%', payload.online == undefined ? 1 : payload.online));
-                parts = parts || await partList();
-                xp.extend(parts[mid], payload.data);
-                stmt.run(JSON.stringify(parts[mid]), mid, err => {
+                stmt.run(mid, err => {
                     if (err) throw err;
-                });
-            }
-            function partList() {
-                return new Promise(resolve => {
-                    items.sqlite.all("SELECT * FROM parts", (err, rows) => {
-                        if (err) throw err;
-                        let table = {};
-                        rows.forEach(item => table[item.id] = JSON.parse(item.data));
-                        resolve(table);
-                    });
                 });
             }
             function update(linkId, online) {

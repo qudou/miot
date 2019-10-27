@@ -15,7 +15,7 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             items.navbar.title(opts.name);
-            this.notify("data-change", opts.data);
+            this.trigger("publish", "/sysinfo");
         }
     },
     Navbar: {
@@ -50,7 +50,7 @@ $_().imports({
               </div>",
         map: { nofragment: true },
         fun: function (sys, items, opts) {
-            this.watch("data-change", (e, data) => {
+            this.watch("/sysinfo", (e, data) => {
                 for(let key in items)
                     data[key] && sys[key].text(data[key]);
             });
@@ -64,12 +64,12 @@ $_().imports({
         fun: function (sys, items, opts) {
             sys.reboot.on("touchend", e => {
                 window.app.dialog.confirm("确定重启系统吗？", "温馨提示", e => {
-                    this.trigger("publish", ["reboot", {}]);
+                    this.trigger("publish", ["/reboot", {}]);
                 });
             });
             sys.shutdown.on("touchend", e => {
                 window.app.dialog.confirm("确定关闭系统吗？", "温馨提示", e => {
-                    this.trigger("publish", ["shutdown", {}]);
+                    this.trigger("publish", ["/shutdown", {}]);
                 });
             });
         }

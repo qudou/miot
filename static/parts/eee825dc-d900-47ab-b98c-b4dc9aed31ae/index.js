@@ -14,8 +14,17 @@ $_().imports({
                 <Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
+            let data = {};
             items.navbar.title(opts.name);
-            this.notify("data-change", opts.data);
+            this.trigger("publish", "/ready");
+            this.watch("/ready", (e, msg) => {
+                data = msg;
+                this.notify("data-change", msg);
+            });
+            this.watch("data-change", (e, msg) => {
+                xp.extend(data, msg);
+                this.notify("/data-change", data);
+            });
         }
     },
     Navbar: {
@@ -52,7 +61,7 @@ $_().imports({
             sys.vol.on("range-change", e => {
                 this.trigger("publish", ["control", {vol: items.vol.value }]);
             });
-            this.watch("data-change", (e, data) => {
+            this.watch("/data-change", (e, data) => {
                 items.vol.value = data.vol;
             });
         }
@@ -122,7 +131,7 @@ $_("content").imports({
             function update() {
                 sys.channel.trigger("publish", ["control", {channel: items.channel.value}]);
             }
-            this.watch("data-change", (e, data) => {
+            this.watch("/data-change", (e, data) => {
                 items.channel.value = data.channel;
             });
         }
@@ -138,7 +147,7 @@ $_("content").imports({
             function update() {
                 sys.interval.trigger("publish", ["control", {interval: items.interval.value}]);
             }
-            this.watch("data-change", (e, data) => {
+            this.watch("/data-change", (e, data) => {
                 items.interval.value = data.interval;
             });
         }
@@ -181,7 +190,7 @@ $_("content/player").imports({
         css: "#title { text-align: center; }", 
         xml: "<div id='title' class='block-title'>标题</div>",
         fun: function (sys, items, opts) {
-            this.watch("data-change", (e, data) => {
+            this.watch("/data-change", (e, data) => {
                 data.song && sys.title.text(data.song.name);
             });
         }
@@ -201,7 +210,7 @@ $_("content/player").imports({
                 sys.toggle.trigger("switch", table[this]);
                 sys.toggle.trigger("publish", ["control", {stat: this.toString()}]);
             });
-            this.watch("data-change", (e, data) => {
+            this.watch("/data-change", (e, data) => {
                 sys.toggle.trigger("switch", table[data.stat]);
             });
         }

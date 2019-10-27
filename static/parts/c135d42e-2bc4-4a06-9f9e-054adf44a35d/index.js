@@ -15,7 +15,7 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             items.navbar.title(opts.name);
-            this.notify("data-change", opts.data);
+            this.trigger("publish", "/timers");
         }
     },
     Navbar: {
@@ -41,20 +41,17 @@ $_().imports({
               </div>",
         map: { nofragment: true },
         fun: function (sys, items, opts) {
-            sys.content.on("picker-change", e => {
+            sys.list.on("picker-change", function (e, data) {
                 clearTimeout(opts.timer);
-                opts.timer = setTimeout(update, 10);
+                opts.timer = setTimeout(() => update(data), 10);
             });
-            function update() {
-                let payload = [];
-                let list = sys.list.children().values();
-                list.forEach(item => payload.push(item.data()));
-                sys.content.trigger("publish", ["schedule", {schedule: payload}]);
+            function update(data) {
+                sys.content.trigger("publish", ["/update", data]);
             }
-            this.watch("data-change", (e, array) => {
+            this.watch("/timers", (e, array) => {
                 let i, list = sys.list.children();
-                for ( i = 0; i < array.schedule.length; i++ )
-                    (list[i] || sys.list.append("Item")).show().value().init(array.schedule[i]);
+                for ( i = 0; i < array.length; i++ )
+                    (list[i] || sys.list.append("Item")).show().value().init(array[i]);
                 for ( let k = i; k < list.length; k++ )
                     list[k].remove();
             });
@@ -66,16 +63,21 @@ $_().imports({
                 <TimePicker id='picker'/>\
               </div>",
         fun: function (sys, items, opts) {
-            let target, body;
+            let id, target, action;
             function init(data) {
-                body = data.body;
+                id = data.id;
+                action = data.action;
                 target = data.target;
                 sys.label.text(data.label);
                 items.picker.value = data.pattern;
             }
             function data() {
-                return { label: sys.label.text(), pattern: items.picker.value, body: body, target: target };
+                return { id: id, label: sys.label.text(), pattern: items.picker.value, action: action, target: target };
             }
+            sys.picker.on("picker-change", (e) => {
+                e.stopPropagation();
+                this.trigger("picker-change", data());
+            });
             return { init: init, data: data };
         }
     },
