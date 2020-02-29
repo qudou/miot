@@ -51,7 +51,7 @@ $_().imports({
         xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.watch("/parts/parts", (e, p) => {
-                let stmt = `SELECT id,name,link,class,type FROM parts WHERE link='${p.body.link}' AND type<>0`;
+                let stmt = `SELECT id,name,link,part,class,type FROM parts WHERE link='${p.body.link}' AND type<>0`;
                 items.db.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -145,13 +145,14 @@ $_("signup").imports({
               </main>",
         fun: function (sys, items, opts) {
             let uuidv1 = require("uuid/v1");
-            let str = "INSERT INTO parts (id,name,link,class,type,online) VALUES(?,?,?,?,?,?)";
+            let str = "INSERT INTO parts (id,name,link,part,class,type,online) VALUES(?,?,?,?,?,?,?)";
             this.on("exec", (e, p) => {
                 let stmt = items.db.prepare(str);
                 let b = p.body;
                 let id = uuidv1();
+                let part = uuidv1();
                 let online = b.type > 1 ? 0 : 1;
-                stmt.run(id,b.name,b.link,b.class,b.type,online);
+                stmt.run(id,b.name,b.link,part,b.class,b.type,online);
                 stmt.finalize(() => insertToAuths(p, id)); 
             });
             function insertToAuths(p, partId) {

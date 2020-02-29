@@ -60,7 +60,7 @@ $_("overview").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.close.on("touchend", e => this.trigger("close"));
+            sys.close.on(Click, e => this.trigger("close"));
             return { title: sys.title.text };
         }
     },
@@ -108,7 +108,7 @@ $_("overview").imports({
                </a>\
               </li>",
         fun: function (sys, items, opts) {
-            this.on("touchend", () => this.trigger("switch", ["update", opts]));
+            this.on(Click, () => this.trigger("switch", ["update", opts]));
             function setValue(item) {
                 opts = item;
                 sys.label.text(`${item.列号} ${item.品名}`);
@@ -137,7 +137,7 @@ $_("update").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.backward.on("touchend", e => this.trigger("switch", "overview"));
+            sys.backward.on(Click, e => this.trigger("switch", "overview"));
         }
     },
     Content: {
@@ -155,7 +155,7 @@ $_("update").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on("touchend", items.update.start);
+            sys.submit.on(Click, items.update.start);
             function val(value) {
                 opts = value;
                 items.addr.val(`${value.行号}行${value.列号}列`);

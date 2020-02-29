@@ -7,6 +7,7 @@
 
 const Server = "wss://xmlplus.cn:443";
 window.app = new Framework7({theme: "ios", dialog:{buttonOk: '确定', buttonCancel: "取消"}});
+const Click = 'ontouchend' in document.documentElement === true ? "touchend" : "click";
 
 xmlplus("miot", (xp, $_) => {
 
@@ -101,11 +102,11 @@ $_().imports({
         fun: function (sys, items, opts) {
             function keypress( e ) {
                 if (e.which === 13)
-                    sys.submit.trigger("touchend");
+                    sys.submit.trigger(Click);
             }
             sys.user.on("keypress", keypress);
             sys.pass.on("keypress", keypress);
-            sys.submit.on("touchend", items.login.start);
+            sys.submit.on(Click, items.login.start);
         }
     },
     Content: {
@@ -312,7 +313,7 @@ $_("content").imports({
                 sys.title.text(store.name);
                 this.trigger("publish", {topic: "/parts/select", body: {link: store.id}});
             });
-            sys.title.on("touchend", e => this.notify("show-stores"));
+            sys.title.on(Click, e => this.notify("show-stores"));
         }
     },
     About: {
@@ -373,7 +374,7 @@ $_("content").imports({
                 <i:TabItem id='about' label='关于'/>\
               </i:Tabbar>",
         fun: function (sys, items, opts) {
-            this.watch("switch-page", (e, page) => sys[page].trigger("touchend"));
+            this.watch("switch-page", (e, page) => sys[page].trigger(Click));
         }
     }
 });
@@ -392,7 +393,7 @@ $_("content/index").imports({
         fun: function (sys, items, opts) {
             this.watch("online", e => sys.line.text("在线"));
             this.watch("offline", e => sys.line.text("离线"));
-            sys.area.on("touchend", () => {
+            sys.area.on(Click, () => {
                 let line = sys.line.text();
                 line == "在线" && this.notify("show-areas");
             });
@@ -413,9 +414,9 @@ $_("content/index").imports({
                     tmp.value().init(item);
                     item.id == checked.id && (selected = tmp);
                 });
-                (selected || sys.areas.first()).trigger("touchend");
+                (selected || sys.areas.first()).trigger(Click);
             });
-            sys.areas.on("touchend", "*", function (e) {
+            sys.areas.on(Click, "*", function (e) {
                 checked = this.data("data");
                 this.trigger("checked", true);
                 items.areas.hide().notify("open-area", this.data("data"));
@@ -448,9 +449,9 @@ $_("content/index").imports({
                     tmp.value().init(item);
                     item.id == checked.id && (selected = tmp);
                 });
-                (selected || sys.stores.first()).trigger("touchend");
+                (selected || sys.stores.first()).trigger(Click);
             });
-            sys.stores.on("touchend", "*", function (e) {
+            sys.stores.on(Click, "*", function (e) {
                 checked = this.data("data");
                 localStorage.setItem("store", checked.id);
                 this.trigger("checked", true);
@@ -482,7 +483,7 @@ $_("content/index").imports({
                 for ( var k = i; k < list.length; k++ )
                     list[k].unwatch(list[i].attr("_id")).hide();
                 if (table[Q.open]) {
-                    table[Q.open].trigger("touchend");
+                    table[Q.open].trigger(Click);
                     delete Q.open;
                 }
             });
@@ -490,7 +491,7 @@ $_("content/index").imports({
                 if (item.topic == "/SYS" || item.topic == null)
                     e.currentTarget.trigger("data", item, false);
             }
-            sys.parts.on("touchend", "*", function (e) {
+            sys.parts.on(Click, "*", function (e) {
                 var data = this.data("data");
                 data.online && this.trigger("open-part", data);
             });
@@ -618,8 +619,8 @@ $_("content/index/list").imports({
                 items.overlay.hide();
                 return sys.list.removeClass("#modal-in");
             }
-            sys.cancel.on("touchend", hide);
-            sys.overlay.on("touchend", hide);
+            sys.cancel.on(Click, hide);
+            sys.overlay.on(Click, hide);
             body.appendChild(sys.overlay.elem());
             return { show: show, hide: hide };
         }
@@ -703,7 +704,7 @@ $_("content/about").imports({
                 <ul><li><a href='#' class='list-button item-link color-red'>退出</a></li></ul>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("touchend", e => {
+            this.on(Click, e => {
                 app.dialog.confirm("确定退出系统吗？", "温馨提示", e => this.notify("logout"));
             });
         }
@@ -722,7 +723,7 @@ $_("content/footer").imports({
         map: { appendTo: "inner" },
         fun: function (sys, items, opts) {
             var sel = this.first();
-            this.on("touchend", "./*[@id]", function (e) {
+            this.on(Click, "./*[@id]", function (e) {
                 sel.value().unselect();
                 (sel = this).value().select();
                 this.trigger("switch", this.toString());

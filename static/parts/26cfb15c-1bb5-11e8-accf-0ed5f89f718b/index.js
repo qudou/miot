@@ -31,7 +31,7 @@ $_().imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.close.on("touchend", e => this.trigger("close"));
+            sys.close.on(Click, e => this.trigger("close"));
             return { title: sys.title.text };
         }
     },
@@ -41,6 +41,7 @@ $_().imports({
                 <div class='page-content'>\
                     <div class='block-title'>系统信息</div>\
                     <div>更新时间：<span id='dateTime'/></div>\
+                    <div>启动时间：<span id='uptime'/></div>\
                     <div>　制造商：<span id='manufacturer'/></div>\
                     <div>　　ＩＰ：<span id='ip'/></div>\
                     <div>　ＣＰＵ：<span id='temp'/></div>\
@@ -62,12 +63,12 @@ $_().imports({
                 <Button id='shutdown'>关机</Button>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.reboot.on("touchend", e => {
+            sys.reboot.on(Click, e => {
                 window.app.dialog.confirm("确定重启系统吗？", "温馨提示", e => {
                     this.trigger("publish", ["/reboot", {}]);
                 });
             });
-            sys.shutdown.on("touchend", e => {
+            sys.shutdown.on(Click, e => {
                 window.app.dialog.confirm("确定关闭系统吗？", "温馨提示", e => {
                     this.trigger("publish", ["/shutdown", {}]);
                 });

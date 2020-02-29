@@ -9,11 +9,11 @@ xmlplus("6c610b08-85e9-4706-a6b3-3221bf5bc1f7", (xp, $_, t) => {
 
 $_().imports({
     Index: {
-        xml: "<ViewStack id='index'>\
+        xml: "<i:ViewStack xmlns:i='//miot'>\
                 <Service id='service'/>\
                 <Cashier id='cashier'/>\
                 <Inventory id='inventory'/>\
-              </ViewStack>"
+              </i:ViewStack>"
     },
     Service: {
         css: "#service { visibility: visible; opacity: 1; background: #EFEFF4; }",
@@ -40,24 +40,6 @@ $_().imports({
                 <Navbar id='navbar' xmlns='cashier'/>\
                 <i:Content id='content'/>\
               </div>"
-    },
-    ViewStack: {
-        xml: "<div id='viewstack'/>",
-        fun: function (sys, items, opts) {
-            var args, children = this.children(),
-                table = children.call("hide").hash(),
-                ptr = table[opts.index] || children[0];
-            if (ptr) ptr = ptr.trigger("show", null, false).show();
-            this.on("switch", function (e, to) {
-                table = this.children().hash();
-                if ( !table[to] || table[to] == ptr ) return;
-                e.stopPropagation();
-                args = [].slice.call(arguments).slice(2);
-                ptr.trigger("hide", [to+''].concat(args)).hide();
-                ptr = table[to].trigger("show", [ptr+''].concat(args), false).show();
-            });
-            return Object.defineProperty({}, "selected", { get: () => {return ptr}});
-        }
     }
 });
 
@@ -75,7 +57,7 @@ $_("cashier").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.close.on("touchend", e => this.trigger("close"));
+            sys.close.on(Click, e => this.trigger("close"));
         }
     },
     Content: {
@@ -161,7 +143,7 @@ $_("inventory").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.confirm.on("touchend", () => {
+            sys.confirm.on(Click, () => {
                 WeixinJSBridge.call('closeWindow');
             });
             this.watch("inventory", (e, g) => {

@@ -9,11 +9,11 @@ xmlplus("9dd8a38b-a406-4679-82d5-dd8b7e3a30b7", (xp, $_) => { // 授权管理
 
 $_().imports({
     Index: {
-        xml: "<ViewStack id='index'>\
+        xml: "<i:ViewStack id='index' xmlns:i='//miot'>\
                 <Overview id='overview'/>\
                 <Parts id='parts'/>\
                 <Service id='service'/>\
-              </ViewStack>",
+              </i:ViewStack>",
         fun: function (sys, items, opts) {
             items.overview.title(opts.name);
         }
@@ -43,24 +43,6 @@ $_().imports({
     Service: {
         css: "#service { visibility: visible; opacity: 1; background: #EFEFF4; }",
         xml: "<Overlay id='service' xmlns='//miot/verify'/>"
-    },
-    ViewStack: {
-        xml: "<div id='viewstack'/>",
-        fun: function (sys, items, opts) {
-            var args, children = this.children(),
-                table = children.call("hide").hash(),
-                ptr = table[opts.index] || children[0];
-            if (ptr) ptr = ptr.trigger("show", null, false).show();
-            this.on("switch", function (e, to) {
-                table = this.children().hash();
-                if ( !table[to] || table[to] == ptr ) return;
-                e.stopPropagation();
-                args = [].slice.call(arguments).slice(2);
-                ptr.trigger("hide", [to+''].concat(args)).hide();
-                ptr = table[to].trigger("show", [ptr+''].concat(args), false).show();
-            });
-            return Object.defineProperty({}, "selected", { get: () => {return ptr}});
-        }
     }
 });
 
@@ -78,7 +60,7 @@ $_("overview").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.close.on("touchend", e => this.trigger("close"));
+            sys.close.on(Click, e => this.trigger("close"));
             return { title: sys.title.text };
         }
     },
@@ -211,7 +193,7 @@ $_("overview/links").imports({
                 opts = link;
                 sys.label.text(link.name);
             }
-            this.on("touchend", (e) => {
+            this.on(Click, (e) => {
                 this.trigger("parts", opts.id);
             });
             return Object.defineProperty({}, "value", {set: setValue});
@@ -242,7 +224,7 @@ $_("parts").imports({
                 opts = p;
                 sys.title.text(`${p.area.name}/${p.name}`);
             }
-            sys.backward.on("touchend", e => this.trigger("switch", "overview"));
+            sys.backward.on(Click, e => this.trigger("switch", "overview"));
             return {init: init};
         }
     },

@@ -81,7 +81,7 @@ $_().imports({
                 let p = JSON.parse(packet.payload + '');
                 let m = await items.factory.getPartById(packet.topic);
                 try {
-                    p.pid = m.class;
+                    p.pid = m.part;
                     p.cid = client.id;
                     p.uid = await items.users.getUidByCid(client.id);
                     p.mid = packet.topic;
@@ -181,7 +181,7 @@ $_("mosca").imports({
             }
             function getPartByLink(linkId, partId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM parts WHERE link='${linkId}' AND class = '${partId}'`;
+                    let stmt = `SELECT * FROM parts WHERE link='${linkId}' AND part = '${partId}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data[0]);
@@ -326,16 +326,11 @@ $_("proxy").imports({
             function create(klass, p) {
                 if (!table[klass]) {
                     require(`${__dirname}/middles/${klass}/index.js`);
-                    let c = {map: {}, fun: fun};
-                    c.xml = `<Index xmlns='//${klass}'/>`;
+                    let c = xp.hasComponent(`//${klass}/Index`);
                     c.map.msgscope = true;
-                    $_("proxy").imports({Middle: c});
-                    table[klass] = sys.sqlite.append("Middle");
+                    table[klass] = sys.sqlite.append(`//${klass}/Index`);
                 }
-                table[klass].trigger("/SYS", p, false);
-            }
-            function fun(sys, items, opts) {
-                this.on("/SYS", (e, p) => this.notify(p.topic, p));
+                table[klass].notify(p.topic, p);
             }
             function getPartById(partId) {
                 return new Promise((resolve, reject) => {

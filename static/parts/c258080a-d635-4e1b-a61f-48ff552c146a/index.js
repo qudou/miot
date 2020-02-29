@@ -9,13 +9,13 @@ xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => {
 
 $_().imports({
     Index: {
-        xml: "<ViewStack id='index'>\
+        xml: "<i:ViewStack xmlns:i='//miot'>\
                 <Overview id='overview'/>\
                 <Signup id='signup'/>\
                 <Update id='update'/>\
                 <Remove id='remove'/>\
                 <Service id='service'/>\
-              </ViewStack>",
+              </i:ViewStack>",
         fun: function (sys, items, opts) {
             items.overview.title(opts.name);
             this.trigger("publish", "/classes/select");
@@ -66,24 +66,6 @@ $_().imports({
     Service: {
         css: "#service { visibility: visible; opacity: 1; background: #EFEFF4; }",
         xml: "<Overlay id='service' xmlns='//miot/verify'/>"
-    },
-    ViewStack: {
-        xml: "<div id='viewstack'/>",
-        fun: function (sys, items, opts) {
-            var args, children = this.children(),
-                table = children.call("hide").hash(),
-                ptr = table[opts.index] || children[0];
-            if (ptr) ptr = ptr.trigger("show", null, false).show();
-            this.on("switch", function (e, to) {
-                table = this.children().hash();
-                if ( !table[to] || table[to] == ptr ) return;
-                e.stopPropagation();
-                args = [].slice.call(arguments).slice(2);
-                ptr.trigger("hide", [to+''].concat(args)).hide();
-                ptr = table[to].trigger("show", [ptr+''].concat(args), false).show();
-            });
-            return Object.defineProperty({}, "selected", { get: () => {return ptr}});
-        }
     }
 });
 
@@ -103,8 +85,8 @@ $_("overview").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.close.on("touchend", e => this.trigger("close"));
-            sys.signup.on("touchend", () => this.trigger("switch", "signup"));
+            sys.close.on(Click, e => this.trigger("close"));
+            sys.signup.on(Click, () => this.trigger("switch", "signup"));
             return { title: sys.title.text };
         }
     },
@@ -150,13 +132,13 @@ $_("overview").imports({
               </li>",
         fun: function (sys, items, opts) {
             let klass;
-            sys.edit.on("touchend", () => this.trigger("switch", ["update", klass]));
+            sys.edit.on(Click, () => this.trigger("switch", ["update", klass]));
             function setValue(value) {
                 klass = value;
                 sys.label.text(klass.name);
                 sys.id.text(klass.id);
             }
-            sys.remove.on("touchend", () => this.notify("remove", klass));
+            sys.remove.on(Click, () => this.notify("remove", klass));
             return Object.defineProperty({}, "value", { set: setValue});
         }
     },
@@ -184,7 +166,7 @@ $_("signup").imports({
               </div>",
         fun: function (sys, items, opts) {
             sys.title.text(opts.title);
-            sys.backward.on("touchend", e => this.trigger("switch", "overview"));
+            sys.backward.on(Click, e => this.trigger("switch", "overview"));
         }
     },
     Content: {
@@ -198,7 +180,7 @@ $_("signup").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on("touchend", items.signup.start);
+            sys.submit.on(Click, items.signup.start);
             sys.desc.on("next", (e, p) => {
                 e.stopPropagation();
                 this.trigger("switch", "service");
@@ -320,7 +302,7 @@ $_("update").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on("touchend", items.update.start);
+            sys.submit.on(Click, items.update.start);
             function val(value) {
                 items.id.val(value.id);
                 items.klass.val(value.name);

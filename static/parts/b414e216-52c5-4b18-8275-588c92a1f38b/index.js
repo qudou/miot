@@ -9,14 +9,14 @@ xmlplus("b414e216-52c5-4b18-8275-588c92a1f38b", (xp, $_) => { // 配件管理
 
 $_().imports({
     Index: {
-        xml: "<ViewStack id='index'>\
+        xml: "<i:ViewStack id='index' xmlns:i='//miot'>\
                 <Overview id='overview'/>\
                 <PartList id='partlist'/>\
                 <Signup id='signup'/>\
                 <Remove id='remove'/>\
                 <Update id='update'/>\
                 <Service id='service'/>\
-              </ViewStack>",
+              </i:ViewStack>",
         fun: function (sys, items, opts) {
             items.overview.title(opts.name);
             this.trigger("publish", "/parts/classes");
@@ -78,24 +78,6 @@ $_().imports({
     Service: {
         css: "#service { visibility: visible; opacity: 1; background: #EFEFF4; }",
         xml: "<Overlay id='service' xmlns='//miot/verify'/>"
-    },
-    ViewStack: {
-        xml: "<div id='viewstack'/>",
-        fun: function (sys, items, opts) {
-            var args, children = this.children(),
-                table = children.call("hide").hash(),
-                ptr = table[opts.index] || children[0];
-            if (ptr) ptr = ptr.trigger("show", null, false).show();
-            this.on("switch", function (e, to) {
-                table = this.children().hash();
-                if ( !table[to] || table[to] == ptr ) return;
-                e.stopPropagation();
-                args = [].slice.call(arguments).slice(2);
-                ptr.trigger("hide", [to+''].concat(args)).hide();
-                ptr = table[to].trigger("show", [ptr+''].concat(args), false).show();
-            });
-            return Object.defineProperty({}, "selected", { get: () => {return ptr}});
-        }
     }
 });
 
@@ -113,7 +95,7 @@ $_("overview").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.close.on("touchend", e => this.trigger("close"));
+            sys.close.on(Click, e => this.trigger("close"));
             return { title: sys.title.text };
         }
     },
@@ -172,7 +154,7 @@ $_("overview").imports({
                 opts = link;
                 sys.label.text(link.name);
             }
-            this.on("touchend", (e) => {
+            this.on(Click, (e) => {
                 this.notify("partlist", opts.id);
             });
             return Object.defineProperty({}, "value", {set: setValue});
@@ -205,8 +187,8 @@ $_("partlist").imports({
                 opts = p;
                 sys.title.text(`${p.area.name}/${p.name}`);
             }
-            sys.backward.on("touchend", e => this.trigger("switch", "overview"));
-            sys.signup.on("touchend", e => this.trigger("switch", ["signup", opts]));
+            sys.backward.on(Click, e => this.trigger("switch", "overview"));
+            sys.signup.on(Click, e => this.trigger("switch", ["signup", opts]));
             return {init: init};
         }
     },
@@ -256,13 +238,13 @@ $_("partlist").imports({
                </div>\
               </li>",
         fun: function (sys, items, opts) {
-            sys.edit.on("touchend", () => this.trigger("update", opts));
+            sys.edit.on(Click, () => this.trigger("update", opts));
             function setValue(part) {
                 opts = part;
                 sys.label.text(part.name);
                 sys.part.text(part.id);
             }
-            sys.remove.on("touchend", () => this.notify("remove", opts));
+            sys.remove.on(Click, () => this.notify("remove", opts));
             return Object.defineProperty({}, "value", { set: setValue});
         }
     },
@@ -288,7 +270,7 @@ $_("signup").imports({
               </div>",
         fun: function (sys, items, opts) {
             sys.title.text(opts.title);
-            sys.backward.on("touchend", e => this.trigger("switch", "partlist"));
+            sys.backward.on(Click, e => this.trigger("switch", "partlist"));
         }
     },
     Content: {
@@ -305,7 +287,7 @@ $_("signup").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on("touchend", items.signup.start);
+            sys.submit.on(Click, items.signup.start);
             sys.type.on("next", (e, p) => {
                 opts = p;
                 e.stopPropagation();
@@ -524,6 +506,7 @@ $_("update").imports({
                       <i:Name id='nane'/>\
                       <i:Area id='area'/>\
                       <i:Link id='link'/>\
+                      <GUID id='puid' label='局部标识符'/>\
                       <i:Class id='class'/>\
                       <i:Type id='type'/>\
                     </i:Form>\
@@ -531,7 +514,7 @@ $_("update").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on("touchend", items.update.start);
+            sys.submit.on(Click, items.update.start);
             sys.type.on("next", (e, p) => {
                 opts = p;
                 p.id = items.guid.val();
@@ -551,6 +534,7 @@ $_("update").imports({
                 items.nane.val(data.name);
                 items.area.setValue(data.link.area);
                 items.link.setValue(data.link);
+                items.puid.val(data.part);
                 items.class.setValue(data.class);
                 items.type.setValue(data.type);
             }

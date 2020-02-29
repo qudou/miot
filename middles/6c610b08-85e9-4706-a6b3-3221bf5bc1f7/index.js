@@ -25,6 +25,7 @@ $_().imports({
               </main>",
         fun: function (sys, items, opts) {
             this.watch("/ready", (e, p) => this.trigger("to-local", p));
+            this.watch("/ready", (e, p) => console.log(p));
         }
     },
     Unifiedorder: {
@@ -35,7 +36,7 @@ $_().imports({
               </Flow>",
         map: { share: "unifiedorder/PaySignApi" },
         fun: function (sys, items, opts) {
-            this.watch("/unifiedorder", sys.unifiedorder.start);
+            this.watch("/unifiedorder", items.unifiedorder.start);
         }
     },
     ReceiveNotice: {

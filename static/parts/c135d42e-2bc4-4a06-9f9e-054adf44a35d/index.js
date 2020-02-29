@@ -31,7 +31,7 @@ $_().imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.close.on("touchend", e => this.trigger("close"));
+            sys.close.on(Click, e => this.trigger("close"));
             return { title: sys.title.text };
         }
     },

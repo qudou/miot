@@ -40,7 +40,7 @@ $_().imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.close.on("touchend", e => this.trigger("close"));
+            sys.close.on(Click, e => this.trigger("close"));
             return { title: sys.title.text };
         }
     },
@@ -199,14 +199,14 @@ $_("content/player").imports({
         css: "#toggle { display: inline; }\
               #toggle, #toggle > * { width: 64px; height: 64px; }\
               #toggle i { font-size: 64px; }",
-        xml: "<ViewStack id='toggle'>\
+        xml: "<i:ViewStack id='toggle' xmlns:i='//miot'>\
                 <i id='play' class='icon f7-icons ios-only'>play_round</i>\
                 <i id='pause' class='icon f7-icons ios-only'>pause_round</i>\
                 <i id='ready' class='icon f7-icons ios-only'>world</i>\
-              </ViewStack>",
+              </i:ViewStack>",
         fun: function (sys, items, opts) {
             let table = { play: "pause", pause: "play", ready: "ready" };
-            sys.toggle.on("touchend", "./*[@id]", function () {
+            sys.toggle.on(Click, "./*[@id]", function () {
                 sys.toggle.trigger("switch", table[this]);
                 sys.toggle.trigger("publish", ["control", {stat: this.toString()}]);
             });
@@ -220,27 +220,9 @@ $_("content/player").imports({
         xml: "<i id='skip_next' class='icon f7-icons ios-only'>refresh_round</i>",
         fun: function (sys, items, opts) {
             let key = 0;
-            sys.skip_next.on("touchend", () => {
+            sys.skip_next.on(Click, () => {
                 this.trigger("publish", ["control", {next: ++key % 3}]);
             });
-        }
-    },
-    ViewStack: {
-        xml: "<div id='viewstack'/>",
-        fun: function (sys, items, opts) {
-            var args, children = this.children(),
-                table = children.call("hide").hash(),
-                ptr = table[opts.index] || children[0];
-            if (ptr) ptr = ptr.trigger("show", null, false).show();
-            this.on("switch", function (e, to) {
-                table = this.children().hash();
-                if ( !table[to] || table[to] == ptr ) return;
-                e.stopPropagation();
-                args = [].slice.call(arguments).slice(2);
-                ptr.trigger("hide", [to+''].concat(args)).hide();
-                ptr = table[to].trigger("show", [ptr+''].concat(args), false).show();
-            });
-            return Object.defineProperty({}, "selected", { get: () => {return ptr}});
         }
     }
 });

@@ -9,14 +9,14 @@ xmlplus("d9c69375-2edc-43d3-a2a4-7bd93c31eb4f", (xp, $_) => {
 
 $_().imports({
     Index: {
-        xml: "<ViewStack id='index'>\
+        xml: "<i:ViewStack xmlns:i='//miot'>\
                 <Overview id='overview'/>\
                 <Signup id='signup'/>\
                 <Update id='update'/>\
                 <Chpasswd id='chpasswd'/>\
                 <Remove id='remove'/>\
                 <Service id='service'/>\
-              </ViewStack>",
+              </i:ViewStack>",
         fun: function (sys, items, opts) {
             items.overview.title(opts.name);
             this.trigger("publish", "/users/select");
@@ -78,24 +78,6 @@ $_().imports({
     Service: {
         css: "#service { visibility: visible; opacity: 1; background: #EFEFF4; }",
         xml: "<Overlay id='service' xmlns='//miot/verify'/>"
-    },
-    ViewStack: {
-        xml: "<div id='viewstack'/>",
-        fun: function (sys, items, opts) {
-            var args, children = this.children(),
-                table = children.call("hide").hash(),
-                ptr = table[opts.index] || children[0];
-            if (ptr) ptr = ptr.trigger("show", null, false).show();
-            this.on("switch", function (e, to) {
-                table = this.children().hash();
-                if ( !table[to] || table[to] == ptr ) return;
-                e.stopPropagation();
-                args = [].slice.call(arguments).slice(2);
-                ptr.trigger("hide", [to+''].concat(args)).hide();
-                ptr = table[to].trigger("show", [ptr+''].concat(args), false).show();
-            });
-            return Object.defineProperty({}, "selected", { get: () => {return ptr}});
-        }
     }
 });
 
@@ -115,8 +97,8 @@ $_("overview").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.close.on("touchend", e => this.trigger("close"));
-            sys.signup.on("touchend", () => this.trigger("switch", "signup"));
+            sys.close.on(Click, e => this.trigger("close"));
+            sys.signup.on(Click, () => this.trigger("switch", "signup"));
             return { title: sys.title.text };
         }
     },
@@ -162,14 +144,14 @@ $_("overview").imports({
                </div>\
               </li>",
         fun: function (sys, items, opts) {
-            sys.edit.on("touchend", () => this.trigger("switch", ["update", opts]));
+            sys.edit.on(Click, () => this.trigger("switch", ["update", opts]));
             function setValue(user) {
                 opts = user;
                 sys.label.text(user.name);
                 sys.email.text(user.email);
                 user.id && sys.type.text("普通用户") || sys.type.text("管理员") && sys.remove.remove();
             }
-            sys.remove.on("touchend", () => this.notify("remove", opts));
+            sys.remove.on(Click, () => this.notify("remove", opts));
             return Object.defineProperty({}, "value", { set: setValue});
         }
     },
@@ -195,7 +177,7 @@ $_("signup").imports({
               </div>",
         fun: function (sys, items, opts) {
             sys.title.text(opts.title);
-            sys.backward.on("touchend", e => this.trigger("switch", "overview"));
+            sys.backward.on(Click, e => this.trigger("switch", "overview"));
         }
     },
     Content: {
@@ -211,7 +193,7 @@ $_("signup").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on("touchend", items.signup.start);
+            sys.submit.on(Click, items.signup.start);
             sys.relogin.on("next", (e, p) => {
                 e.stopPropagation();
                 this.trigger("switch", "service");
@@ -398,7 +380,7 @@ $_("update").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on("touchend", items.update.start);
+            sys.submit.on(Click, items.update.start);
             function val(value) {
                 opts = value;
                 items.user.val(value.name);
@@ -412,7 +394,7 @@ $_("update").imports({
                 this.trigger("publish", ["/users/update", p]);
                 this.glance("/users/update", callback);
             });
-            sys.chpasswd.on("touchend", () => this.trigger("switch", ["chpasswd",opts]));
+            sys.chpasswd.on(Click, () => this.trigger("switch", ["chpasswd",opts]));
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
                 if (p.code == -1) 
@@ -437,7 +419,7 @@ $_("chpasswd").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on("touchend", items.chpasswd.start);
+            sys.submit.on(Click, items.chpasswd.start);
             sys.new_pass.on("next", (e) => {
                 e.stopPropagation();
                 let p = {id:opts.id, pass:items.pass.val(),new_pass:items.new_pass.val()};
