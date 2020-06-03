@@ -16,7 +16,7 @@ $_().imports({
                 <Orders id='orders'/>\
                 <Details id='details'/>\
                 <Manager id='manager'/>\
-                <Schedule id='schedule'/>\
+                <!--Schedule id='schedule'/-->\
               </main>",
         map: { share: "Sqlite" }
     },
@@ -87,16 +87,16 @@ $_().imports({
                 let stmt = items.sqlite.prepare(insert);
                 let b = p.body;
                 stmt.run(b.货号,b.品名,b.单位,b.零售价,b.图片,b.分类);
-                stmt.finalize(() => {
+                stmt.finalize(function (err) {
                     p.data = {code: 0, desc: "添加成功"};
                     this.trigger("to-user", p);
                 });
             });
-            let update = "UPDATE goods SET 货号=?,品名=?,单位=?,零售价=?,图片=?,分类=? WHERE id=?";
+            let update = "UPDATE goods SET 货号=?,品名=?,单位=?,零售价=?,库存=?,图片=?,分类=? WHERE id=?";
             this.watch("/update", (e, p) => {
                 let b = p.body;
                 let stmt = items.sqlite.prepare(update);
-                stmt.run(b.货号,b.品名,b.单位,b.零售价,b.图片,b.分类,b.id, err => {
+                stmt.run(b.货号,b.品名,b.单位,b.零售价,b.库存,b.图片,b.分类,b.id, err => {
                     if (err) throw err;
                     p.data = {code: 0, desc: "更新成功"};
                     this.trigger("to-user", p);

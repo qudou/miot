@@ -1,0 +1,58 @@
+[
+    {
+        "Name": "仓库",
+        "BranchId": "22881",
+        "TenantCode": "68235230",
+        "UserAccountN": "9000",
+        "PasswordN": "573264349"
+    },
+    {
+        "Name": "总部",
+        "BranchId": "12886",
+        "TenantCode": "68235230",
+        "UserAccountN": "1002",
+        "PasswordN": "1123456"
+    },
+    {
+        "Name": "迎宾街",
+        "BranchId": "15267",
+        "TenantCode": "68235230",
+        "UserAccountN": "3001",
+        "PasswordN": "3123456"
+    },
+    {
+        "Name": "荣兴",
+        "BranchId": "15246",
+        "TenantCode": "68235230",
+        "UserAccountN": "4001",
+        "PasswordN": "4123456"
+    },
+    {
+        "Name": "铜锣湾",
+        "BranchId": "15340",
+        "TenantCode": "68235230",
+        "UserAccountN": "6001",
+        "PasswordN": "6123456"
+    },
+    {
+        "Name": "三生天海",
+        "BranchId": "15343",
+        "TenantCode": "68235230",
+        "UserAccountN": "7001",
+        "PasswordN": "7123456"
+    },
+    {
+        "Name": "钻石园",
+        "BranchId": "15271",
+        "TenantCode": "68235230",
+        "UserAccountN": "8002",
+        "PasswordN": "8123456"
+    },
+    {
+        "Name": "财经中心",
+        "BranchId": "15344",
+        "TenantCode": "68235230",
+        "UserAccountN": "5001",
+        "PasswordN": "5123456"
+    }
+]

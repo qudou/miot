@@ -33,7 +33,7 @@ $_().imports({
         xml: "<div id='navbar' class='navbar'>\
                 <div class='navbar-inner'>\
                    <div id='close' class='left'>\
-                      <i class='icon f7-icons ios-only' style='margin:auto;'>close</i>\
+                      <i class='icon f7-icons ios-only' style='margin:auto;'>xmark</i>\
                    </div>\
                    <div id='title' class='title'/>\
                    <div class='right'/>\
@@ -86,8 +86,8 @@ $_("content").imports({
               <ul>\
                 <li>\
                   <div class='item-cell width-auto flex-shrink-0'>\
-                    <i class='icon f7-icons ios-only'>volume_mute_fill</i>\
-                    <i class='icon material-icons md-only'>volume_mute</i>\
+                    <i class='icon f7-icons ios-only'>speaker</i>\
+                    <i class='icon material-icons md-only'>speaker</i>\
                   </div>\
                   <div class='item-cell flex-shrink-3'>\
                     <div id='range' class='range-slider range-slider-init'>\
@@ -95,8 +95,8 @@ $_("content").imports({
                     </div>\
                   </div>\
                   <div class='item-cell width-auto flex-shrink-0'>\
-                    <i class='icon f7-icons ios-only'>volume_fill</i>\
-                    <i class='icon material-icons md-only'>volume_up</i>\
+                    <i class='icon f7-icons ios-only'>speaker_3</i>\
+                    <i class='icon material-icons md-only'>speaker_3</i>\
                   </div>\
                 </li>\
               </ul>\
@@ -217,7 +217,7 @@ $_("content/player").imports({
     },
     SkipNext: {
         css: "#skip_next { width: 64px; height: 64px; font-size: 64px; }",
-        xml: "<i id='skip_next' class='icon f7-icons ios-only'>refresh_round</i>",
+        xml: "<i id='skip_next' class='icon f7-icons ios-only'>forward</i>",
         fun: function (sys, items, opts) {
             let key = 0;
             sys.skip_next.on(Click, () => {

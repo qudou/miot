@@ -190,7 +190,7 @@ $_("mosca").imports({
             }
             function getPartsByLink(linkId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM parts WHERE link='${linkId}'`;
+                    let stmt = `SELECT * FROM parts WHERE link='${linkId}' AND type>1`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data);
@@ -212,8 +212,8 @@ $_("proxy").imports({
             async function authenticate(client, user, pass, callback) {
                 let result = await items.login(user, pass + '');
                 if (!result) return callback(true, false);
-                items.users.connected(client, result);
-                callback(null, true);
+                result = items.users.connected(client, result);
+                callback(null, result);
             }
             async function authorizeSubscribe(client, topic, callback) {
                 callback(null, await items.users.canSubscribe(client, topic));
@@ -283,10 +283,7 @@ $_("proxy").imports({
                 return new Promise((resolve, reject) => {
                     let insert = `INSERT INTO status VALUES(?,?,(datetime('now','localtime')))`;
                     let stmt = items.sqlite.prepare(insert);
-                    stmt.run(client.id, user.id, err => {
-                        if (err) throw err;
-                        resolve(true);
-                    });
+                    stmt.run(client.id, user.id, err => resolve(!!!err));
                 });
             }
             function disconnected(client) {

@@ -73,7 +73,7 @@ $_("main").imports({
         xml: "<div id='navbar' class='navbar'>\
                 <div class='navbar-inner'>\
                    <div id='close' class='left'>\
-                      <i class='icon f7-icons ios-only'>close</i>\
+                      <i class='icon f7-icons ios-only'>xmark</i>\
                    </div>\
                    <div id='title' class='title'>采购后台</div>\
                    <div class='right'>\
@@ -96,8 +96,8 @@ $_("main").imports({
         css: "#tabbar { position: fixed; }",
         xml: "<div id='tabbar' class='toolbar tabbar tabbar-labels toolbar-bottom'>\
                 <div class='toolbar-inner'>\
-                  <TabItem id='orders' label='订单' icon='data' active='true'/>\
-                  <TabItem id='manager' label='管理' icon='list'/>\
+                  <TabItem id='orders' label='订单' icon='list_bullet' active='true'/>\
+                  <TabItem id='manager' label='管理' icon='rectangle_grid_2x2'/>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
@@ -507,6 +507,7 @@ $_("update").imports({
                       <i:Type id='type'/>\
                       <i:Unit id='unit'/>\
                       <i:Price id='price'/>\
+                      <i:Stock id='stock'/>\
                       <i:Picture id='picture'/>\
                     </i:Form>\
                     <i:Button id='submit'>确定更新</i:Button>\
@@ -521,6 +522,7 @@ $_("update").imports({
                 items.type.setValue(value.分类);
                 items.unit.val(value.单位);
                 items.price.val(value.零售价);
+                items.stock.val(value.库存);
                 items.picture.val(value.图片);
             }
             sys.picture.on("next", (e, p) => {
@@ -644,6 +646,16 @@ $_("update/form").imports({
                 this.trigger("next", p);
             });
             return items.price;
+        }
+    },
+    Stock: {
+        xml: "<Input id='stock' label='库存' maxlength='32'/>",
+        fun: function (sys, items, opts) {
+            this.on("start", (e, p) => {
+                p.库存 = parseFloat(items.stock.val());
+                this.trigger("next", p);
+            });
+            return items.stock;
         }
     },
     Picture: {
