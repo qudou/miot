@@ -12,14 +12,26 @@ $_().imports({
         css: "html, body { margin: 0; padding: 0; }\
               #index { background: #FFF; overflow: auto; }\
               #index::-webkit-scrollbar { display: none; }\
-              #goodlist { width: 1000px; margin: 0 auto; }\
+              #list { width: 1000px; margin: 0 auto; }\
               #index button { -webkit-appearance: auto; width: auto; }\
               #index select { border-style: solid; -webkit-appearance: auto; display: inline; border-width: 1px; }",
         xml: "<div id='index'>\
                 <Header id='header'/>\
-                <GoodList id='goodlist'/>\
-                <StatusBar id='statusbar'/>\
-              </div>"
+                <List id='list'/>\
+                <Status id='status'/>\
+              </div>",
+        fun: function (sys, items, opts) {
+            let store = "迎宾街";
+            sys.index.on("publish", function(e, cmd, data) {
+                if (e.target != sys.index) {
+                    e.stopPropagation();
+                    data = data || {};
+                    data.store = store;
+                    sys.index.trigger("publish", [cmd, data]);
+                }
+            });
+            this.watch("store-change", (e,value) => store = value);
+        }
     },
     Header: {
         css: "#header { background: #FFF; position: fixed; width: 100%; }\
@@ -32,7 +44,7 @@ $_().imports({
                 </div>\
               </div>"
     },
-    GoodList: {
+    List: {
         css: "#cgtList { padding: 0; border: 1px solid #e6e6e6; width: 1280px; display: block; list-style: none; padding-top: 75px; }\
               #padding {margin-bottom: 29px;}",
         xml: "<ul id='cgtList'>\
@@ -42,11 +54,11 @@ $_().imports({
                   <Database id='db'/>\
               </ul>",
         fun: function (sys, items, opts) {
-            this.watch("/cgt/list", (e, rows) => {
+            this.watch("/list", (e, rows) => {
                 let list = sys.listItems.children();
                 for ( i = 0; i < rows.length; i++ ) {
                     rows[i].index = i + 1;
-                    list[i] || list.push(sys.listItems.append("cgt-list/ListItem"));
+                    list[i] || list.push(sys.listItems.append("list/Item"));
                     list[i].show().value().value = rows[i];
                     list[i].removeClass("#padding");
                 }
@@ -63,7 +75,7 @@ $_().imports({
             });
         }
     },
-    StatusBar: {
+    Status: {
         css: "#statusbar { text-align: center; color: #333; font-size: 14px; line-height: 28px; height: 28px; position: fixed; width: 100%; bottom: 0; left: 0; padding: 0 10px; background: #F0F0F0; border-top: 1px solid #E0E5E6; }",
         xml: "<div id='statusbar'>\
                 <span id='label'>防城港同亦佳连锁便利店</span>\
@@ -83,11 +95,11 @@ $_().imports({
             let [orderby,sort,WHERE] = ["零售价","ASC",{}];
             function cgtList() {
                 let o = { orderby: orderby, sort: sort, where: WHERE };
-                sys.db.trigger("publish", ["/cgt/list", o]);
+                sys.db.trigger("publish", ["/list", o]);
             }
             function update(desc, code, num) {
                 let o = { desc: desc, code: code, num: num };
-                sys.db.trigger("publish", ["/update", o]);
+                sys.db.trigger("publish", ["/input", o]);
             }
             this.watch("sort-change", (e, order, sort_) => {
                 orderby = order, sort = sort_;
@@ -110,10 +122,11 @@ $_("header").imports({
         css: "#titlebar { padding: 10px 0; }",
         xml: "<div id='titlebar' xmlns:i='titlebar'>\
                 <i:Stores id='stores'/>\
-                <i:ReqUpdate id='reqUpdate'/>\
-                <i:DiaoBo id='diaobo'/>\
-                <i:CaiGou id='caigou'/>\
-                <i:StockUp id='stockUp'/>\
+                <i:Stock id='stock'/> &gt;\
+                <i:Require id='require'/> &gt;\
+                <i:Allocate id='allocate'/>\
+                <i:Purchase id='purchase'/>\
+                <i:Close id='close'/>\
                 <i:Filter id='filter'/>\
               </div>"
     },
@@ -166,25 +179,31 @@ $_("header/titlebar").imports({
                  <option value='财经中心'>财经中心</option>\
               </select>",
         fun: function (sys, items, opts) {
-            this.watch("/store/change", (e, data) => {
+            this.glance("/store/change", (e, data) => {
+                data.desc == "迎宾街" && sys.stores.removeAttr("disabled")
                 sys.stores.prop("value", data.desc);
                 this.notify("store-change", data.desc);
+                sys.stores.on("change", change);
             });
+            function change(e) {
+                let store = sys.stores.prop("value");
+                this.notify("store-change", store);
+            }
             setTimeout(() => this.trigger("publish", "/store/change"), 0);
         }
     },
-    ReqUpdate: {
-        xml: "<button id='reqUpdate'>生成需求量</button>",
+    Require: {
+        xml: "<button id='require'>生成需求量</button>",
         fun: function (sys, items, opts) {
             let dialog = null;
             let store = "迎宾街";
             let supplier = "31043";
             this.on("click", () => {
                 let type = (store == "迎宾街" || supplier != "31043") ? "采购" : "调拨";
-                this.trigger("publish", ["/req/update", {type: type}]);
+                this.trigger("publish", ["/require", {type: type}]);
                 dialog = window.app.dialog.preloader('生成需求量');
             });
-            this.watch("/req/update", () => {
+            this.watch("/require", () => {
                 dialog.close();
                 this.notify("show-cgt-list")
             });
@@ -196,17 +215,17 @@ $_("header/titlebar").imports({
             });
         }
     },
-    DiaoBo: {
-        xml: "<button id='diaobo'>生成调拨单</button>",
+    Allocate: {
+        xml: "<button id='allocate'>生成调拨单</button>",
         fun: function (sys, items, opts) {
             let dialog = null;
             let store = "迎宾街";
             let supplier = "31043";
             this.on("click", () => {
-                this.trigger("publish", "/diaobo");
+                this.trigger("publish", "/allocate");
                 dialog = window.app.dialog.preloader('生成调拨单');
             });
-            this.watch("/diaobo", (e, p) => {
+            this.watch("/allocate", (e, p) => {
                 dialog.setText(p.message);
                 if (p.message == "finish") {
                     dialog.close();
@@ -220,21 +239,21 @@ $_("header/titlebar").imports({
                 refresh(store = label);
             });
             function refresh() {
-                (store != "迎宾街" && supplier == "31043") ? sys.diaobo.show() : sys.diaobo.hide();
+                (store != "迎宾街" && supplier == "31043") ? sys.allocate.show() : sys.allocate.hide();
             }
         }
     },
-    CaiGou: {
-        xml: "<button id='caigou'>生成采购单</button>",
+    Purchase: {
+        xml: "<button id='purchase'>生成采购单</button>",
         fun: function (sys, items, opts) {
             let dialog = null;
             let store = "迎宾店";
             let supplier = "31043";
             this.on("click", () => {
-                this.trigger("publish", ["/caigou", {supplier: supplier}]);
+                this.trigger("publish", ["/purchase", {supplier: supplier}]);
                 dialog = window.app.dialog.preloader('生成采购单');
             });
-            this.watch("/caigou", (e, p) => {
+            this.watch("/purchase", (e, p) => {
                 dialog.setText(p.message);
                 if (p.message == "finish") {
                     dialog.close();
@@ -248,19 +267,25 @@ $_("header/titlebar").imports({
                 refresh(store = label);
             });
             function refresh() {
-                (store == "迎宾街" || supplier != "31043") ? sys.caigou.show() : sys.caigou.hide();
+                (store == "迎宾街" || supplier != "31043") ? sys.purchase.show() : sys.purchase.hide();
             }
         }
     },
-    StockUp: {
-        xml: "<button id='stockUp'>库存量更新</button>",
+    Close: {
+        xml: "<button id='close'>退出</button>",
+        fun: function (sys, items, opts) {
+            this.on(Click, e => this.trigger("close"));
+        }
+    },
+    Stock: {
+        xml: "<button id='stock'>库存量更新</button>",
         fun: function (sys, items, opts) {
             let dialog = null;
             this.on("click", () => {
-                this.trigger("publish", "/update/stock");
+                this.trigger("publish", "/stock");
                 dialog = window.app.dialog.preloader('库存量更新');
             });
-            this.watch("/update/stock", (e, p) => {
+            this.watch("/stock", (e, p) => {
                 dialog.setText(p.message);
                 if (p.message == "finish") {
                     dialog.close();
@@ -305,6 +330,7 @@ $_("header/titlebar").imports({
         xml: "<select id='supplier'>\
                  <option value='31043'>自采供应商</option>\
                  <option value='46251'>全有商贸</option>\
+                 <option value='46246'>惠众商行</option>\
               </select>",
         fun: function (sys, items, opts) {
             this.on("change", e => {
@@ -336,23 +362,23 @@ $_("header/titlebar").imports({
     }
 });
 
-$_("cgt-list").imports({
-    ListItem: {
+$_("list").imports({
+    Item: {
         css: "#list_item { display: block; float: left; border-bottom: 1px dotted #ccc; line-height: 40px; width: 100%; list-style: none; }\
               #list_item:hover { background: #F2F2F2;}\
               #list_item > span { display: block; float: left; line-height: 40px; height: 40px; }",
         xml: "<li id='list_item'>\
                 <RowNum id='row_num'/>\
-                <CgtName id='cgt_name'/>\
+                <Name id='cgt_name'/>\
                 <Stock id='stock'/>\
                 <Stock id='kyl'/>\
                 <Input id='req_qty' desc='需求量'/>\
                 <Input id='lower_stock' desc='库存低位'/>\
                 <Input id='upper_stock' desc='库存高位'/>\
-                <CgtPrice id='xs_price'/>\
-                <CgtPrice id='cgt_price'/>\
-                <CgtPrice id='rtl_price'/>\
-                <GiRate id='gi_rate'/>\
+                <Price id='xs_price'/>\
+                <Price id='cgt_price'/>\
+                <Price id='rtl_price'/>\
+                <Rate id='gi_rate'/>\
                 <Like id='like'/>\
               </li>",
         cfg: { lower_stock: { editable: !!window.Q.editable }, upper_stock: { editable: !!window.Q.editable } },
@@ -364,13 +390,14 @@ $_("cgt-list").imports({
             function setValue(v) {
                 opts = v;
                 items.row_num(v.index);
-                items.cgt_name(v['品名'], v['条码']);
+                items.cgt_name(v['品名'], v['货号'],v['图片'],v['条码']);
                 sys.xs_price.text(v["系数"].toFixed(0));
                 sys.cgt_price.text(f ? v["进货价"].toFixed(2) : '#');
                 sys.rtl_price.text(v["零售价"].toFixed(2));
                 v["毛利率"] && items.gi_rate(f ? v["毛利率"].toFixed(1) + '%' : '#');
                 sys.stock.text(v["库存量"]);
-                sys.kyl.text(v["可用量"]);
+                //sys.kyl.text(v["可用量"]); 
+                sys.kyl.text(999);
                 items.lower_stock(v["库存低位"]);
                 items.req_qty(v["需求量"]);
                 items.upper_stock(v["库存高位"]);
@@ -403,11 +430,11 @@ $_("cgt-list").imports({
             };
         }
     },
-    CgtPrice: {
+    Price: {
         css: "#cgt_price { width: 60px; color: #ff6b09; font-weight: 700; text-align: right; }",
         xml: "<span id='cgt_price'/>"
     },
-    GiRate: {
+    Rate: {
         css: "#gi_rate { width: 60px; color: #333; font-weight: 700; text-align: right; }",
         xml: "<span id='gi_rate'/>",
         fun: function (sys, items, opts) {
@@ -417,8 +444,8 @@ $_("cgt-list").imports({
             };
         }
     },
-    CgtName: {
-        css: "#cgt_name { width: 200px; font-weight: 700;}\
+    Name: {
+        css: "#cgt_name { width: 200px; font-weight: 700; }\
               #hidimg { display: bolck; float: left; margin: 5px 10px 0 0; width: 25px; height: 30px; border: 0; vertical-align: top; }\
               #big_img { display: block; float: left; line-height: 40px; height: 40px; position: relative; z-index: 0; }\
               #big_img img { display: none; position: absolute; left: -50px; top: 41px; z-index: 1; background-color: #fff; padding: 10px; border: 1px solid #eee; box-shadow: 0 3px 3px #666; width: 110px; height: 170px; float: left; margin: 5px 10px 0 0; vertical-align: top; }\
@@ -427,17 +454,19 @@ $_("cgt-list").imports({
                 <div href='javascript:void(0)'>\
                     <img id='hidimg' class='lazy' src='http://gx.xinshangmeng.com:88/xsm6/resource/ec/cgtpic/6901028124348_middle_star.png?v=2018062300' style='display: block;'/>\
                     <span id='big_img'>\
-                        <img src='http://gx.xinshangmeng.com:88/xsm6/resource/ec/cgtpic/6901028124348_middle_face.png?v=2018062300'/>\
+                        <img id='bigimg' src='http://gx.xinshangmeng.com:88/xsm6/resource/ec/cgtpic/6901028124348_middle_face.png?v=2018062300'/>\
                     </span>\
-                    <span id='label'>塑合王冠</span>\
+                    <span id='label' style='user-select: text'>塑合王冠</span>\
                 </div>\
               </span>",
         fun: function (sys, items, opts) {
-            let star = "http://gx.xinshangmeng.com:88/xsm6/resource/ec/cgtpic/%bcode_middle_star.png?v=2018062300";
-            let face = "http://gx.xinshangmeng.com:88/xsm6/resource/ec/cgtpic/%bcode_middle_face.png?v=2018062300";
-            return function (label, bcode) {
-                sys.hidimg.attr("src", star.replace("%bcode", bcode));
+            sys.hidimg.on("mouseover", sys.bigimg.show);
+            sys.hidimg.on("mouseout", sys.bigimg.hide);
+            return function (label, bcode, img, bcode2) {
                 sys.label.text(label);
+                sys.label.attr("title", `货号:${bcode} 条码:${bcode2}`);
+                sys.hidimg.attr("src", `http://star.td365.com.cn/Uploads/ItemImages/${img}`);
+                sys.bigimg.attr("src", `http://star.td365.com.cn/Uploads/ItemImages/${img}`);
             };
         }
     },

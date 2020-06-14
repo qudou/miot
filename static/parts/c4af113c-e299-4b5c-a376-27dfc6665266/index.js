@@ -24,7 +24,7 @@ $_().imports({
         xml: "<div id='navbar' class='navbar'>\
                 <div class='navbar-inner'>\
                    <div id='close' class='left'>\
-                      <i class='icon f7-icons ios-only'>close</i>\
+                      <i class='icon f7-icons ios-only'>xmark</i>\
                    </div>\
                    <div id='title' class='title'>操作指南</div>\
                    <div class='right'/>\

@@ -122,7 +122,7 @@ $_("content").imports({
     },
     Channel: {
         xml: "<Picker id='channel'/>",
-        cfg: {channel: { value: "云音乐热歌榜", values: ["轻音乐","新年歌单","云音乐热歌榜"]}},
+        cfg: {channel: { value: "云音乐热歌榜", values: ["轻音乐","新年歌单","云音乐热歌榜","报警声"]}},
         fun: function (sys, items, opts) {
             sys.channel.on("picker-change", e => {
                 clearTimeout(opts.timer);

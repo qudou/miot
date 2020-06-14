@@ -131,7 +131,7 @@ $_("tiandian").imports({
                     let item = result[i];
                     let v = item;
                     let code = item["条码"];
-                    item["确认量"] = v["需求量"];
+                    item["确认量"] = Math.ceil(v["需求量"]/v["系数"]);
                     console.log(code);
                     let q = await query(code);
                     let o = {};
@@ -166,7 +166,7 @@ $_("tiandian").imports({
             });
             function read() {
                 return new Promise(resolve => {
-                    let stmt = `SELECT ${Name}.*,条码,品名,系数,进货价,零售价,分类,迎宾街.库存量 AS 迎宾街库存量 FROM ${Name},迎宾街,商品资料 WHERE ${Name}.货号 = 商品资料.货号 AND ${Name}.是否收藏 = 1 AND ${Name}.货号 = 迎宾街.货号 AND ${Name}.需求量 > 0`;
+                    let stmt = `SELECT ${Name}.*,条码,品名,系数,进货价,零售价,分类,迎宾街.库存量 AS 迎宾街库存量 FROM ${Name},迎宾街,商品资料 WHERE ${Name}.货号 = 商品资料.货号 AND ${Name}.是否收藏 = 1 AND ${Name}.货号 = 迎宾街.货号 AND ${Name}.需求量 > 0 AND 供应商 = '31043' ORDER BY 零售价`;
                     items.db.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(rows);

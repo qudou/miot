@@ -145,12 +145,13 @@ $_("signup").imports({
               </main>",
         fun: function (sys, items, opts) {
             let uuidv1 = require("uuid/v1");
+            let uuidv4 = require("uuid/v4");
             let str = "INSERT INTO parts (id,name,link,part,class,type,online) VALUES(?,?,?,?,?,?,?)";
             this.on("exec", (e, p) => {
                 let stmt = items.db.prepare(str);
                 let b = p.body;
                 let id = uuidv1();
-                let part = uuidv1();
+                let part = uuidv4();
                 let online = b.type > 1 ? 0 : 1;
                 stmt.run(id,b.name,b.link,part,b.class,b.type,online);
                 stmt.finalize(() => insertToAuths(p, id)); 
@@ -176,12 +177,12 @@ $_("update").imports({
                 <Sqlite id='db' xmlns='//miot/sqlite'/>\
               </main>",
         fun: function (sys, items, opts) {
-            let update = "UPDATE parts SET name=?,link=?,class=?,type=?,online=? WHERE id=?";
+            let update = "UPDATE parts SET name=?,link=?,part=?,class=?,type=?,online=? WHERE id=?";
             this.on("exec", (e, p) => {
                 let b = p.body;
                 let stmt = items.db.prepare(update);
                 let online = b.type > 1 ? 0 : 1;
-                stmt.run(b.name,b.link,b.class,b.type,online,b.id, err => {
+                stmt.run(b.name,b.link,b.part,b.class,b.type,online,b.id, err => {
                     if (err) throw err;
                     p.data = {code: 0, desc: "更新成功"};
                     this.trigger("to-user", p);

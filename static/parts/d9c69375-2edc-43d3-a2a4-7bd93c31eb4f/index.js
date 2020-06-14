@@ -88,7 +88,7 @@ $_("overview").imports({
         xml: "<div id='navbar' class='navbar'>\
                 <div class='navbar-inner'>\
                    <div id='close' class='left'>\
-                      <i class='icon f7-icons ios-only' style='margin:auto;'>close</i>\
+                      <i class='icon f7-icons ios-only' style='margin:auto;'>xmark</i>\
                    </div>\
                    <div id='title' class='title'/>\
                    <div class='right'>\

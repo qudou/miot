@@ -30,7 +30,7 @@ $_().imports({
                 {type: 'input',message: '请输入进货价:',name: '进货价'},
                 {type: 'input',message: '请输入零售价:',name: '零售价'},
                 {type: 'list',message: '请输入分类:',name: '分类',choices: ["饮料","食品","奶类","日用","玩具","茶酒"]},
-                {type: 'list',message: '请输入供应商:',name: '供应商',choices: ["自采供应商","全有商贸"]}
+                {type: 'list',message: '请输入供应商:',name: '供应商',choices: ["自采供应商","全有商贸","惠众商行"]}
             ];
             this.watch("添加商品", () => {
                 inquirer.prompt(promptList).then(async answers => {
@@ -46,7 +46,7 @@ $_().imports({
                 });
             });
             let table = {"饮料":1,"食品":2,"奶类":3,"日用":4,"玩具":5,"茶酒":6};
-            let table2 = {"自采供应商":"31043","全有商贸":"46251"};
+            let table2 = {"自采供应商":"31043","全有商贸":"46251", "惠众商行": "46246"};
             function insertGood(o) {
                 return new Promise((resolve, reject) => {
                     let stmt = items.db.prepare("INSERT INTO 商品资料 (货号,条码,系数,品名,进货价,零售价,分类,供应商) VALUES(?,?,?,?,?,?,?,?)");
@@ -72,6 +72,8 @@ $_().imports({
     Update: {
         xml: "<Sqlite id='db'/>",
         fun: function (sys, items, opts) {
+            let table = {"自采供应商":"31043","全有商贸":"46251", "惠众商行": "46246"}; 
+            let table2 = {"31043": "自采供应商","46251":"全有商贸", "46246":"惠众商行"};
             this.watch("修改商品", () => {
                 const promptList = [
                     {type: 'input', message: '请输入要修改商品的货号:', name: '货号'}
@@ -79,9 +81,12 @@ $_().imports({
                 inquirer.prompt(promptList).then(async answers => {
                     let o = await info(answers);
                     let promptList2 = [
+                        {type: 'input', message: '请输入货号:', name: '货号', default: o.货号},
                         {type: 'input',message: '请输入条码:',name: '条码',default: o.条码},
                         {type: 'input',message: '请输入品名:',name: '品名',default: o.品名},
-                        {type: 'input',message: '请输入系数:',name: '系数',default: o.系数}
+                        {type: 'input',message: '请输入系数:',name: '系数',default: o.系数},
+                        {type: 'list',message: '请输入供应商:',name: '供应商',choices: ["自采供应商","全有商贸","惠众商行"], default: table2[o.供应商]},
+                        {type: 'input',message: '请输入图片:',name: '图片',default: o.图片},
                     ];
                     inquirer.prompt(promptList2).then(async answers2 => {
                         await updateGood(answers2, answers.货号);
@@ -99,8 +104,8 @@ $_().imports({
             }
             function updateGood(o, code) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.db.prepare("UPDATE 商品资料 SET 条码=?,品名=?,系数=? WHERE 货号=?");
-                    stmt.run(o.条码.trim(),o.品名.trim(),parseInt(o.系数),code);
+                    let stmt = items.db.prepare("UPDATE 商品资料 SET 条码=?,品名=?,系数=?,货号=?,供应商=?,图片=? WHERE 货号=?");
+                    stmt.run(o.条码.trim(),o.品名.trim(),parseInt(o.系数),o.货号,table[o.供应商],o.图片,code);
                     stmt.finalize(() => {
                         console.log("修改基础商品资料成功！");
                         resolve(true);

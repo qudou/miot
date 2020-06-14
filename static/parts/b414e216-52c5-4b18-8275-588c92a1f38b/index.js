@@ -88,7 +88,7 @@ $_("overview").imports({
         xml: "<div id='navbar' class='navbar'>\
                 <div class='navbar-inner'>\
                    <div id='close' class='left'>\
-                      <i class='icon f7-icons ios-only' style='margin:auto;'>close</i>\
+                      <i class='icon f7-icons ios-only' style='margin:auto;'>xmark</i>\
                    </div>\
                    <div id='title' class='title'/>\
                    <div class='right'/>\
@@ -474,7 +474,7 @@ $_("signup/form").imports({
                  <div class='item-inner'>\
                    <div id='label' class='item-title item-label'>Name</div>\
                    <div class='item-input-wrap'>\
-                     <input id='text' type='text' name='name' placeholder='Your name'/>\
+                     <input id='text' type='text' name='name' placeholder='Your name' style='font-size: 14px;'/>\
                    </div>\
                  </div>\
                </div>\
@@ -502,11 +502,11 @@ $_("update").imports({
         xml: "<div id='content' class='page'>\
                 <div class='page-content' xmlns:i='../signup/form'>\
                     <i:Form id='update'>\
-                      <GUID id='guid' label='全局标识符'/>\
+                      <GUID id='guid'/>\
                       <i:Name id='nane'/>\
                       <i:Area id='area'/>\
                       <i:Link id='link'/>\
-                      <GUID id='puid' label='局部标识符'/>\
+                      <PUID id='puid'/>\
                       <i:Class id='class'/>\
                       <i:Type id='type'/>\
                     </i:Form>\
@@ -547,7 +547,7 @@ $_("update").imports({
 		xml: "<li id='guid'>\
                <div class='item-content item-input'>\
                  <div class='item-inner'>\
-                   <div id='label' class='item-title item-label'>Name</div>\
+                   <div id='label' class='item-title item-label'>全局标识符</div>\
                    <div class='item-input-wrap'>\
                      <div id='text'/>\
                    </div>\
@@ -555,11 +555,30 @@ $_("update").imports({
                </div>\
               </li>",
         fun: function (sys, items, opts) {
-            sys.label.text(opts.label);
             this.on("start", (e, p) => {
                 sys.guid.trigger("next", p);
             });
             return {val: sys.text.text};
+        }
+    },
+    PUID: {
+        xml: "<Input id='part' label='局部标识符' xmlns='/signup/form'/>",
+        fun: function (sys, items, opts) {
+            function error( msg ) {
+                items.part.focus();
+                sys.part.trigger("message", ["error", msg]);
+            }
+            this.on("start", function (e, o) {
+                o.part = items.part.val();
+                if (o.part === "") {
+                    error("请输入局部标识符");
+                } else if (o.part.length < 2) {
+                    error("配件名称至少需要2个字符");
+                } else {
+                    sys.part.trigger("next", o);
+                }
+            });
+            return items.part;
         }
     }
 });
