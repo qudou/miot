@@ -11,7 +11,14 @@ const ID = "c55d5e0e-f506-4933-8962-c87932e0bc2a";
 const SECURE_KEY = __dirname + '/cert/2933686_xmlplus.cn.key';
 const SECURE_CERT = __dirname + '/cert/2933686_xmlplus.cn.pem';
 
-xmlplus("miot", (xp, $_, t) => {
+const log4js = require("log4js");
+log4js.configure({
+    appenders: { "miot": { type: "file", filename: `${__dirname}/miot.log` } },
+    categories: { default: { appenders: ["miot"], level: "info" } }
+});
+const logger = log4js.getLogger("miot");
+
+xmlplus("miot", (xp, $_) => {
 
 $_().imports({
     Index: {
@@ -33,7 +40,7 @@ $_().imports({
                 await items.links.offlineAll();
                 await items.parts.offlineAll();
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
-                console.log("Mosca server is up and running"); 
+                logger.info("Mosca server is up and running"); 
             });
             server.on("subscribed", async (topic, client) => {
                 await items.links.update(topic, 1);
@@ -73,7 +80,7 @@ $_().imports({
             server.on("ready", async () => {
                 await items.users.offlineAll();
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
-                console.log("Proxy server is up and running"); 
+                logger.info("Proxy server is up and running"); 
             });
             server.on("clientDisconnected", client => items.users.disconnected(client));
             server.on("published", async (packet, client) => {
@@ -84,11 +91,12 @@ $_().imports({
                     p.pid = m.part;
                     p.cid = client.id;
                     p.uid = await items.users.getUidByCid(client.id);
+                    if (p.uid == undefined) return;
                     p.mid = packet.topic;
                     p.link = m.link;
                     items.factory.create(m['class'], p);
                 } catch(e) {
-                    console.log(e);
+                    logger.debug(e);
                     let body = { topic: p.topic, body: p.body };
                     this.notify("to-local", [p.link, {pid: p.pid, body: body}]); 
                 }
@@ -309,7 +317,7 @@ $_("proxy").imports({
                     let stmt = `SELECT user_id FROM status WHERE client_id = '${clientId}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
-                        resolve(data[0].user_id);
+                        resolve(data[0] && data[0].user_id);
                     });
                 });
             }

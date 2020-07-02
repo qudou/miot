@@ -5,7 +5,8 @@
     "xmlplus": "^1.5.12",
     "crypto-js": "^3.1.9-1",
     "mosca": "^2.7.0",
-    "sqlite3": "^3.1.13"
+    "sqlite3": "^3.1.13",
+    "log4js": "^6.3.0"
   },
   "description": "An IOT platform based on MQTT.",
   "main": "miot.js",

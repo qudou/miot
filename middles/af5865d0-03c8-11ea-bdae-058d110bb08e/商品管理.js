@@ -49,8 +49,8 @@ $_().imports({
             let table2 = {"自采供应商":"31043","全有商贸":"46251", "惠众商行": "46246"};
             function insertGood(o) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.db.prepare("INSERT INTO 商品资料 (货号,条码,系数,品名,进货价,零售价,分类,供应商) VALUES(?,?,?,?,?,?,?,?)");
-                    stmt.run(o.货号.trim(),o.条码.trim(),parseInt(o.系数),o.品名,parseFloat(o.进货价),parseFloat(o.零售价),table[o.分类],table2[o.供应商]);
+                    let stmt = items.db.prepare("INSERT INTO 商品资料 (货号,条码,系数,品名,进货价,零售价,分类) VALUES(?,?,?,?,?,?,?)");
+                    stmt.run(o.货号.trim(),o.条码.trim(),parseInt(o.系数),o.品名,parseFloat(o.进货价),parseFloat(o.零售价),table[o.分类]);
                     stmt.finalize(() => {
                         console.log("添加基础商品资料成功！");
                         resolve(true);
@@ -59,8 +59,8 @@ $_().imports({
             }
             function insertGood2(o, store) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.db.prepare(`INSERT INTO ${store} (货号) VALUES(?)`);
-                    stmt.run(o.货号.trim());
+                    let stmt = items.db.prepare(`INSERT INTO ${store} (货号,供应商) VALUES(?,?)`);
+                    stmt.run(o.货号.trim(),o.供应商);
                     stmt.finalize(() => {
                         console.log(`添加${store}商品资料成功！`);
                         resolve(true);

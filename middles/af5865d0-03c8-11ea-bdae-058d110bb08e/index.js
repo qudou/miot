@@ -20,6 +20,8 @@ $_().imports({
                 <Allocate id='allocate'/>\
                 <Purchase id='purchase'/>\
                 <Stock id='stock'/>\
+                <Insert id='insert'/>\
+                <Editor id='editor'/>\
               </main>",
         map: { share: "Sqlite" },
         fun: function (sys, items, opts) {
@@ -36,8 +38,8 @@ $_().imports({
                 let b = p.body;
                 let store = b.store;
                 let where = createWhere(store, b.where);
-                let stmt1 = `SELECT ${store}.*,条码,品名,进货价,零售价,分类,供应商,系数,图片,round(("零售价" - "进货价" + 0.0)/"零售价", 3) * 100 AS "毛利率", '#' AS 可用量 FROM ${store}, 商品资料 WHERE ${where} AND ${store}.货号 = 商品资料.货号 ORDER BY ${b.orderby} ${b.sort}`;
-                let stmt2 = `SELECT ${store}.*,条码,品名,进货价,零售价,分类,供应商,系数,图片,round(("零售价" - "进货价" + 0.0)/"零售价", 3) * 100 AS "毛利率", 迎宾街.库存量 AS 可用量 FROM ${store}, 迎宾街, 商品资料 WHERE ${where} AND ${store}.货号 = 商品资料.货号 AND 商品资料.货号 = 迎宾街.货号 ORDER BY ${b.orderby} ${b.sort}`;
+                let stmt1 = `SELECT ${store}.*,条码,品名,进货价,零售价,分类,系数,图片,round(("零售价" - "进货价" + 0.0)/"零售价", 3) * 100 AS "毛利率", '#' AS 可用量 FROM ${store}, 商品资料 WHERE ${where} AND ${store}.货号 = 商品资料.货号 ORDER BY ${b.orderby} ${b.sort}`;
+                let stmt2 = `SELECT ${store}.*,条码,品名,进货价,零售价,分类,系数,图片,round(("零售价" - "进货价" + 0.0)/"零售价", 3) * 100 AS "毛利率", 迎宾街.库存量 AS 可用量 FROM ${store}, 迎宾街, 商品资料 WHERE ${where} AND ${store}.货号 = 商品资料.货号 AND 商品资料.货号 = 迎宾街.货号 ORDER BY ${b.orderby} ${b.sort}`;
                 let stmt = (store == "迎宾街") ? stmt1 : (b.where.supplier == "31043" ? stmt2 : stmt1);
                 items.list.all(stmt, (err, rows) => {
                     if (err) throw err;
@@ -51,7 +53,7 @@ $_().imports({
                 o.stock && where.push(`${store}.库存量>0`);
                 o.like && where.push(`${store}.是否收藏=1`);
                 o.type && where.push(`分类=${o.type}`);
-                o.supplier && where.push(`供应商='${o.supplier}'`);
+                o.supplier && where.push(`${store}.供应商='${o.supplier}'`);
                 return (where.length ? where : ["1=1"]).join(" AND ");
             }
         }
@@ -185,6 +187,73 @@ $_().imports({
                     console.log('exit code : ' + code);
                 });
             });
+        }
+    },
+    Insert: {    // 商品新增
+        xml: "<Sqlite id='db'/>",
+        fun: function (sys, items, opts) {
+            this.watch("/insert", async (e, p) => {
+                await insertBase(p.body);
+                await insertStore(p.body, "仓库");
+                await insertStore(p.body, "迎宾街");
+                await insertStore(p.body, "总部");
+                await insertStore(p.body, "铜锣湾");
+                await insertStore(p.body, "三生天海");
+                await insertStore(p.body, "钻石园");
+                await insertStore(p.body, "财经中心");
+                await insertStore(p.body, "荣兴");
+                this.trigger("to-user", p);
+            });
+            function insertBase(o) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.db.prepare("INSERT INTO 商品资料 (货号,条码,系数,品名,进货价,零售价,分类,图片) VALUES(?,?,?,?,?,?,?,?)");
+                    stmt.run(o.货号.trim(),o.条码.trim(),parseInt(o.系数),o.品名,o.进货价,o.零售价,o.分类,o.图片);
+                    stmt.finalize(() => {
+                        console.log("添加基础商品资料成功！");
+                        resolve(true);
+                    });
+                });
+            }
+            function insertStore(o, store) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.db.prepare(`INSERT INTO ${store} (货号,供应商) VALUES(?,?)`);
+                    stmt.run(o.货号.trim(),o.供应商);
+                    stmt.finalize(() => {
+                        console.log(`添加${store}商品资料成功！`);
+                        resolve(true);
+                    });
+                });
+            }
+        }
+    },
+    Editor: {    // 商品修改
+        xml: "<Sqlite id='db'/>",
+        fun: function (sys, items, opts) {
+            this.watch("/editor", async (e, p) => {
+                await updateBase(p.body);
+                await updateStore(p.body);
+                this.trigger("to-user", p);
+            });
+            function updateBase(o) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.db.prepare("UPDATE 商品资料 SET 货号=?,条码=?,品名=?,系数=?,进货价=?,零售价=?,分类=?,图片=? WHERE 货号=?");
+                    stmt.run(o.货号.trim(),o.条码.trim(),o.品名.trim(),parseInt(o.系数),o.进货价,o.零售价,o.分类,o.图片,o.原货号);
+                    stmt.finalize(() => {
+                        console.log("修改基础商品资料成功！");
+                        resolve(true);
+                    });
+                });
+            }
+            function updateStore(o) {
+                return new Promise((resolve, reject) => {
+                    let stmt = items.db.prepare(`UPDATE ${o.store} SET 供应商=? WHERE 货号=?`);
+                    stmt.run(o.供应商,o.货号);
+                    stmt.finalize(() => {
+                        console.log("修改门店商品资料成功！");
+                        resolve(true);
+                    });
+                });
+            }
         }
     },
     Sqlite: {

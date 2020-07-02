@@ -120,7 +120,7 @@ $_("tiandian").imports({
                     let item = result[i];
                     let v = item;
                     let code = item["条码"];
-                    item["确认量"] = v["需求量"];
+                    item["确认量"] = Math.ceil(v["需求量"]/v["系数"]);
                     console.log(code);
                     let q = await query(code);
                     console.log(i, result.length);

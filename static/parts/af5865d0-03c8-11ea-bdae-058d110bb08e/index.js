@@ -18,6 +18,8 @@ $_().imports({
         xml: "<div id='index'>\
                 <Header id='header'/>\
                 <List id='list'/>\
+                <Insert id='insert'/>\
+                <Editor id='editor'/>\
                 <Status id='status'/>\
               </div>",
         fun: function (sys, items, opts) {
@@ -75,6 +77,100 @@ $_().imports({
             });
         }
     },
+    Insert: {
+        xml: "<div class='dialog' style='width: 330px; border: 1px solid #E6E6E6;'>\
+                <i:Form id='form' label='商品新增' class='dialog-inner' xmlns:i='insert'>\
+                    <i:Name id='nema'/>\
+                    <i:BCode id='bcode'/>\
+                    <i:PCode id='pcode'/>\
+                    <i:Rate id='rate'/>\
+                    <i:IPrice id='iprice'/>\
+                    <i:OPrice id='oprice'/>\
+                    <i:Supplier id='supplier'/>\
+                    <i:Types id='types'/>\
+                    <i:Picture id='picture'/>\
+                </i:Form>\
+                <div class='dialog-buttons'>\
+                    <span id='cancel' class='dialog-button'>取消</span>\
+                    <span id='ok' class='dialog-button'>确定</span>\
+                </div>\
+              </div>",
+        fun: function (sys, items, opts) { // 997046581
+            let editor = this.prev();
+            let dialog = null;
+            let param = {el: this.elem()};
+            editor.watch("open-insert", (e, o) => {
+                dialog = dialog || window.app.dialog.create(param);
+                items.nema.val("");
+                items.bcode.val("");
+                items.pcode.val("");
+                items.rate.val("");
+                items.iprice.val("");
+                items.oprice.val("");
+                items.picture.val("");
+                dialog.open();
+            });
+            sys.picture.on("next", (e, o) => {
+                e.stopPropagation();
+                editor.trigger("publish", ["/insert", o]);
+            });
+            editor.watch("/insert", (e, o) => {
+                dialog.close();
+                editor.notify("show-cgt-list");
+            });
+            sys.ok.on(Click, items.form.start);
+            sys.cancel.on(Click, () => dialog.close());
+        }
+    },
+    Editor: {
+        xml: "<div class='dialog' style='width: 330px; border: 1px solid #E6E6E6;'>\
+                <i:Form id='form' label='商品编辑' class='dialog-inner' xmlns:i='insert'>\
+                    <i:Name id='nema'/>\
+                    <i:OCode id='ocode'/>\
+                    <i:BCode id='bcode'/>\
+                    <i:PCode id='pcode'/>\
+                    <i:IPrice id='iprice'/>\
+                    <i:OPrice id='oprice'/>\
+                    <i:Rate id='rate'/>\
+                    <i:Supplier id='supplier'/>\
+                    <i:Types id='types'/>\
+                    <i:Picture id='picture'/>\
+                </i:Form>\
+                <div class='dialog-buttons'>\
+                    <span id='cancel' class='dialog-button'>取消</span>\
+                    <span id='ok' class='dialog-button'>确定</span>\
+                </div>\
+              </div>",
+        fun: function (sys, items, opts) { // 997046581
+            let editor = this.prev();
+            let dialog = null;
+            let param = {el: this.elem()};
+            editor.watch("open-editor", (e, o) => {
+                items.nema.val(o.品名);
+                items.ocode.val(o.货号);
+                items.bcode.val(o.货号);
+                items.pcode.val(o.条码);
+                items.rate.val(o.系数);
+                items.iprice.val(o.进货价);
+                items.oprice.val(o.零售价);
+                items.supplier.val(o.供应商);
+                items.types.val(o.分类);
+                items.picture.val(o.图片);
+                dialog = dialog || window.app.dialog.create(param);
+                dialog.open();
+            });
+            sys.picture.on("next", (e, o) => {
+                e.stopPropagation();
+                editor.trigger("publish", ["/editor", o]);
+            });
+            editor.watch("/editor", (e, o) => {
+                dialog.close();
+                editor.notify("show-cgt-list");
+            });
+            sys.ok.on(Click, items.form.start);
+            sys.cancel.on(Click, () => dialog.close());
+        }
+    },
     Status: {
         css: "#statusbar { text-align: center; color: #333; font-size: 14px; line-height: 28px; height: 28px; position: fixed; width: 100%; bottom: 0; left: 0; padding: 0 10px; background: #F0F0F0; border-top: 1px solid #E0E5E6; }",
         xml: "<div id='statusbar'>\
@@ -126,6 +222,7 @@ $_("header").imports({
                 <i:Require id='require'/> &gt;\
                 <i:Allocate id='allocate'/>\
                 <i:Purchase id='purchase'/>\
+                <i:Insert id='insert'/>\
                 <i:Close id='close'/>\
                 <i:Filter id='filter'/>\
               </div>"
@@ -205,7 +302,7 @@ $_("header/titlebar").imports({
             });
             this.watch("/require", () => {
                 dialog.close();
-                this.notify("show-cgt-list")
+                this.notify("show-cgt-list");
             });
             this.watch("supplier-change", (e, label) => {
                 supplier = label;
@@ -271,6 +368,15 @@ $_("header/titlebar").imports({
             }
         }
     },
+    Insert: {
+        xml: "<button id='insert'>新增</button>",
+        fun: function (sys, items, opts) {
+            window.Q.editable || sys.insert.hide();
+            this.on(Click, function(e) {
+                this.notify("open-insert");
+            });
+        }
+    },
     Close: {
         xml: "<button id='close'>退出</button>",
         fun: function (sys, items, opts) {
@@ -331,6 +437,9 @@ $_("header/titlebar").imports({
                  <option value='31043'>自采供应商</option>\
                  <option value='46251'>全有商贸</option>\
                  <option value='46246'>惠众商行</option>\
+                 <option value='46250'>鹏辉贸易</option>\
+                 <option value='86711'>奥曼力申</option>\
+                 <option value='86779'>双华批发</option>\
               </select>",
         fun: function (sys, items, opts) {
             this.on("change", e => {
@@ -364,10 +473,10 @@ $_("header/titlebar").imports({
 
 $_("list").imports({
     Item: {
-        css: "#list_item { display: block; float: left; border-bottom: 1px dotted #ccc; line-height: 40px; width: 100%; list-style: none; }\
-              #list_item:hover { background: #F2F2F2;}\
-              #list_item > span { display: block; float: left; line-height: 40px; height: 40px; }",
-        xml: "<li id='list_item'>\
+        css: "#item { display: block; float: left; border-bottom: 1px dotted #ccc; line-height: 40px; width: 100%; list-style: none; }\
+              #item:hover { background: #F2F2F2;}\
+              #item > span { display: block; float: left; line-height: 40px; height: 40px; }",
+        xml: "<li id='item'>\
                 <RowNum id='row_num'/>\
                 <Name id='cgt_name'/>\
                 <Stock id='stock'/>\
@@ -403,7 +512,10 @@ $_("list").imports({
                 items.upper_stock(v["库存高位"]);
                 items.like(v["是否收藏"]);
             }
-            sys.list_item.on("change", "Input", function (e) {
+            sys.cgt_name.on("dblclick", function(e) {
+                window.Q.editable && this.notify("open-editor", opts);
+            });
+            sys.item.on("change", "Input", function (e) {
                 e.stopPropagation();
                 let v = e.target.prop("value");
                 this.trigger("input-change", [e.target.attr("desc"), opts['货号'], v]);
@@ -412,6 +524,7 @@ $_("list").imports({
                 e.stopPropagation();
                 this.trigger("like-change", [v, opts['货号']]);
             });
+            
             return Object.defineProperty({}, "value", { get: getValue, set: setValue });
         }
     },
@@ -525,6 +638,236 @@ $_("list").imports({
             return like;
         }
     }
+});
+
+$_("insert").imports({
+    Form: {
+        xml: "<div id='form' class='dialog-inner'>\
+                <div id='title' class='dialog-title'/>\
+              </div>",
+        fun: function (sys, items, opts) {
+            let ptr, first = this.first();
+            sys.title.text(opts.label);
+            this.on("next", function (e, r) {
+                e.stopPropagation();
+                ptr = ptr.next();
+                ptr.trigger("start", r, false);
+            });
+            function start() {
+                ptr = first;
+                ptr.trigger("start", {}, false);
+            }
+            return { start: start };
+        }
+    },
+    Name: {
+        xml: "<Input id='part' label='品　名' maxlength='32'/>",
+        fun: function (sys, items, opts) {
+            function error( msg ) {
+                items.part.focus();
+                sys.part.trigger("message", ["error", msg]);
+            }
+            this.on("start", function (e, o) {
+                o.品名 = items.part.val();
+                if (o.品名 === "") {
+                    error("请输入商品名称");
+                } else if (o.品名.length < 2) {
+                    error("商品名称至少需要2个字符");
+                } else {
+                    sys.part.trigger("next", o);
+                }
+            });
+            return items.part;
+        }
+    },
+    OCode: {
+        css: "#ocode { display: none; }",
+        xml: "<Input id='ocode' label='原货号'/>",
+        fun: function (sys, items, opts) {
+            this.on("start", function (e, o) {
+                o.原货号 = items.ocode.val();
+                sys.ocode.trigger("next", o);
+            });
+            return items.ocode;
+        }
+    },
+    BCode: {
+        xml: "<Input id='code' label='货　号'/>",
+        fun: function (sys, items, opts) {
+            function error( msg ) {
+                items.code.focus();
+                sys.code.trigger("message", ["error", msg]);
+            }
+            this.on("start", function (e, o) {
+                o.货号 = items.code.val();
+                if (o.货号 === "") {
+                    error("请输入货号");
+                } else if (o.货号.length < 6) {
+                    error("货号至少需要6个字符");
+                } else {
+                    sys.code.trigger("next", o);
+                }
+            });
+            return items.code;
+        }
+    },
+    PCode: {
+        xml: "<Input id='code' label='条　码'/>",
+        fun: function (sys, items, opts) {
+            function error( msg ) {
+                items.code.focus();
+                sys.code.trigger("message", ["error", msg]);
+            }
+            this.on("start", function (e, o) {
+                o.条码 = items.code.val();
+                if (o.条码 === "") {
+                    error("请输入条码");
+                } else if (o.条码.length < 6) {
+                    error("条码至少需要6个字符");
+                } else {
+                    sys.code.trigger("next", o);
+                }
+            });
+            return items.code;
+        }
+    },
+    IPrice: {
+        xml: "<Input id='price' label='进货价'/>",
+        fun: function (sys, items, opts) {
+            function error( msg ) {
+                items.price.focus();
+                sys.price.trigger("message", ["error", msg]);
+            }
+            this.on("start", function (e, o) {
+                o.进货价 = items.price.val();
+                if (o.进货价 === "") {
+                    error("请输入进货价");
+                } else {
+                    o.进货价 = parseFloat(o.进货价);
+                    sys.price.trigger("next", o);
+                }
+            });
+            return items.price;
+        }
+    },
+    OPrice: {
+        xml: "<Input id='price' label='零售价'/>",
+        fun: function (sys, items, opts) {
+            function error( msg ) {
+                items.price.focus();
+                sys.price.trigger("message", ["error", msg]);
+            }
+            this.on("start", function (e, o) {
+                o.零售价 = items.price.val();
+                if (o.零售价 === "") {
+                    error("请输入零售价");
+                } else {
+                    o.零售价 = parseFloat(o.零售价);
+                    sys.price.trigger("next", o);
+                }
+            });
+            return items.price;
+        }
+    },
+    Rate: {
+        xml: "<Input id='rate' label='系　数' maxlength='3'/>",
+        fun: function (sys, items, opts) {
+            function error( msg ) {
+                items.rate.focus();
+                sys.rate.trigger("message", ["error", msg]);
+            }
+            this.on("start", function (e, o) {
+                o.系数 = parseInt(items.rate.val());
+                if (o.系数 === "") {
+                    error("请输入系数");
+                } else {
+                    sys.rate.trigger("next", o);
+                }
+            });
+            return items.rate;
+        }
+    },
+    Supplier: {
+		xml: "<div class='dialog-input-field input'>\
+                <span>供应商</span>\
+                <select id='supplier' style='border: 1px solid #B2B2B2; -webkit-appearance: auto; display: inline; height: 26px; width: 182px;'>\
+                   <option value='31043'>自采供应商</option>\
+                   <option value='46251'>全有商贸</option>\
+                   <option value='46246'>惠众商行</option>\
+                   <option value='46250'>鹏辉贸易</option>\
+                   <option value='86711'>奥曼力申</option>\
+                   <option value='86779'>双华批发</option>\
+                </select>\
+              </div>",
+        fun: function (sys, items, opts) {
+            this.on("start", function (e, o) {
+                o.供应商 = sys.supplier.prop("value");
+                sys.supplier.trigger("next", o);
+            });
+            function val(value) {
+                sys.supplier.prop("value", value);
+            }
+            return {val: val};
+        }
+    },
+    Types: {
+		xml: "<div class='dialog-input-field input'>\
+                <span>分　类</span>\
+                <select id='type' style='border: 1px solid #B2B2B2; -webkit-appearance: auto; display: inline; height: 26px; width: 182px;'>\
+                    <option value='1'>饮料</option>\
+                    <option value='2'>食品</option>\
+                    <option value='3'>奶类</option>\
+                    <option value='4'>日用</option>\
+                    <option value='5'>玩具</option>\
+                    <option value='6'>茶酒</option>\
+                </select>\
+              </div>",
+        fun: function (sys, items, opts) {
+            this.on("start", function (e, o) {
+                o.分类 = sys.type.prop("value");
+                sys.type.trigger("next", o);
+            });
+            function val(value) {
+                sys.type.prop("value", value);
+            }
+            return {val: val};
+        }
+    },
+    Picture: {
+        xml: "<Input id='picture' label='图　片'/>",
+        fun: function (sys, items, opts) {
+            function error( msg ) {
+                items.picture.focus();
+                sys.picture.trigger("message", ["error", msg]);
+            }
+            this.on("start", function (e, o) {
+                o.图片 = items.picture.val();
+                sys.picture.trigger("next", o);
+            });
+            return items.picture;
+        }
+    },
+	Input: {
+		xml: "<div class='dialog-input-field input' style='margin-top:0;'>\
+                <span id='label'/>\
+                <input id='text' class='dialog-input' style='width: auto; display: inline;'/>\
+              </div>",
+		map: { attrs: { text: "name value type maxlength placeholder disabled style" } },
+		fun: function (sys, items, opts) { 
+            sys.label.text(opts.label);
+			function focus() {
+				sys.text.elem().focus();
+				return this;
+			}
+			function val(value) {
+				if ( value == undefined )
+					return sys.text.prop("value");
+				sys.text.prop("value", value);
+				return this;
+			}
+			return { val: val, focus: focus };
+		}
+	}
 });
 
 });

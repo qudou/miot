@@ -19,7 +19,7 @@ const DAYS = 16;
 navigator = undefined;
 const xmlplus = require("xmlplus");
 
-xmlplus("app", (xp, $_, t) => {
+xmlplus("app", (xp, $_) => {
 
 $_().imports({
     Index: {
