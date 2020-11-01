@@ -384,6 +384,26 @@ $_("signup/form").imports({
             return { setValue: items.link.setValue };
         }
     },
+    PUID: {
+        xml: "<Input id='part' label='局部标识符'/>",
+        fun: function (sys, items, opts) {
+            function error( msg ) {
+                items.part.focus();
+                sys.part.trigger("message", ["error", msg]);
+            }
+            this.on("start", function (e, o) {
+                o.part = items.part.val();
+                if (o.part === "") {
+                    error("请输入局部标识符");
+                } else if (o.part.length != 36) {
+                    error("局部标识符需要34个字符");
+                } else {
+                    sys.part.trigger("next", o);
+                }
+            });
+            return items.part;
+        }
+    },
     Class: {
         xml: "<Picker id='class' label='模板' setid='1'/>",
         fun: function (sys, items, opts) {
@@ -406,7 +426,7 @@ $_("signup/form").imports({
         xml: "<Picker id='type' label='类型'/>",
         fun: function (sys, items, opts) {
             let table = {}; 
-            let data = [{id: 1, name: "仅中间件"},{id: 2, name: "中间件+配件"}];
+            let data = [{id: 1, name: "无配件"},{id: 2, name: "有配件"}];
             items.type.init(data);
             data.map(i=>table[i.id]=i);
             this.on("start", (e, p) => {
@@ -506,7 +526,7 @@ $_("update").imports({
                       <i:Name id='nane'/>\
                       <i:Area id='area'/>\
                       <i:Link id='link'/>\
-                      <PUID id='puid'/>\
+                      <i:PUID id='puid'/>\
                       <i:Class id='class'/>\
                       <i:Type id='type'/>\
                     </i:Form>\
@@ -559,26 +579,6 @@ $_("update").imports({
                 sys.guid.trigger("next", p);
             });
             return {val: sys.text.text};
-        }
-    },
-    PUID: {
-        xml: "<Input id='part' label='局部标识符' xmlns='/signup/form'/>",
-        fun: function (sys, items, opts) {
-            function error( msg ) {
-                items.part.focus();
-                sys.part.trigger("message", ["error", msg]);
-            }
-            this.on("start", function (e, o) {
-                o.part = items.part.val();
-                if (o.part === "") {
-                    error("请输入局部标识符");
-                } else if (o.part.length < 2) {
-                    error("配件名称至少需要2个字符");
-                } else {
-                    sys.part.trigger("next", o);
-                }
-            });
-            return items.part;
         }
     }
 });

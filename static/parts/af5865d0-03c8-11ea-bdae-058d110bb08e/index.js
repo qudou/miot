@@ -266,7 +266,7 @@ $_("header").imports({
 
 $_("header/titlebar").imports({
     Stores: {
-        xml: "<select id='stores' disabled='true'>\
+        xml: "<select id='stores' disabled='true' style='height:23px;'>\
                  <option value='迎宾街'>迎宾街</option>\
                  <option value='总部'>总部</option>\
                  <option value='荣兴'>荣兴</option>\
@@ -433,12 +433,13 @@ $_("header/titlebar").imports({
         }
     },
     Supplier: {
-        xml: "<select id='supplier'>\
+        xml: "<select id='supplier' style='height: 23px;'>\
                  <option value='31043'>自采供应商</option>\
                  <option value='46251'>全有商贸</option>\
                  <option value='46246'>惠众商行</option>\
                  <option value='46250'>鹏辉贸易</option>\
                  <option value='86711'>奥曼力申</option>\
+                 <option value='46422'>金峰商贸</option>\
                  <option value='86779'>双华批发</option>\
               </select>",
         fun: function (sys, items, opts) {
@@ -453,7 +454,7 @@ $_("header/titlebar").imports({
         }
     },
     Types: {
-        xml: "<select id='types'>\
+        xml: "<select id='types' style='height: 23px;'>\
                  <option value='0'>全部分类</option>\
                  <option value='1'>饮料</option>\
                  <option value='2'>食品</option>\
@@ -788,7 +789,7 @@ $_("insert").imports({
         }
     },
     Supplier: {
-		xml: "<div class='dialog-input-field input'>\
+		xml: "<div class='dialog-input-field input' style='height: 23px;'>\
                 <span>供应商</span>\
                 <select id='supplier' style='border: 1px solid #B2B2B2; -webkit-appearance: auto; display: inline; height: 26px; width: 182px;'>\
                    <option value='31043'>自采供应商</option>\
@@ -796,6 +797,7 @@ $_("insert").imports({
                    <option value='46246'>惠众商行</option>\
                    <option value='46250'>鹏辉贸易</option>\
                    <option value='86711'>奥曼力申</option>\
+                   <option value='46422'>金峰商贸</option>\
                    <option value='86779'>双华批发</option>\
                 </select>\
               </div>",

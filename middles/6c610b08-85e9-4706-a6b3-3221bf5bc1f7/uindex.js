@@ -14,7 +14,6 @@ const secret = "77c6914c4af9202c281491cae63956a3";  // 密钥
 const mchkey = "c431eda71215891bced9de7991afa73d";  // 安全密钥
 
 let CurrentOrder = null;
-
 xmlweb("6c610b08-85e9-4706-a6b3-3221bf5bc1f7", (xp, $_) => { //leyaoyao
 
 $_().imports({

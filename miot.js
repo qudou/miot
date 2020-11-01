@@ -26,15 +26,16 @@ $_().imports({
                 <Mosca id='mosca'/>\
                 <Proxy id='proxy'/>\
               </main>",
-        map: { share: "sqlite/Sqlite" }
+        map: { share: "sqlite/Sqlite mosca/File" }
     },
     Mosca: { // 本 MQTT 服务器用于连接 MQTT 客户端，一般是主机上的客户端，如树莓派等
         xml: "<main id='mosca' xmlns:i='mosca'>\
                 <i:Authorize id='auth'/>\
                 <i:Links id='links'/>\
                 <i:Parts id='parts'/>\
+                <i:Middle id='middle'/>\
               </main>",
-        fun: async function (sys, items, opts) {
+        fun: function (sys, items, opts) {
             let server = new mosca.Server({port: 1883});
             server.on("ready", async () => {
                 await items.links.offlineAll();
@@ -52,15 +53,15 @@ $_().imports({
                 parts.forEach(item => this.notify("to-users", {topic: "/SYS", mid: item.id, online: 0}));
             });
             server.on("published", async (packet, client) => {
-                if (packet.topic == ID) {
-                    let payload = JSON.parse(packet.payload + '');
-                    let part = await items.parts.getPartByLink(client.id, payload.pid);
-                    if (!part) return;
-                    if (payload.topic == "/SYS")
-                        await items.parts.cache(part.id, payload);
-                    payload.mid = part.id;
-                    this.notify("to-users", payload);
-                }
+                if (packet.topic !== ID) return;
+                let p = JSON.parse(packet.payload + '');
+                let m = await items.parts.getPartByLink(client.id, p.pid);
+                if (!m) return;
+                if (p.topic == "/SYS")
+                    await items.parts.cache(m.id, p);
+                p.mid = m.id;
+                p.link = m.link;
+                await items.middle.run(m['class'], p);
             });
             this.watch("to-local", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
@@ -72,7 +73,8 @@ $_().imports({
         xml: "<main id='proxy' xmlns:i='proxy'>\
                 <i:Authorize id='auth'/>\
                 <i:Users id='users'/>\
-                <i:Factory id='factory'/>\
+                <i:Middle id='middle'/>\
+                <k:Sqlite id='sqlite' xmlns:k='sqlite'/>\
               </main>",
         opt: { port: 1885, https: { port: 443, bundle: true, static: `${__dirname}/static` }, secure: { keyPath: SECURE_KEY, certPath: SECURE_CERT } },
         fun: function (sys, items, opts) {
@@ -86,20 +88,14 @@ $_().imports({
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 let p = JSON.parse(packet.payload + '');
-                let m = await items.factory.getPartById(packet.topic);
-                try {
-                    p.pid = m.part;
-                    p.cid = client.id;
-                    p.uid = await items.users.getUidByCid(client.id);
-                    if (p.uid == undefined) return;
-                    p.mid = packet.topic;
-                    p.link = m.link;
-                    items.factory.create(m['class'], p);
-                } catch(e) {
-                    logger.debug(e);
-                    let body = { topic: p.topic, body: p.body };
-                    this.notify("to-local", [p.link, {pid: p.pid, body: body}]); 
-                }
+                let m = await getPartById(packet.topic);
+                p.uid = await items.users.getUidByCid(client.id);
+                if (p.uid == undefined) return;
+                p.cid = client.id;
+                p.mid = packet.topic;
+                p.link = m.link;
+                p.pid = m.part;
+                await items.middle.run(m['class'], p);
             });
             this.watch("to-user", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
@@ -109,6 +105,15 @@ $_().imports({
                 let users = await items.users.getUsersByMiddle(payload.mid);
                 users.forEach(item => this.notify("to-user", [item.client_id, payload]));
             });
+            function getPartById(partId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT * FROM parts WHERE id = '${partId}'`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data[0]);
+                    });
+                });
+            }
         }
     }
 });
@@ -206,6 +211,50 @@ $_("mosca").imports({
                 });
             }
             return { cache: cache, update: update, offlineAll: offlineAll, getPartByLink: getPartByLink, getPartsByLink: getPartsByLink };
+        }
+    },
+    Middle: {
+        xml: "<File id='file'/>",
+        fun: function (sys, items, opts) {
+            let table = {};
+            async function run(klass, p) {
+                if (!table[klass]) {
+                    let path = `${__dirname}/middles/${klass}/pindex.js`;
+                    if (!await items.file.exists(path))
+                        return sys.file.trigger("to-users", p);
+                    table[klass] = middle(klass, path);
+                }
+                let msgs = xp.messages(table[klass]);
+                if(msgs.indexOf(p.topic) == -1)
+                    return sys.file.trigger("to-users", p);
+                table[klass].notify(p.topic, p);
+            }
+            function middle(klass, path) {
+                require(path);
+                let c = xp.hasComponent(`//${klass}/Index`);
+                c.map.msgscope = true;
+                return sys.file.append(`//${klass}/Index`);
+            }
+            this.on("to-users", (e, p) => {
+                e.stopPropagation();
+                let payload = { mid: p.mid, topic: p.topic, data: p.data };
+                this.notify("to-users", payload);
+            });
+            this.on("to-local", (e, p) => {
+                e.stopPropagation();
+                let body = { topic: p.topic, body: p.body };
+                this.notify("to-local", [p.link, {pid: p.pid, body: body}]);
+            });
+            return { run: run };
+        }
+    },
+    File: {
+        fun: function (sys, items, opts) {
+            const fs= require("fs");
+            function exists(path) {
+                return new Promise((resolve, reject) => fs.exists(path, e => resolve(e)));
+            }
+            return { exists: exists };
         }
     }
 });
@@ -324,41 +373,39 @@ $_("proxy").imports({
             return { canSubscribe: canSubscribe, getUsersByMiddle: getUsersByMiddle, connected: connected, disconnected: disconnected, offlineAll: offlineAll, getUidByCid: getUidByCid };
         }
     },
-    Factory: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
+    Middle: {
+        xml: "<File id='file' xmlns='../mosca'/>",
         fun: function (sys, items, opts) {
             let table = {};
-            function create(klass, p) {
+            async function run(klass, p) {
                 if (!table[klass]) {
-                    require(`${__dirname}/middles/${klass}/index.js`);
-                    let c = xp.hasComponent(`//${klass}/Index`);
-                    c.map.msgscope = true;
-                    table[klass] = sys.sqlite.append(`//${klass}/Index`);
+                    let path = `${__dirname}/middles/${klass}/uindex.js`;
+                    if (!await items.file.exists(path))
+                        return sys.file.trigger("to-local", p);
+                    table[klass] = middle(klass, path);
                 }
+                let msgs = xp.messages(table[klass]);
+                if(msgs.indexOf(p.topic) == -1)
+                    return sys.file.trigger("to-local", p);
                 table[klass].notify(p.topic, p);
             }
-            function getPartById(partId) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM parts WHERE id = '${partId}'`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(data[0]);
-                    });
-                });
+            function middle(klass, path) {
+                require(path);
+                let c = xp.hasComponent(`//${klass}/Index`);
+                c.map.msgscope = true;
+                return sys.file.append(`//${klass}/Index`);
             }
-            this.on("to-user", (e, payload) => {
-                let p = payload;
+            this.on("to-user", (e, p) => {
                 e.stopPropagation();
-                payload = { mid: p.mid, topic: p.topic, data: p.data };
+                let payload = { mid: p.mid, topic: p.topic, data: p.data };
                 this.notify("to-user", [p.cid, payload]);
             });
-            this.on("to-local", (e, payload) => {
-                let p = payload;
+            this.on("to-local", (e, p) => {
                 e.stopPropagation();
                 let body = { topic: p.topic, body: p.body };
                 this.notify("to-local", [p.link, {pid: p.pid, body: body}]);
             });
-            return { create: create, getPartById: getPartById };
+            return { run: run };
         }
     }
 });

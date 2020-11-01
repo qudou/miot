@@ -35,14 +35,24 @@ $_().imports({
         css: "#content .page-content div { margin-left: 15px; margin-right: 15px; }",
         xml: "<div id='content' class='page'>\
                 <div class='page-content'>\
+                    <div>室内温度：<span id='temperature'/>℃</div>\
+                    <div>室内湿度：<span id='humidity'/>%</div>\
+                    <div>室内光照：<span id='light'/>lx</div>\
                     <Button id='open'>布防</Button>\
                     <Button id='close'>撤防</Button>\
                 </div>\
               </div>",
-        map: { nofragment: true },
         fun: function (sys, items, opts) {
+            this.watch("/env", (e, o) => {
+                sys.temperature.text(o.temperature);
+                sys.humidity.text(o.humidity);
+                sys.light.text(o.light);
+            });
+            this.trigger("publish", "/env");
             sys.open.on(Click, (e, data) => this.trigger("publish", "/bufang"));
             sys.close.on(Click, (e, data) => this.trigger("publish", "/chefang"));
+            this.watch("/bufang", () => this.trigger("message", ["info", "已布防"]));
+            this.watch("/chefang", () => this.trigger("message", ["info", "已撤防"]));
         }
     },
     Button: {
