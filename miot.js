@@ -8,8 +8,6 @@
 const mosca = require("mosca");
 const xmlplus = require("xmlplus");
 const ID = "c55d5e0e-f506-4933-8962-c87932e0bc2a";
-const SECURE_KEY = __dirname + '/cert/2933686_xmlplus.cn.key';
-const SECURE_CERT = __dirname + '/cert/2933686_xmlplus.cn.pem';
 
 const log4js = require("log4js");
 log4js.configure({
@@ -26,7 +24,7 @@ $_().imports({
                 <Mosca id='mosca'/>\
                 <Proxy id='proxy'/>\
               </main>",
-        map: { share: "sqlite/Sqlite mosca/File" }
+        map: { share: "sqlite/Sqlite" }
     },
     Mosca: { // 本 MQTT 服务器用于连接 MQTT 客户端，一般是主机上的客户端，如树莓派等
         xml: "<main id='mosca' xmlns:i='mosca'>\
@@ -35,7 +33,7 @@ $_().imports({
                 <i:Parts id='parts'/>\
                 <i:Middle id='middle'/>\
               </main>",
-        fun: function (sys, items, opts) {
+        fun: async function (sys, items, opts) {
             let server = new mosca.Server({port: 1883});
             server.on("ready", async () => {
                 await items.links.offlineAll();
@@ -61,7 +59,7 @@ $_().imports({
                     await items.parts.cache(m.id, p);
                 p.mid = m.id;
                 p.link = m.link;
-                await items.middle.run(m['class'], p);
+                await items.middle.create(m['class'], p);
             });
             this.watch("to-local", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
@@ -76,7 +74,7 @@ $_().imports({
                 <i:Middle id='middle'/>\
                 <k:Sqlite id='sqlite' xmlns:k='sqlite'/>\
               </main>",
-        opt: { port: 1885, https: { port: 443, bundle: true, static: `${__dirname}/static` }, secure: { keyPath: SECURE_KEY, certPath: SECURE_CERT } },
+        opt: { port: 1885, http: { port: 3000, bundle: true } },
         fun: function (sys, items, opts) {
             let server = new mosca.Server(opts);
             server.on("ready", async () => {
@@ -89,13 +87,13 @@ $_().imports({
                 if (client == undefined) return;
                 let p = JSON.parse(packet.payload + '');
                 let m = await getPartById(packet.topic);
+                p.pid = m.part;
+                p.cid = client.id;
                 p.uid = await items.users.getUidByCid(client.id);
                 if (p.uid == undefined) return;
-                p.cid = client.id;
                 p.mid = packet.topic;
                 p.link = m.link;
-                p.pid = m.part;
-                await items.middle.run(m['class'], p);
+                await items.middle.create(m['class'], p);
             });
             this.watch("to-user", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
@@ -217,7 +215,7 @@ $_("mosca").imports({
         xml: "<File id='file'/>",
         fun: function (sys, items, opts) {
             let table = {};
-            async function run(klass, p) {
+            async function create(klass, p) {
                 if (!table[klass]) {
                     let path = `${__dirname}/middles/${klass}/pindex.js`;
                     if (!await items.file.exists(path))
@@ -245,14 +243,16 @@ $_("mosca").imports({
                 let body = { topic: p.topic, body: p.body };
                 this.notify("to-local", [p.link, {pid: p.pid, body: body}]);
             });
-            return { run: run };
+            return { create: create };
         }
     },
     File: {
         fun: function (sys, items, opts) {
             const fs= require("fs");
             function exists(path) {
-                return new Promise((resolve, reject) => fs.exists(path, e => resolve(e)));
+                return new Promise((resolve, reject) => {
+                    fs.exists(path, e => resolve(e));
+                });
             }
             return { exists: exists };
         }
@@ -377,7 +377,7 @@ $_("proxy").imports({
         xml: "<File id='file' xmlns='../mosca'/>",
         fun: function (sys, items, opts) {
             let table = {};
-            async function run(klass, p) {
+            async function create(klass, p) {
                 if (!table[klass]) {
                     let path = `${__dirname}/middles/${klass}/uindex.js`;
                     if (!await items.file.exists(path))
@@ -405,7 +405,7 @@ $_("proxy").imports({
                 let body = { topic: p.topic, body: p.body };
                 this.notify("to-local", [p.link, {pid: p.pid, body: body}]);
             });
-            return { run: run };
+            return { create: create };
         }
     }
 });
