@@ -7,7 +7,7 @@
 
 const xmlplus = require("xmlplus");
 
-xmlplus("9dd8a38b-a406-4679-82d5-dd8b7e3a30b7", (xp, $_) => {
+xmlplus("9dd8a38b-a406-4679-82d5-dd8b7e3a30b7", (xp, $_) => { // 授权管理
 
 $_().imports({
     Index: {
@@ -20,49 +20,49 @@ $_().imports({
               </main>"
     },
     Users: {
-        xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='users' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.watch("/auths/users", (e, p) => {
                 let stmt = `SELECT id,name,email FROM users WHERE id<>0`;
-                items.db.all(stmt, (err, data) => {
+                items.users.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = [];
                     data.forEach(i => {
                         p.data.push({'id':i.id,'name':i.name,'email':i.email});
                     });
-                    this.trigger("to-user", p);
+                    this.trigger("to-users", p);
                 });
             });
         }
     },
     Areas: {
-        xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='areas' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             let stmt = "SELECT id, name FROM areas WHERE id <> 0";
             this.watch("/auths/areas", (e, p) => {
-                items.db.all(stmt, (err, data) => {
+                items.areas.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
-                    this.trigger("to-user", p);
+                    this.trigger("to-users", p);
                 });
             });
         }
     },
     Links: {
-        xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='links' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             let stmt = "SELECT id, name, area FROM links WHERE area<>0 ORDER BY area";
             this.watch("/auths/links", (e, p) => {
-                items.db.all(stmt, (err, data) => {
+                items.links.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
-                    this.trigger("to-user", p);
+                    this.trigger("to-users", p);
                 });
             });
         }
     },
     Parts: {
-        xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='parts' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.watch("/auths/parts", async (e, p) => {
                 let table = {};
@@ -71,12 +71,12 @@ $_().imports({
                 let auths = await getAuths(p.body.user);
                 auths.forEach(i=>table[i.part] && (table[i.part].auth = 1));
                 p.data = parts;
-                this.trigger("to-user", p);
+                this.trigger("to-users", p);
             });
             function getParts(link) {
                 return new Promise((resolve, reject) => {
                     let stmt = `SELECT id,name,link,class FROM parts WHERE link='${link}' AND type<>0`;
-                    items.db.all(stmt, (err, rows) => {
+                    items.parts.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(rows);
                     });
@@ -85,7 +85,7 @@ $_().imports({
             function getAuths(user) {
                 return new Promise((resolve, reject) => {
                     let stmt = `SELECT * FROM auths WHERE user = ${user}`;
-                    items.db.all(stmt, (err, rows) => {
+                    items.parts.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(rows);
                     });
@@ -94,35 +94,35 @@ $_().imports({
         }
     },
     Auth: {
-        xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='auth' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.watch("/auths/auth", (e, p) => {
                 p.body.auth ? exists(p) : remove(p);
             });
             function exists(p) {
                 let stmt = `SELECT * FROM auths WHERE user=${p.body.user} AND part='${p.body.part}'`;
-                items.db.all(stmt, (err, data) => {
+                items.auth.all(stmt, (err, data) => {
                     if (err) throw err;
                     if (!data.length)
                         return insert(p);
                     p.data = {code: 0, desc: "授权成功"};
-                    sys.db.trigger("to-user", p);
+                    sys.auth.trigger("to-users", p);
                 });
             }
             function insert(p) {
-                let stmt = items.db.prepare("INSERT INTO auths (user,part) VALUES(?,?)");
+                let stmt = items.auth.prepare("INSERT INTO auths (user,part) VALUES(?,?)");
                 stmt.run(p.body.user, p.body.part);
                 stmt.finalize(() => {
                     p.data = {code: 0, desc: "授权成功"};
-                    sys.db.trigger("to-user", p);
+                    sys.auth.trigger("to-users", p);
                 });
             }
             function remove(p) {
-                let stmt = items.db.prepare("DELETE FROM auths WHERE user=? AND part=?");
+                let stmt = items.auth.prepare("DELETE FROM auths WHERE user=? AND part=?");
                 stmt.run(p.body.user, p.body.part, function (err) {
                     if (err) throw err;
                     p.data = this.changes ? {code: 0, desc: "删除成功"} : {code: -1, desc: "删除失败"};
-                    sys.db.trigger("to-user", p);
+                    sys.auth.trigger("to-users", p);
                 });
             }
         }

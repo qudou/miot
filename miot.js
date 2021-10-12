@@ -7,7 +7,6 @@
 
 const mosca = require("mosca");
 const xmlplus = require("xmlplus");
-const ID = "c55d5e0e-f506-4933-8962-c87932e0bc2a";
 
 const log4js = require("log4js");
 log4js.configure({
@@ -15,6 +14,7 @@ log4js.configure({
     categories: { default: { appenders: ["miot"], level: "info" } }
 });
 const logger = log4js.getLogger("miot");
+const config = JSON.parse(require("fs").readFileSync(`${__dirname}/config.json`));
 
 xmlplus("miot", (xp, $_) => {
 
@@ -34,7 +34,7 @@ $_().imports({
                 <i:Middle id='middle'/>\
               </main>",
         fun: async function (sys, items, opts) {
-            let server = new mosca.Server({port: 1883});
+            let server = new mosca.Server({port: config.mqtt_port});
             server.on("ready", async () => {
                 await items.links.offlineAll();
                 await items.parts.offlineAll();
@@ -51,14 +51,13 @@ $_().imports({
                 parts.forEach(item => this.notify("to-users", {topic: "/SYS", mid: item.id, online: 0}));
             });
             server.on("published", async (packet, client) => {
-                if (packet.topic !== ID) return;
+                if (packet.topic !== "/SYS") return;
                 let p = JSON.parse(packet.payload + '');
                 let m = await items.parts.getPartByLink(client.id, p.pid);
                 if (!m) return;
                 if (p.topic == "/SYS")
                     await items.parts.cache(m.id, p);
                 p.mid = m.id;
-                p.link = m.link;
                 await items.middle.create(m['class'], p);
             });
             this.watch("to-local", (e, topic, payload) => {
@@ -74,7 +73,7 @@ $_().imports({
                 <i:Middle id='middle'/>\
                 <Util id='util' xmlns='.'/>\
               </main>",
-        opt: { port: 1885, http: { port: 3000, bundle: true } },
+        opt: { port: 1888, http: { port: config.http_port, static: `${__dirname}/static`, bundle: true } },
         fun: function (sys, items, opts) {
             let server = new mosca.Server(opts);
             server.on("ready", async () => {
@@ -87,12 +86,8 @@ $_().imports({
                 if (client == undefined) return;
                 let p = JSON.parse(packet.payload + '');
                 let m = await items.util.getPartById(packet.topic);
-                p.pid = m.part;
                 p.cid = client.id;
-                p.uid = await items.users.getUidByCid(client.id);
-                if (p.uid == undefined) return;
                 p.mid = packet.topic;
-                p.link = m.link;
                 await items.middle.create(m['class'], p);
             });
             this.watch("to-user", (e, topic, payload) => {
@@ -108,7 +103,7 @@ $_().imports({
     Util: {
         xml: "<Sqlite id='sqlite' xmlns='sqlite'/>",
         fun: function (sys, items, opts) {
-            const fs= require("fs");
+            let fs= require("fs");
             function exists(path) {
                 return new Promise((resolve, reject) => {
                     fs.exists(path, e => resolve(e));
@@ -248,13 +243,14 @@ $_("mosca").imports({
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
                 let payload = { mid: p.mid, topic: p.topic, data: p.data };
+                p.topic == "/SYS" && (payload.online = p.online);
                 this.notify("to-users", payload);
             });
             this.on("to-local", (e, p) => {
                 e.stopPropagation();
                 let m = items.uitl.getPartById(p.mid);
                 let body = { topic: p.topic, body: p.body };
-                this.notify("to-local", [m.link, {pid: m.pid, body: body}]);
+                this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });
             return { create: create };
         }
@@ -363,16 +359,7 @@ $_("proxy").imports({
                     });
                 });
             }
-            function getUidByCid(clientId) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT user_id FROM status WHERE client_id = '${clientId}'`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(data[0] && data[0].user_id);
-                    });
-                });
-            }
-            return { canSubscribe: canSubscribe, getUsersByMiddle: getUsersByMiddle, connected: connected, disconnected: disconnected, offlineAll: offlineAll, getUidByCid: getUidByCid };
+            return { canSubscribe: canSubscribe, getUsersByMiddle: getUsersByMiddle, connected: connected, disconnected: disconnected, offlineAll: offlineAll };
         }
     },
     Middle: {
@@ -397,15 +384,16 @@ $_("proxy").imports({
                 c.map.msgscope = true;
                 return sys.util.append(`//${klass}/Index`);
             }
-            this.on("to-user", (e, p) => {
+            this.on("to-users", (e, p) => {
                 e.stopPropagation();
                 let payload = { mid: p.mid, topic: p.topic, data: p.data };
-                this.notify("to-users", payload);
+                p.cid ? this.notify("to-user", [p.cid, payload]) : this.notify("to-users", payload);
             });
-            this.on("to-local", (e, p) => {
+            this.on("to-local", async (e, p) => {
                 e.stopPropagation();
+                let m = await items.util.getPartById(p.mid);
                 let body = { topic: p.topic, body: p.body };
-                this.notify("to-local", [p.link, {pid: p.pid, body: body}]);
+                this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });
             return { create: create };
         }

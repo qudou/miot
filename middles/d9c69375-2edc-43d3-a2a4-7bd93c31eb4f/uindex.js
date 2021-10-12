@@ -7,7 +7,7 @@
 
 const xmlplus = require("xmlplus");
 
-xmlplus("d9c69375-2edc-43d3-a2a4-7bd93c31eb4f", (xp, $_) => {
+xmlplus("d9c69375-2edc-43d3-a2a4-7bd93c31eb4f", (xp, $_) => { // 用户管理
 
 $_().imports({
     Index: {
@@ -21,50 +21,48 @@ $_().imports({
         map: { share: "signup/Crypto signup/InputCheck" }
     },
     Select: {
-        xml: "<Sqlite id='db' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='select' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.watch("/users/select", (e, p) => {
                 let stmt = `SELECT id,name,email,repeat_login FROM users`;
-                items.db.all(stmt, (err, data) => {
+                items.select.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = [];
                     data.forEach(i => {
                         p.data.push({'id':i.id,'name':i.name,'email':i.email,'repeat_login':i.repeat_login});
                     });
-                    this.trigger("to-user", p);
+                    this.trigger("to-users", p);
                 });
             });
         }
     },
     Signup: {
         xml: "<Flow id='signup' xmlns:i='signup'>\
-                <i:Validate id='validate'/>\
-                <i:Signup id='signup_'/>\
+                <i:Validate/>\
+                <i:Signup/>\
               </Flow>",
         fun: function (sys, items, opts) {
             this.watch("/users/signup", items.signup.start);
         }
     },
     Remove: {
-        xml: "<main id='remove'>\
-                <Sqlite id='db' xmlns='//miot/sqlite'/>\
-              </main>",
+        xml: "<Sqlite id='remove' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.watch("/users/remove", (e, p) => {
                 let remove = "DELETE FROM users WHERE id=? AND id<>0";
-                let stmt = items.db.prepare(remove);
+                let stmt = items.remove.prepare(remove);
                 stmt.run(p.body.id, function (err) {
                     if (err) throw err;
                     p.data = this.changes ? {code: 0, desc: "删除成功"} : {code: -1, desc: "删除失败"};
-                    sys.remove.trigger("to-user", p);
+                    sys.remove.trigger("to-users", p);
                 });
             });
         }
     },
     Update: {
         xml: "<Flow id='update' xmlns:i='update'>\
-                <i:Validate id='validate'/>\
-                <i:Update id='update_'/>\
+                <i:Validate/>\
+                <i:Update/>\
               </Flow>",
         fun: function (sys, items, opts) {
             this.watch("/users/update", items.update.start);
@@ -72,8 +70,8 @@ $_().imports({
     },
     Chpasswd: {
         xml: "<Flow id='chpasswd' xmlns:i='chpasswd'>\
-                <i:Validate id='validate'/>\
-                <i:Chpasswd id='chpasswd_'/>\
+                <i:Validate/>\
+                <i:Chpasswd/>\
               </Flow>",
         fun: function (sys, items, opts) {
             this.watch("/users/chpasswd", items.chpasswd.start);
@@ -91,7 +89,7 @@ $_().imports({
                 ptr = first;
                 ptr.trigger("exec", p, false);
             }
-            return { start: start };
+            return {start: start};
         }
     }
 });
@@ -108,7 +106,7 @@ $_("signup").imports({
                 if (items.check("e", p.body.email) && items.check("u", p.body.name) || items.check("p", p.body.pass))
                     return checkName(p);
                 p.data = {code: -1, desc: "邮箱、用户名或密码有误"};
-                this.trigger("to-user", p);
+                this.trigger("to-users", p);
             });
             function checkName(p) {
                 var stmt = "SELECT * FROM users WHERE name='" + p.body.name + "' LIMIT 1";
@@ -117,7 +115,7 @@ $_("signup").imports({
                     if (!rows.length)
                         return checkEmail(p);
                     p.data = {code: -1, desc: "用户已存在"};
-                    sys.db.trigger("to-user", p);
+                    sys.db.trigger("to-users", p);
                 });
             }
             function checkEmail(p) {
@@ -127,7 +125,7 @@ $_("signup").imports({
                     if (!rows.length)
                         return sys.db.trigger("next", p);
                     p.data = {code: -1, desc: "邮箱已存在"};
-                    sys.db.trigger("to-user", p);
+                    sys.db.trigger("to-users", p);
                 });
             }
         }
@@ -145,7 +143,7 @@ $_("signup").imports({
                 stmt.run(p.body.email, p.body.name, pass, salt, p.body.relogin);
                 stmt.finalize(() => {
                     p.data = {code: 0, desc: "注册成功"};
-                    sys.signup.trigger("to-user", p);
+                    sys.signup.trigger("to-users", p);
                 }); 
             });
         }
@@ -201,7 +199,7 @@ $_("update").imports({
                 if (items.check("e", p.body.email) && items.check("u", p.body.name))
                     return checkName(p);
                 p.data = {code: -1, desc: "邮箱或用户名有误"};
-                this.trigger("to-user", p);
+                this.trigger("to-users", p);
             });
             function checkName(p) {
                 var stmt = `SELECT * FROM users WHERE id<>'${p.body.id}' AND name='${p.body.name}'`;
@@ -210,7 +208,7 @@ $_("update").imports({
                     if (!rows.length)
                         return checkEmail(p);
                     p.data = {code: -1, desc: "用户已存在"};
-                    sys.validate.trigger("to-user", p);
+                    sys.validate.trigger("to-users", p);
                 });
             }
             function checkEmail(p) {
@@ -220,7 +218,7 @@ $_("update").imports({
                     if (!rows.length)
                         return sys.validate.trigger("next", p);
                     p.data = {code: -1, desc: "邮箱已存在"};
-                    sys.validate.trigger("to-user", p);
+                    sys.validate.trigger("to-users", p);
                 });
             }
         }
@@ -237,7 +235,7 @@ $_("update").imports({
                 stmt.run(p.body.name,p.body.email,p.body.relogin,p.body.id, err => {
                     if (err) throw err;
                     p.data = {code: 0, desc: "更新成功"};
-                    this.trigger("to-user", p);
+                    this.trigger("to-users", p);
                 });
             });
         }
@@ -260,7 +258,7 @@ $_("chpasswd").imports({
                     if (!!rows.length && checkPass(p.body.pass, rows[0]))
                         return checkNewPass(p);
                     p.data = {code: -1, desc: "密码有误"};
-                    this.trigger("to-user", p);
+                    this.trigger("to-users", p);
                 });
             });
             function checkPass(pass, record) {
@@ -270,7 +268,7 @@ $_("chpasswd").imports({
                 if (items.check("p", p.body.new_pass))
                     return sys.validate.trigger("next", p);
                 p.data = {code: -1, desc: "新密码有误"};
-                sys.validate.trigger("to-user", p);
+                sys.validate.trigger("to-users", p);
             }
         }
     },
@@ -288,7 +286,7 @@ $_("chpasswd").imports({
                 stmt.run(pass, salt, p.body.id, function(err) {
                     if (err) throw err;
                     p.data = this.changes ? {code: 0, desc: "修改成功"} : {code: -1, desc: "修改失败"};
-                    sys.chpasswd.trigger("to-user", p);
+                    sys.chpasswd.trigger("to-users", p);
                 });
             });
         }

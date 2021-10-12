@@ -7,7 +7,7 @@
 
 const xmlplus = require("xmlplus");
 
-xmlplus("c4af113c-e299-4b5c-a376-27dfc6665266", (xp, $_) => {
+xmlplus("c4af113c-e299-4b5c-a376-27dfc6665266", (xp, $_) => { // 用户界面
 
 $_().imports({
     Index: {
@@ -20,13 +20,13 @@ $_().imports({
     Areas: {
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/areas/select", (e, payload) => {
-                let stmt = `SELECT distinct areas.* FROM areas,links,parts,auths
-                            WHERE areas.id = links.area AND links.id = parts.link AND parts.id = auths.part AND auths.user=${payload.uid}`
+            this.watch("/areas/select", (e, p) => {
+                let stmt = `SELECT distinct areas.* FROM areas,links,parts,auths,status
+                            WHERE areas.id = links.area AND links.id = parts.link AND parts.id = auths.part AND auths.user=status.user_id AND status.client_id='${p.cid}'`
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
-                    payload.data = data;
-                    this.trigger("to-user", payload);
+                    p.data = data;
+                    this.trigger("to-users", p);
                 });
             });
         }
@@ -34,13 +34,13 @@ $_().imports({
     Links: {
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/links/select", (e, payload) => {
-                let stmt = `SELECT distinct links.* FROM links,parts,auths
-                            WHERE links.area = '${payload.body.area}' AND links.id = parts.link AND parts.id = auths.part AND auths.user=${payload.uid} `;
+            this.watch("/links/select", (e, p) => {
+                let stmt = `SELECT distinct links.* FROM links,parts,auths,status
+                            WHERE links.area = '${p.body.area}' AND links.id = parts.link AND parts.id = auths.part AND auths.user=status.user_id AND status.client_id='${p.cid}'`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
-                    payload.data = {area: payload.body.area, links: data};
-                    this.trigger("to-user", payload);
+                    p.data = {area: p.body.area, links: data};
+                    this.trigger("to-users", p);
                 });
             });
         }
@@ -48,16 +48,16 @@ $_().imports({
     Parts: {
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/parts/select", (e, payload) => {
-                let stmt = `SELECT parts.* FROM parts,auths
-                            WHERE parts.link = '${payload.body.link}' AND parts.id = auths.part AND auths.user=${payload.uid}`;
+            this.watch("/parts/select", (e, p) => {
+                let stmt = `SELECT parts.* FROM parts,auths,status
+                            WHERE parts.link = '${p.body.link}' AND parts.id = auths.part AND auths.user=status.user_id AND status.client_id='${p.cid}'`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
-                    payload.data = {link: payload.body.link, parts: []};
+                    p.data = {link: p.body.link, parts: []};
                     data.forEach(i => {
-                        payload.data.parts.push({'mid':i.id,'name':i.name,'class':i.class,'type':i.type,'online':i.online});
+                        p.data.parts.push({'mid':i.id,'name':i.name,'class':i.class,'type':i.type,'online':i.online});
                     });
-                    this.trigger("to-user", payload);
+                    this.trigger("to-users", p);
                 });
             });
         }

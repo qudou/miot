@@ -1,0 +1,35 @@
+{
+  "name": "马蹄莲,连接万物",
+  "short_name": "马蹄莲",
+  "description": "随时随地连接",
+  "icons": [
+    {
+      "src": "img/screen_icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "img/screen_icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "share_target": {
+    "action": "compose/share",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    },
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded"
+  },
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3F3F3",
+  "theme_color": "#F3F3F3",
+  "related_applications": [],
+  "prefer_related_applications": false
+}

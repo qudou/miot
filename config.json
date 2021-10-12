@@ -1,0 +1,4 @@
+{
+    "mqtt_port": 1883,
+    "http_port": 8080
+}
