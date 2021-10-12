@@ -168,12 +168,12 @@ $_("update").imports({
     Update: {
         xml: "<Sqlite id='update' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            let update = "UPDATE parts SET name=?,link=?,part=?,class=?,type=?,online=? WHERE id=?";
+            let update = "UPDATE parts SET name=?,link=?,part=?,class=?,type=?str WHERE id=?";
             this.on("exec", (e, p) => {
                 let b = p.body;
-                let stmt = items.update.prepare(update);
-                let online = b.type > 1 ? 0 : 1;
-                stmt.run(b.name,b.link,b.part,b.class,b.type,online,b.id, err => {
+                let s = b.type > 1 ? ',online=1' : '';
+                let stmt = items.update.prepare(update.replace("str",s));
+                stmt.run(b.name,b.link,b.part,b.class,b.type,b.id, err => {
                     if (err) throw err;
                     p.data = {code: 0, desc: "更新成功"};
                     this.trigger("to-users", p);
