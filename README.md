@@ -11,4 +11,4 @@
 - 内网网关 : 内网网关连接配件且与外网网关直接通信
 - 配件层 : 配件通过内网网关组织起来，对外提供操作接口以及数据服务
 
-想了解更多，请访问 [miot](https://xmlplus.cn/miot)
+想了解更多，请访问 <a href="https://xmlplus.cn/miot" target="blank">miot官方文档</a>。
