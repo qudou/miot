@@ -327,7 +327,7 @@ $_("update").imports({
         }
     },
     GUID: {
-        xml: "<Input id='id' label='标识符' disabled='true' style='font-size:14px;' maxlength='32' xmlns='../signup/form'/>",
+        xml: "<Input id='id' label='标识符' style='font-size:14px;' maxlength='32' xmlns='../signup/form'/>",
         fun: function (sys, items, opts) {
             this.on("start", function (e, o) {
                 o.id = items.id.val();
