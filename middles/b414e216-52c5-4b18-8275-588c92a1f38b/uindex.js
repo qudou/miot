@@ -129,7 +129,7 @@ $_("signup").imports({
                 e.stopPropagation();
                 if (p.body.name.length > 1)
                     return this.trigger("next", p);
-                p.data = {code: -1, desc: "配件名称至少2个字符"};
+                p.data = {code: -1, desc: "应用名称至少2个字符"};
                 this.trigger("to-users", p);
             });
         }
