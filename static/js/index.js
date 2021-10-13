@@ -22,6 +22,7 @@ $_().imports({
                 <Login id='login'/>\
                 <Content id='content'/>\
               </ViewStack>",
+        map: { share: "Query" },
         fun: function(sys, items, opts) {
             let toast;
             this.on("message", (e, t, msg) => {
@@ -32,17 +33,13 @@ $_().imports({
         }
     },
     Verify: {
-        xml: "<Overlay id='verify' xmlns='verify'/>",
+        xml: "<Overlay id='verify' xmlns='verify'>\
+                <Query id='query' xmlns='/'/>\
+              </Overlay>",
         fun: function (sys, items, opts) {
-            let r = location.search.substr(1).split('&');
-            window.Q = {};
-            r.forEach(pair => {
-                let p = pair.split('=');
-                Q[p[0]] = p[1]; 
-            });
             let o = {
-                username: window.Q["name"] || localStorage.getItem("username"),
-                password: window.Q["password"] || localStorage.getItem("password")
+                username: items.query["name"] || localStorage.getItem("username"),
+                password: items.query["password"] || localStorage.getItem("password")
             };
             setTimeout(e => {
                 if (o.username && o.password) {
@@ -149,7 +146,7 @@ $_().imports({
             if (ptr) ptr = ptr.trigger("show", null, false).show();
             this.on("switch", function (e, to) {
                 table = this.children().hash();
-                if ( !table[to] || table[to] == ptr ) return;
+                if (!table[to] || table[to] == ptr) return;
                 e.stopPropagation();
                 args = [].slice.call(arguments).slice(2);
                 ptr.trigger("hide", [to+''].concat(args)).hide();
@@ -157,10 +154,22 @@ $_().imports({
             });
             return Object.defineProperty({}, "selected", { get: () => {return ptr}});
         }
+    },
+    Query: {
+        xml: "<div id='query'/>",
+        fun: function (sys, items, opts) {
+            let str = location.search.substr(1).split('&');
+            let query = {};
+            str.forEach(pair => {
+                let p = pair.split('=');
+                query[p[0]] = p[1]; 
+            });
+            return query;
+        }
     }
 });
 
-$_("verify").imports({
+$_("verify").imports({ 
     Overlay: {
         css: "#overlay { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,.4); z-index: 13000; visibility: hidden; opacity: 0; -webkit-transition-duration: .4s; transition-duration: .4s; }\
               #visible { visibility: visible; opacity: 1; }",
@@ -466,7 +475,7 @@ $_("content/index").imports({
     Parts: {
         css: "#parts { display: flex; overflow: hidden; flex-wrap: wrap; }\
               #parts > * { margin: 4px }",
-        xml: "<div id='parts'/>",
+        xml: "<Query id='parts' xmlns='/'/>",
         fun: function (sys, items, opts) {
             this.watch("/parts/select", (e, d) => {
                 let table = {};
@@ -481,9 +490,9 @@ $_("content/index").imports({
                 }
                 for ( var k = i; k < list.length; k++ )
                     list[k].unwatch(list[i].attr("_id")).hide();
-                if (table[Q.open]) {
-                    table[Q.open].trigger(Click);
-                    delete Q.open;
+                if (table[items.parts.open]) {
+                    table[item.parts.open].trigger(Click);
+                    delete items.parts.open;
                 }
             });
             function listener(e, item) {
