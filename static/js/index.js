@@ -58,8 +58,7 @@ $_().imports({
         xml: "<Overlay id='service' xmlns='verify'/>",
         fun: function (sys, items, opts) {
             let client = null;
-            let metas = document.head.getElementsByTagName("meta");
-            let Server = metas[metas.length-1].getAttribute("content");
+            let Server = document.querySelector("meta[name='mqtt-server']").getAttribute("content");
             this.on("show", (e, key, config) => {
                 client = mqtt.connect(Server, config);
                 client.on("connect", e => {
@@ -70,13 +69,13 @@ $_().imports({
                         this.notify("subscribed");
                     });
                     console.log("connected to " + Server);
-                    this.trigger("switch", "content").notify("online");
+                    this.trigger("switch", "content").notify("/sys/on");
                 });
                 client.on("message", (topic, payload) => {
                     payload = JSON.parse(payload.toString());
                     this.notify(payload.mid, payload);
                 });
-                client.on("close", e => this.notify("offline"));
+                client.on("close", e => this.notify("/sys/off"));
                 client.on("error", e => this.notify("logout", e));
             });
             this.watch("logout", (e, err) => {
@@ -101,9 +100,8 @@ $_().imports({
                 </i:Form>\
               </div></div>",
         fun: function (sys, items, opts) {
-            function keypress( e ) {
-                if (e.which === 13)
-                    sys.submit.trigger(Click);
+            function keypress() {
+                e.which == 13 && sys.submit.trigger(Click);
             }
             sys.user.on("keypress", keypress);
             sys.pass.on("keypress", keypress);
@@ -122,7 +120,7 @@ $_().imports({
                 <i:Footer id='footer'/>\
               </div>",
         fun: function (sys, items, opts) {
-            const Gateway = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
+            const userInterface = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
             sys.footer.on("switch", (e, page) => {
                 e.stopPropagation();
                 sys.stack.trigger("switch", page, false);
@@ -130,14 +128,14 @@ $_().imports({
             this.on("show", () => this.notify("switch-page", "index"));
             this.on("publish", (e, payload) => {
                 e.stopPropagation();
-                this.notify("publish", [Gateway, payload]);
+                this.notify("publish", [userInterface, payload]);
             });
             this.on("open-part", (e, payload) => {
                 e.stopPropagation();
                 this.notify("open-part", payload);
             });
-            this.watch(Gateway, (e, payload) => {
-                sys.index.notify(payload.topic, payload);
+            this.watch(userInterface, (e, payload) => {
+                this.notify(payload.topic, payload);
             });
             this.watch("subscribed", () => this.trigger("publish", {topic: "/areas/select"}));
         }
@@ -198,7 +196,7 @@ $_("login").imports({
         map: { "appendTo": "content" },
         fun: function (sys, items, opts) {
             var ptr, first = this.first();
-            this.on("next", function (e, r) {
+            this.on("next", (e, r) => {
                 e.stopPropagation();
                 ptr = ptr.next();
                 ptr.trigger("start", r, false);
@@ -207,7 +205,7 @@ $_("login").imports({
                 ptr = first;
                 ptr.trigger("start", {}, false);
             }
-            return { start: start };
+            return {start: start};
         }
     },
     Logo: {
@@ -225,7 +223,7 @@ $_("login").imports({
                 items.user.focus();
                 sys.user.trigger("message", ["error", msg]);
             }
-            this.on("start", function (e, p) {
+            this.on("start", (e, p) => {
                 p.name = items.user.val();
                 if (p.name === "") {
                     error("请输入用户名");
@@ -234,7 +232,7 @@ $_("login").imports({
                 } else if (!patt.test(p.name)) {
                     error("您输入的用户名有误");
                 } else {
-                    sys.user.trigger("next", p);
+                    this.trigger("next", p);
                 }
             });
             return items.user;
@@ -254,7 +252,7 @@ $_("login").imports({
                 } else if ( o.pass.length < 6 ) {
                     error("密码至少需要6个字符");
                 } else {
-                    sys.pass.trigger("next", o);
+                    this.trigger("next", o);
                 }
             });
             return items.pass;
@@ -282,7 +280,6 @@ $_("login").imports({
              </li>",
         map: { attrs: { input: "name value type maxlength placeholder" } },
         fun: function (sys, items, opts) {
-            //sys.label.text(opts.label);
             function focus() {
                 sys.input.elem().focus();
                 return this;
@@ -293,7 +290,7 @@ $_("login").imports({
                 sys.input.prop("value", value);
                 return this;
             }
-            return { val: val, focus: focus };
+            return {val: val, focus: focus};
         }
     }
 });
@@ -344,8 +341,7 @@ $_("content").imports({
                     sys.client.first().remove();
                     (function load() {
                         let com = xp.hasComponent(Client);
-                        if (!com)
-                            return setTimeout(load, 100);
+                        if (!com) return setTimeout(load, 100);
                         com.map.msgscope = true;
                         register(sys.overlay.before(Client, part));
                         items.overlay.hide();
@@ -358,10 +354,10 @@ $_("content").imports({
             }
             function register(client) {
                 sys.client.watch(opts.mid, (e, part) => {
-                    if ( part.online == 0 )
+                    if (part.online == 0)
                         return sys.client.trigger("close");
                     client.notify(part.topic, [part.data]);
-                }).watch("offline", () => sys.client.trigger("close"));
+                }).watch("/sys/off", () => sys.client.trigger("close"));
             }
             this.watch("open-part", (e, data) => {
                 items.overlay.show();
@@ -370,7 +366,7 @@ $_("content").imports({
             });
             this.on("close", e => {
                 e.stopPropagation();
-                sys.client.unwatch(opts.mid).unwatch("offline").removeClass("#modal-in");
+                sys.client.unwatch(opts.mid).unwatch("/sys/off").removeClass("#modal-in");
             }, false);
         }
     },
@@ -390,18 +386,15 @@ $_("content/index").imports({
         css: "#header { margin: 0 4px; height: 26px; line-height: 26px; color: white; }\
               #area { float: left; background: none; padding: 0; }\
               #list { float: left; margin-right: 8px; }\
-              #line { float: right; }",
+              #stat { float: right; }",
         xml: "<header id='header' xmlns:i='header'>\
                 <i:Icon id='list'/>\
-                <i:Line id='area'/>\
-                <i:Line id='line'/>\
+                <i:Text id='area'/>\
+                <i:Stat id='stat'/>\
               </header>",
         fun: function (sys, items, opts) {
-            this.watch("online", e => sys.line.text("在线"));
-            this.watch("offline", e => sys.line.text("离线"));
             sys.area.on(Click, () => {
-                let line = sys.line.text();
-                line == "在线" && this.notify("show-areas");
+                sys.stat.text() == "在线" && this.notify("show-areas");
             });
             this.watch("open-area", (e, area) => sys.area.text(area.name));
         }
@@ -437,7 +430,7 @@ $_("content/index").imports({
                     return this.notify("/links/select", [areas[area.id]]);
                 this.trigger("publish", {topic: "/links/select", body: {area: area.id}});
             });
-            this.watch("offline", e => areas = {});
+            this.watch("/sys/off", e => areas = {});
             this.watch("show-areas", items.areas.show);
         }
     },
@@ -501,10 +494,10 @@ $_("content/index").imports({
                 var data = this.data("data");
                 data.online && this.trigger("open-part", data);
             });
-            this.watch("offline", e => {
+            this.watch("/sys/off", e => {
                 sys.parts.children().forEach(item => {
                     item.trigger("data", {online: false}, false);
-                })
+                });
             });
         }
     },
@@ -565,9 +558,16 @@ $_("content/index/header").imports({
                 <path d='M309.474912 719.986985c26.89658 0 48.695049-21.798469 48.695049-48.646953l-49.715285-264.667915c0-26.920116-21.798469-48.767703-48.695049-48.767703L136.249639 357.904413c-26.89658 0-48.646953 21.847587-48.646953 48.767703l49.715285 264.667915c0 26.848485 21.750373 48.646953 48.646953 48.646953L309.474912 719.986985z' p-id='6348'></path><path d='M591.985194 719.986985c26.89658 0 48.646953-21.798469 48.646953-48.646953l49.714262-476.756311c0-26.89658-21.750373-48.719608-48.646953-48.719608L418.711825 145.864112c-26.847461 0-48.744167 21.823028-48.744167 48.719608l49.715285 476.756311c0 26.848485 21.895683 48.646953 48.743144 48.646953L591.985194 719.986985z' p-id='6349'></path><path d='M874.446357 719.986985c26.89658 0 48.744167-21.798469 48.744167-48.646953L923.190525 547.709293c0-26.921139-21.847587-48.743144-48.744167-48.743144l-73.844845 0c-26.846438 0-35.634592 15.730263-48.694025 48.743144l-49.715285 123.630738c0 26.848485 21.847587 48.646953 48.695049 48.646953L874.446357 719.986985z' p-id='6350'></path><path d='M913.139611 773.779122 146.930909 773.779122c-12.720719 0-23.206538 10.414187-23.206538 23.231097 0 12.792351 18.157545 53.550637 30.974455 53.550637l758.440785-30.271444c12.769838 0 23.25668-10.486842 23.25668-23.279193C936.395268 784.193309 925.908426 773.779122 913.139611 773.779122z'/>\
               </svg>"
     },
-    Line: {
-        css: "#line { letter-spacing: 0.1em;  display: inline-block; border-radius: 13px; background:rgba(0,0,0,0.2) none repeat scroll; padding: 0 16px; font-size: 14px; color: white; }",
-        xml: "<span id='line'>离线</span>"
+    Text: {
+        css: "#text { letter-spacing: 0.1em;  display: inline-block; border-radius: 13px; background:rgba(0,0,0,0.2) none repeat scroll; padding: 0 16px; font-size: 14px; color: white; }",
+        xml: "<span id='text'/>"
+    },
+    Stat: {
+        xml: "<Text id='stat'>离线</Text>",
+        fun: function (sys, items, opts) {
+            this.watch("/sys/on", e => this.text("在线"));
+            this.watch("/sys/off", e => this.text("离线"));
+        }
     }
 });
 
@@ -669,17 +669,12 @@ $_("content/about").imports({
         css: "#header { margin: 0 4px; height: 26px; line-height: 26px; color: white; }\
               #about { float: left; margin-right: 8px; }\
               #title { float: left; background: none; padding: 0; }\
-              #line { float: right; margin: 0 0 0 8px; }",
+              #stat { float: right; margin: 0 0 0 8px; }",
         xml: "<header id='header' xmlns:i='../index/header'>\
                 <Icon id='about'/>\
-                <i:Line id='title'/>\
-                <i:Line id='line'/>\
-              </header>",
-        fun: function (sys, items, opts) {
-            sys.title.text("马蹄莲");
-            this.watch("online", e => sys.line.text("在线"));
-            this.watch("offline", e => sys.line.text("离线"));
-        }
+                <i:Text id='title'>马蹄莲</i:Text>\
+                <i:Stat id='stat'/>\
+              </header>"
     },
     Content: {
         css: "#body { height: 100%; overflow-y: auto; display: -ms-flexbox; display: -webkit-flex; display: flex; flex-direction: column; justify-content: center; }\

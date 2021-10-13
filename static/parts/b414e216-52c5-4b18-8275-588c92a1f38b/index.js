@@ -5,7 +5,7 @@
  * Released under the MIT license
  */
 
-xmlplus("b414e216-52c5-4b18-8275-588c92a1f38b", (xp, $_) => { // 配件管理
+xmlplus("b414e216-52c5-4b18-8275-588c92a1f38b", (xp, $_) => { // 应用管理
 
 $_().imports({
     Index: {
