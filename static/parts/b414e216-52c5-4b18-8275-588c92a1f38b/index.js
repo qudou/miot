@@ -46,7 +46,7 @@ $_().imports({
     },
     Signup: {
         xml: "<div id='signup' xmlns:i='signup'>\
-                <i:Navbar id='navbar' title='配件注册'/>\
+                <i:Navbar id='navbar' title='应用注册'/>\
                 <i:Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
@@ -55,7 +55,7 @@ $_().imports({
     },
     Update: {
         xml: "<div id='update' xmlns:i='signup'>\
-                <i:Navbar id='navbar' title='配件修改'/>\
+                <i:Navbar id='navbar' title='应用修改'/>\
                 <Content id='content' xmlns='update'/>\
               </div>",
         fun: function (sys, items, opts) {
@@ -65,7 +65,7 @@ $_().imports({
     Remove: {
         fun: function (sys, items, opts) {
             this.watch("remove", (e, p) => {
-                window.app.dialog.confirm("确定删除该配件吗？", "温馨提示", () => {
+                window.app.dialog.confirm("确定删除该应用吗？", "温馨提示", () => {
                     this.trigger("publish", ["/parts/remove", {id: p.id}]);
                     this.glance("/parts/remove", (m, p) => {
                         this.trigger("message", ["msg", p.desc]);
@@ -85,7 +85,7 @@ $_().imports({
                 <i:Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            items.navbar.title("配件管理");
+            items.navbar.title("应用管理");
             this.on("show", (e, to, p) => {
                 items.content.text(`${p}不存在,请先添加${p}`);
             });
@@ -356,7 +356,7 @@ $_("signup/form").imports({
         }
     },
     Name: {
-        xml: "<Input id='part' label='名称' placeholder='请输入配件名称' maxlength='32'/>",
+        xml: "<Input id='part' label='名称' placeholder='请输入应用名称' maxlength='32'/>",
         fun: function (sys, items, opts) {
             function error( msg ) {
                 items.part.focus();
@@ -365,9 +365,9 @@ $_("signup/form").imports({
             this.on("start", function (e, o) {
                 o.name = items.part.val();
                 if (o.name === "") {
-                    error("请输入配件名称");
+                    error("请输入应用名称");
                 } else if (o.name.length < 2) {
-                    error("配件名称至少需要2个字符");
+                    error("应用名称至少需要2个字符");
                 } else {
                     sys.part.trigger("next", o);
                 }

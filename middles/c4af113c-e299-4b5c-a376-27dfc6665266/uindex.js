@@ -21,7 +21,7 @@ $_().imports({
     Areas: {
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/areas/select", (e, p) => {
+            this.watch("/ui/areas", (e, p) => {
                 let stmt = `SELECT distinct areas.* FROM areas,links,parts,auths,status
                             WHERE areas.id = links.area AND links.id = parts.link AND parts.id = auths.part AND auths.user=status.user_id AND status.client_id='${p.cid}'`
                 items.sqlite.all(stmt, (err, data) => {
@@ -35,7 +35,7 @@ $_().imports({
     Links: {
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/links/select", (e, p) => {
+            this.watch("/ui/links", (e, p) => {
                 let stmt = `SELECT distinct links.* FROM links,parts,auths,status
                             WHERE links.area = '${p.body.area}' AND links.id = parts.link AND parts.id = auths.part AND auths.user=status.user_id AND status.client_id='${p.cid}'`;
                 items.sqlite.all(stmt, (err, data) => {
@@ -49,7 +49,7 @@ $_().imports({
     Parts: {
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/parts/select", (e, p) => {
+            this.watch("/ui/parts", (e, p) => {
                 let stmt = `SELECT parts.* FROM parts,auths,status
                             WHERE parts.link = '${p.body.link}' AND parts.id = auths.part AND auths.user=status.user_id AND status.client_id='${p.cid}'`;
                 items.sqlite.all(stmt, (err, data) => {

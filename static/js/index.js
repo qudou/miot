@@ -68,10 +68,8 @@ $_().imports({
                     console.log("connected to " + Server);
                     this.trigger("switch", "content").notify("/sys/on");
                 });
-                client.on("message", (topic, payload) => {
-                    payload = JSON.parse(payload.toString());
-                    this.notify("message", payload);
-                    this.notify(payload.mid, payload);
+                client.on("message", (topic, p) => {
+                    this.notify("message", JSON.parse(p.toString()));
                 });
                 client.on("close", e => this.notify("/sys/off"));
                 client.on("error", e => this.notify("logout", e));
@@ -82,8 +80,8 @@ $_().imports({
                 this.trigger("switch", "login");
                 err && window.app.dialog.alert(err.message, "提示");
             });
-            this.watch("publish", (e, topic, payload = {}) => {
-                client.publish(topic, JSON.stringify(payload));
+            this.watch("publish", (e, topic, p = {}) => {
+                client.publish(topic, JSON.stringify(p));
             });
         }
     },
@@ -124,18 +122,18 @@ $_().imports({
                 sys.stack.trigger("switch", page, false);
             });
             this.on("show", () => this.notify("switch-page", "index"));
-            this.on("publish", (e, payload) => {
+            this.on("publish", (e, p) => {
                 e.stopPropagation();
-                this.notify("publish", [uid, payload]);
+                this.notify("publish", [uid, p]);
             });
-            this.on("open-part", (e, payload) => {
+            this.on("/open/part", (e, p) => {
                 e.stopPropagation();
-                this.notify("open-part", payload);
+                this.notify("/open/part", p);
             });
-            this.watch(uid, (e, payload) => {
-                this.notify(payload.topic, payload);
+            this.watch("message", (e, p) => {
+                p.mid == uid && this.notify(p.topic, p);
             });
-            this.watch("subscribed", () => this.trigger("publish", {topic: "/areas/select"}));
+            this.watch("subscribed", () => this.trigger("publish", {topic: "/ui/areas"}));
         }
     },
     ViewStack: {
@@ -313,15 +311,15 @@ $_("content").imports({
                 <i:Header id='header'/>\
                 <i:Areas id='areas'/>\
                 <i:Title id='title'/>\
-                <i:Stores id='stores'/>\
+                <i:Links id='links'/>\
                 <i:Parts id='parts'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.watch("open-store", (e, store) => {
-                sys.title.text(store.name);
-                this.trigger("publish", {topic: "/parts/select", body: {link: store.id}});
+            this.watch("/open/link", (e, link) => {
+                sys.title.text(link.name);
+                this.trigger("publish", {topic: "/ui/parts", body: {link: link.id}});
             });
-            sys.title.on(Click, e => this.notify("show-stores"));
+            sys.title.on(Click, e => this.notify("/show/links"));
         }
     },
     About: {
@@ -358,7 +356,7 @@ $_("content").imports({
                 items.mask.hide();
                 sys.client.once("close", close)
             }
-            this.watch("open-part", (e, part) => {
+            this.watch("/open/part", (e, part) => {
                 opts = part;
                 items.mask.show();
                 sys.client.addClass("#modal-in");
@@ -400,69 +398,61 @@ $_("content/index").imports({
               </header>",
         fun: function (sys, items, opts) {
             sys.area.on(Click, () => {
-                sys.stat.text() == "在线" && this.notify("show-areas");
+                sys.stat.text() == "在线" && this.notify("/show/areas");
             });
-            this.watch("open-area", (e, area) => sys.area.text(area.name));
+            this.watch("/open/area", (e, area) => sys.area.text(area.name));
         }
     },
     Areas: {
         xml: "<List id='areas' xmlns='list'/>",
         fun: function (sys, items, opts) {
-            var areas = {}, checked = {};
-            this.watch("/areas/select", (e, d) => {
-                let tmp, selected;
-                checked.id = localStorage.getItem("area");
+            this.watch("/ui/areas", (e, p) => {
+                let prev, area,
+                    pid = localStorage.getItem("area");
                 sys.areas.children().call("remove");
-                d.data.forEach(item => {
-                    item.key = "area";
-                    tmp = sys.areas.append("list/Item");
-                    tmp.value().init(item);
-                    item.id == checked.id && (selected = tmp);
+                p.data.forEach(item => {
+                    area = sys.areas.append("list/Item", {key:"area"});
+                    area.value()(item);
+                    item.id == pid && (prev = area);
                 });
-                (selected || sys.areas.first()).trigger(Click);
+                (prev || sys.areas.first()).trigger(Click);
             });
             sys.areas.on(Click, "*", function (e) {
-                checked = this.data("data");
                 this.trigger("checked", true);
-                items.areas.hide().notify("open-area", this.data("data"));
+                items.areas.hide().notify("/open/area", this.data("data"));
             });
-            this.watch("/links/select", (e, d) => {
-                if (!d) return;
-                areas[d.data.area] = d;
-            });
-            this.watch("open-area", (e, area) => {
+            this.watch("/open/area", (e, area) => {
                 localStorage.setItem("area", area.id);
-                if (areas[area.id])
-                    return this.notify("/links/select", [areas[area.id]]);
-                this.trigger("publish", {topic: "/links/select", body: {area: area.id}});
+                if (opts[area.id])
+                    return this.notify("/ui/links", [opts[area.id]]);
+                this.trigger("publish", {topic: "/ui/links", body: {area: area.id}});
             });
-            this.watch("/sys/off", e => areas = {});
-            this.watch("show-areas", items.areas.show);
+            this.watch("/sys/off", e => opts = {});
+            this.watch("/show/areas", items.areas.show);
+            this.watch("/ui/links", (e, p) => (opts[p.data.area] = p));
         }
     },
-    Stores: {
-        xml: "<List id='stores' xmlns='list'/>",
+    Links: {
+        xml: "<List id='links' xmlns='list'/>",
         fun: function (sys, items, opts) {
-            var checked = {};
-            this.watch("/links/select", (e, d) => {
-                var tmp, selected;
-                checked.id = localStorage.getItem("store");
-                sys.stores.children().call("remove");
-                d.data.links.forEach(item => {
-                    item.key = "link";
-                    tmp = sys.stores.append("list/Item");
-                    tmp.value().init(item);
-                    item.id == checked.id && (selected = tmp);
+            this.watch("/ui/links", (e, p) => {
+                let prev, link,
+                    pid = localStorage.getItem("link");
+                sys.links.children().call("remove");
+                p.data.links.forEach(item => {
+                    link = sys.links.append("list/Item", {key: "link"});
+                    link.value()(item);
+                    item.id == pid && (prev = link);
                 });
-                (selected || sys.stores.first()).trigger(Click);
+                (prev || sys.links.first()).trigger(Click);
             });
-            sys.stores.on(Click, "*", function (e) {
-                checked = this.data("data");
-                localStorage.setItem("store", checked.id);
+            sys.links.on(Click, "*", function (e) {
+                let link = this.data("data");
+                localStorage.setItem("link", link.id);
                 this.trigger("checked", true);
-                items.stores.hide().notify("open-store", this.data("data"));
+                items.links.hide().notify("/open/link", this.data("data"));
             });
-            this.watch("show-stores", items.stores.show);
+            this.watch("/show/links", items.links.show);
         }
     },
     Title: {
@@ -474,30 +464,28 @@ $_("content/index").imports({
               #parts > * { margin: 4px }",
         xml: "<Query id='parts' xmlns='/'/>",
         fun: function (sys, items, opts) {
-            let table = {};
-            this.watch("/parts/select", (e, d) => {
-                table = {};
-                let list = sys.parts.children();
-                for (var i = 0; i < d.data.parts.length; i++) {
-                    let item = d.data.parts[i];
+            let open = items.parts.open;
+            delete items.parts.open;
+            this.watch("/ui/parts", (e, p) => {
+                opts = {};
+                let i,list = sys.parts.children();
+                for (i = 0; i < p.data.parts.length; i++) {
+                    let item = p.data.parts[i];
                     list[i] || list.push(sys.parts.append("Thumbnail"));
                     list[i].value()(item);
-                    table[item.mid] = list[i].show();
+                    opts[item.mid] = list[i].show();
                 }
                 for (let k = i; k < list.length; k++)
                     list[k].hide(); 
-                if (table[items.parts.open]) {
-                    table[item.parts.open].trigger(Click);
-                    delete items.parts.open;
-                }
+                opts[open] && opts[open].trigger(Click);
             });
             this.watch("message", (e, item) => {
                 if (item.topic == "/SYS" || item.topic == null)
-                    table[item.mid] && table[item.mid](item);
+                    opts[item.mid] && opts[item.mid](item);
             });
             sys.parts.on(Click, "*", function (e) {
-                var data = this.data("data");
-                data.online && this.trigger("open-part", data);
+                let data = this.data("data");
+                data.online && this.trigger("/open/part", data);
             });
             this.watch("/sys/off", e => {
                 sys.parts.children().forEach(item => item.value()({online: 0}));
@@ -542,7 +530,7 @@ $_("content/index").imports({
         }
     },
     Unknow: {
-        xml: "<svg viewBox='0 0 1024 1024' width='200' height='200'>\
+        xml: "<svg viewBox='0 0 1024 1024'>\
                   <path d='M797.75744 438.02624c-11.07968 0-21.95456 0.8192-32.72704 2.56 2.2528-13.6192 3.62496-27.36128 3.62496-41.69728 0-146.47296-118.6816-265.3184-265.29792-265.3184-142.56128 0-258.62144 112.78336-264.62208 254.03392C105.6768 394.38336 0 503.99232 0 638.64832c0 139.10016 112.68096 251.76064 251.82208 251.76064h545.93536C922.64448 890.40896 1024 789.13536 1024 664.18688c0-124.88704-101.35552-226.16064-226.24256-226.16064zM510.27968 808.38656c-22.69184 0-41.14432-18.06336-41.14432-40.30464 0-22.24128 18.39104-40.30464 41.14432-40.30464 22.67136 0 41.14432 18.06336 41.14432 40.30464-0.02048 22.24128-18.41152 40.30464-41.14432 40.30464z m110.46912-228.0448c-8.06912 12.6976-25.1904 29.92128-51.44576 51.77344-13.57824 11.28448-22.03648 20.3776-25.31328 27.29984-3.2768 6.8608-4.8128 19.16928-4.48512 36.90496h-58.5728c-0.12288-8.3968-0.24576-13.5168-0.24576-15.38048 0-18.96448 3.13344-34.52928 9.4208-46.77632 6.26688-12.24704 18.8416-26.0096 37.62176-41.2672 18.78016-15.31904 30.04416-25.31328 33.71008-30.04416 5.632-7.49568 8.51968-15.7696 8.51968-24.73984 0-12.4928-5.05856-23.18336-15.0528-32.1536-9.99424-8.9088-23.57248-13.39392-40.57088-13.39392-16.40448 0-30.12608 4.68992-41.14432 13.96736-11.01824 9.29792-20.50048 29.7984-22.75328 42.496-2.10944 11.9808-59.84256 17.03936-59.14624-7.24992 0.69632-24.28928 13.33248-50.62656 34.97984-69.71392 21.66784-19.08736 50.11456-28.65152 85.2992-28.65152 37.04832 0 66.4576 9.68704 88.3712 29.02016 21.9136 19.3536 32.80896 41.84064 32.80896 67.54304a74.07616 74.07616 0 0 1-12.00128 40.36608z'/>\
               </svg>"
     }
@@ -558,7 +546,7 @@ $_("content/index/header").imports({
         }
     },
     List: {
-        xml: "<svg viewBox='0 0 1024 1024' width='200' height='200'>\
+        xml: "<svg viewBox='0 0 1024 1024'>\
                 <path d='M309.474912 719.986985c26.89658 0 48.695049-21.798469 48.695049-48.646953l-49.715285-264.667915c0-26.920116-21.798469-48.767703-48.695049-48.767703L136.249639 357.904413c-26.89658 0-48.646953 21.847587-48.646953 48.767703l49.715285 264.667915c0 26.848485 21.750373 48.646953 48.646953 48.646953L309.474912 719.986985z' p-id='6348'></path><path d='M591.985194 719.986985c26.89658 0 48.646953-21.798469 48.646953-48.646953l49.714262-476.756311c0-26.89658-21.750373-48.719608-48.646953-48.719608L418.711825 145.864112c-26.847461 0-48.744167 21.823028-48.744167 48.719608l49.715285 476.756311c0 26.848485 21.895683 48.646953 48.743144 48.646953L591.985194 719.986985z' p-id='6349'></path><path d='M874.446357 719.986985c26.89658 0 48.744167-21.798469 48.744167-48.646953L923.190525 547.709293c0-26.921139-21.847587-48.743144-48.744167-48.743144l-73.844845 0c-26.846438 0-35.634592 15.730263-48.694025 48.743144l-49.715285 123.630738c0 26.848485 21.847587 48.646953 48.695049 48.646953L874.446357 719.986985z' p-id='6350'></path><path d='M913.139611 773.779122 146.930909 773.779122c-12.720719 0-23.206538 10.414187-23.206538 23.231097 0 12.792351 18.157545 53.550637 30.974455 53.550637l758.440785-30.271444c12.769838 0 23.25668-10.486842 23.25668-23.279193C936.395268 784.193309 925.908426 773.779122 913.139611 773.779122z'/>\
               </svg>"
     },
@@ -571,29 +559,6 @@ $_("content/index/header").imports({
         fun: function (sys, items, opts) {
             this.watch("/sys/on", e => this.text("在线"));
             this.watch("/sys/off", e => this.text("离线"));
-        }
-    }
-});
-
-$_("content/index/areas").imports({
-    Item: {
-        css: "#label, #icon { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }\
-              #input { display: none; } #input:checked ~ div { background: no-repeat center; background-image: url(\"data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D'8px'%20height%3D'13px'%20viewBox%3D'0%200%208%2013'%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%3E%3Cpolygon%20fill%3D'%23007aff'%20transform%3D'translate(1.500000%2C%206.500000)%20rotate(-45.000000)%20translate(-1.500000%2C%20-6.500000)%20'%20points%3D'6%2011%206%202%204%202%204%209%20-3%209%20-3%2011%205%2011'%3E%3C%2Fpolygon%3E%3C%2Fsvg%3E\"); -webkit-background-size: 13px 10px; background-size: 8px 13px; background-position: calc(100% - 15px) center; }",
-        xml: "<li id='item'>\
-                <a id='span' href='javascript:void(0)'/>\
-                <label id='label'>\
-                    <input id='input' type='radio'/>\
-                    <div id='icon'/>\
-                </label>\
-              </li>",
-        fun: function (sys, items, opts) {
-            this.on("checked", (e, value) => sys.input.prop("checked", value));
-            return { init: data => {
-                this.data("data", data);
-                sys.span.text(data.name);
-                sys.input.attr("name", data.key);
-                sys.input.prop("value", data.name);
-            }};
         }
     }
 });
@@ -645,13 +610,14 @@ $_("content/index/list").imports({
                 </label>\
               </div>",
         fun: function (sys, items, opts) {
+            let that = this;
             this.on("checked", (e, value) => sys.input.prop("checked", value));
-            return { init: data => {
-                this.data("data", data);
+            return function (data) {
+                that.data("data", data);
                 sys.span.text(data.name);
-                sys.input.attr("name", data.key);
+                sys.input.attr("name", opts.key);
                 sys.input.prop("value", data.name);
-            }};
+            };
         }
     },
     Group: {
