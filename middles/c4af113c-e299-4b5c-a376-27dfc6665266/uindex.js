@@ -7,7 +7,7 @@
 
 const xmlplus = require("xmlplus");
 
-xmlplus("c4af113c-e299-4b5c-a376-27dfc6665266", (xp, $_) => { // 用户界面
+xmlplus("c4af113c-e299-4b5c-a376-27dfc6665266", (xp, $_) => { // 用户界面+系统状态
 
 $_().imports({
     Index: {
@@ -15,6 +15,7 @@ $_().imports({
                 <Areas id='areas'/>\
                 <Links id='links'/>\
                 <Parts id='parts'/>\
+                <Status id='status'/>\
               </main>"
     },
     Areas: {
@@ -57,6 +58,19 @@ $_().imports({
                     data.forEach(i => {
                         p.data.parts.push({'mid':i.id,'name':i.name,'class':i.class,'type':i.type,'online':i.online});
                     });
+                    this.trigger("to-users", p);
+                });
+            });
+        }
+    },
+    Status: {
+        xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
+        fun: function (sys, items, opts) {
+            this.watch("/status", (e, p) => {
+                let stmt = "SELECT users.name AS user_name,status.* FROM users,status WHERE users.id=status.user_id";
+                items.sqlite.all(stmt, (err, data) => {
+                    if (err) throw err;
+                    p.data = data;
                     this.trigger("to-users", p);
                 });
             });

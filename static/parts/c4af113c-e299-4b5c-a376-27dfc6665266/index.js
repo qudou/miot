@@ -5,18 +5,14 @@
  * Released under the MIT license
  */
 
-xmlplus("c4af113c-e299-4b5c-a376-27dfc6665266", (xp, $_, t) => { //sysinfo
+xmlplus("c4af113c-e299-4b5c-a376-27dfc6665266", (xp, $_) => { // 系统状态
 
 $_().imports({
     Index: {
         xml: "<div id='index'>\
                 <Navbar id='navbar'/>\
                 <Content id='content'/>\
-              </div>",
-        fun: function (sys, items, opts) {
-            console.log(opts);
-            this.notify("data-change", opts.data);
-        }
+              </div>"
     },
     Navbar: {
         css: ".ios .navbar-inner { padding: 0 14px; }\
@@ -26,23 +22,64 @@ $_().imports({
                    <div id='close' class='left'>\
                       <i class='icon f7-icons ios-only'>xmark</i>\
                    </div>\
-                   <div id='title' class='title'>操作指南</div>\
-                   <div class='right'/>\
+                   <div id='title' class='title'>系统状态</div>\
+                   <div class='right'>\
+                      <button id='refresh' class='button' style='border:none;'>刷新</button>\
+                   </div>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
             sys.close.on("touchend", e => this.trigger("close"));
+            sys.refresh.on(Click, ()=>this.trigger("publish", "/status"));
+            sys.refresh.trigger(Click);
         }
     },
     Content: {
         xml: "<div id='content' class='page'>\
                 <div id='detail' class='page-content'>\
-                    <h1>操作指南</h1>\
+                    <div class='block-title'>当前用户</div>\
+                    <Table id='table' xmlns='content'/>\
                 </div>\
               </div>",
-        map: { nofragment: true },
         fun: function (sys, items, opts) {
-            console.log("hello world!");
+            this.watch("/status", items.table.render);
+        }
+    }
+});
+
+$_("content").imports({
+    Table: {
+        xml: "<div id='table' class='data-table'>\
+                <table>\
+                   <Header id='header'/>\
+                   <tbody id='body'/>\
+                </table>\
+              </div>",
+        fun: function (sys, items, opts) {
+            function render(e, data) {
+                sys.body.children().call("remove");
+                data.forEach(i => sys.body.append("Item", i));
+            }
+            return {render: render};
+        }
+    },
+    Header: {
+        xml: "<thead id='header'><tr>\
+                <th class='label-cell'>用户名</th>\
+                <th class='label-cell'>客户端</th>\
+                <th class='label-cell'>登录时间</th>\
+              </tr></thead>"
+    },
+    Item: {
+        xml: "<tr id='item'>\
+                <td id='user_name' class='label-cell'/>\
+                <td id='client_id' class='label-cell'/>\
+                <td id='login_time' class='label-cell'/>\
+              </tr>",
+        fun: function (sys, items, opts) {
+            sys.user_name.text(opts.user_name);
+            sys.client_id.text(opts.client_id);
+            sys.login_time.text(opts.login_time);
         }
     }
 });

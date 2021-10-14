@@ -70,6 +70,7 @@ $_().imports({
                 });
                 client.on("message", (topic, payload) => {
                     payload = JSON.parse(payload.toString());
+                    this.notify("message", payload);
                     this.notify(payload.mid, payload);
                 });
                 client.on("close", e => this.notify("/sys/off"));
@@ -117,7 +118,7 @@ $_().imports({
                 <i:Footer id='footer'/>\
               </div>",
         fun: function (sys, items, opts) {
-            const userInterface = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
+            const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
             sys.footer.on("switch", (e, page) => {
                 e.stopPropagation();
                 sys.stack.trigger("switch", page, false);
@@ -125,13 +126,13 @@ $_().imports({
             this.on("show", () => this.notify("switch-page", "index"));
             this.on("publish", (e, payload) => {
                 e.stopPropagation();
-                this.notify("publish", [userInterface, payload]);
+                this.notify("publish", [uid, payload]);
             });
             this.on("open-part", (e, payload) => {
                 e.stopPropagation();
                 this.notify("open-part", payload);
             });
-            this.watch(userInterface, (e, payload) => {
+            this.watch(uid, (e, payload) => {
                 this.notify(payload.topic, payload);
             });
             this.watch("subscribed", () => this.trigger("publish", {topic: "/areas/select"}));
@@ -336,47 +337,43 @@ $_("content").imports({
               #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}\
               #client > * { width: 100%; height: 100%; }",
         xml: "<div id='client'>\
-                <div id='instance'/>\
-                <Overlay id='overlay' xmlns='/verify'/>\
+                <Overlay id='mask' xmlns='/verify'/>\
               </div>",
         fun: function (sys, items, opts) {
             this.on("publish", (e, topic, body) => {
                 e.stopPropagation();
                 this.notify("publish", [opts.mid, {topic: topic, body: body}]);
             });
-            function loadClient(part) {
-                require([`/parts/${part.class}/index.js`], e => {
-                    let Client = `//${part.class}/Index`;
-                    sys.client.first().remove();
-                    (function load() {
-                        let com = xp.hasComponent(Client);
-                        if (!com) return setTimeout(load, 100);
-                        com.map.msgscope = true;
-                        register(sys.overlay.before(Client, part));
-                        items.overlay.hide();
-                    }());
-                }, () => {
-                    items.overlay.hide();
+            this.watch("message", (e, p) => {
+                let client = sys.mask.prev();
+                if (client && opts.mid == p.mid)
+                    p.online == 0 ? this.trigger("close") : client.notify(p.topic, [p.data]);
+            });
+            function load(part) {
+                let Client = `//${part.class}/Index`;
+                let c = xp.hasComponent(Client);
+                if (!c) return setTimeout(load, 10);
+                c.map.msgscope = true;
+                sys.mask.before(Client, part);
+                items.mask.hide();
+                sys.client.once("close", close)
+            }
+            this.watch("open-part", (e, part) => {
+                opts = part;
+                items.mask.show();
+                sys.client.addClass("#modal-in");
+                require([`/parts/${part.class}/index.js`], () => load(part), () => {
+                    items.mask.hide();
                     sys.client.removeClass("#modal-in");
                     window.app.dialog.alert("操作页面不存在", "提示")
                 });
-            }
-            function register(client) {
-                sys.client.watch(opts.mid, (e, part) => {
-                    if (part.online == 0)
-                        return sys.client.trigger("close");
-                    client.notify(part.topic, [part.data]);
-                }).watch("/sys/off", () => sys.client.trigger("close"));
-            }
-            this.watch("open-part", (e, data) => {
-                items.overlay.show();
-                sys.client.addClass("#modal-in");
-                loadClient(opts = data);
             });
-            this.on("close", e => {
+            function close(e) {
                 e.stopPropagation();
-                sys.client.unwatch(opts.mid).unwatch("/sys/off").removeClass("#modal-in");
-            }, false);
+                sys.client.removeClass("#modal-in");
+                sys.client.once("transitionend", sys.mask.prev().remove);
+            }
+            this.watch("/sys/off", () => this.trigger("close"));
         }
     },
     Footer: {
@@ -477,36 +474,33 @@ $_("content/index").imports({
               #parts > * { margin: 4px }",
         xml: "<Query id='parts' xmlns='/'/>",
         fun: function (sys, items, opts) {
+            let table = {};
             this.watch("/parts/select", (e, d) => {
-                let table = {};
+                table = {};
                 let list = sys.parts.children();
                 for (var i = 0; i < d.data.parts.length; i++) {
                     let item = d.data.parts[i];
                     list[i] || list.push(sys.parts.append("Thumbnail"));
-                    list[i].unwatch(list[i].attr("_id") + '');
-                    list[i].data("data", item).trigger("data", item, false);
-                    list[i].watch(item.mid + '', listener).attr("_id", item.mid + '').show();
-                    table[item.mid] = list[i];
+                    list[i].value()(item);
+                    table[item.mid] = list[i].show();
                 }
-                for ( var k = i; k < list.length; k++ )
-                    list[k].unwatch(list[i].attr("_id")).hide();
+                for (let k = i; k < list.length; k++)
+                    list[k].hide(); 
                 if (table[items.parts.open]) {
                     table[item.parts.open].trigger(Click);
                     delete items.parts.open;
                 }
             });
-            function listener(e, item) {
+            this.watch("message", (e, item) => {
                 if (item.topic == "/SYS" || item.topic == null)
-                    e.currentTarget.trigger("data", item, false);
-            }
+                    table[item.mid] && table[item.mid](item);
+            });
             sys.parts.on(Click, "*", function (e) {
                 var data = this.data("data");
                 data.online && this.trigger("open-part", data);
             });
             this.watch("/sys/off", e => {
-                sys.parts.children().forEach(item => {
-                    item.trigger("data", {online: false}, false);
-                });
+                sys.parts.children().forEach(item => item.value()({online: 0}));
             });
         }
     },
@@ -521,13 +515,14 @@ $_("content/index").imports({
                 <span id='label'>标签</span>\
               </a>",
         fun: function (sys, items, opts) {
-            this.on("data",  (e, payload) => {
-                var data = e.currentTarget.data("data");
-                xp.extend(true, data, payload);
+            let that = this;
+            return function (payload) {
+                let data = that.data("data") || {};
+                that.data("data",xp.extend(true, data, payload));
                 items.icon(data["class"]);
                 sys.label.text(data.name);
                 sys.thumbnail[data.online ? "addClass" : "removeClass"]("#active");
-            });
+            };
         }
     },
     Icon: {

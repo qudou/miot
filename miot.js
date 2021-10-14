@@ -1,5 +1,5 @@
 /*!
- * miot.js v1.0.5
+ * miot.js v1.0.6
  * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
@@ -26,7 +26,7 @@ $_().imports({
               </main>",
         map: { share: "sqlite/Sqlite Util" }
     },
-    Mosca: { // 本 MQTT 服务器用于连接 MQTT 客户端，一般是主机上的客户端，如树莓派等
+    Mosca: { // 本 MQTT 服务器用于连接内网网关
         xml: "<main id='mosca' xmlns:i='mosca'>\
                 <i:Authorize id='auth'/>\
                 <i:Links id='links'/>\
