@@ -141,11 +141,17 @@ $_("signup").imports({
                     pass = items.crypto.encrypt(p.body.pass, salt);
                     stmt = items.db.prepare("INSERT INTO users (email,name,pass,salt,repeat_login) VALUES(?,?,?,?,?)");
                 stmt.run(p.body.email, p.body.name, pass, salt, p.body.relogin);
+                stmt.finalize(()=>insertToAuths(p));
+            });
+            function insertToAuths(p) {
+                let part = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
+                let stmt = items.db.prepare("INSERT INTO auths (user,part) VALUES(last_insert_rowid(),?)");
+                stmt.run(part);
                 stmt.finalize(() => {
                     p.data = {code: 0, desc: "注册成功"};
                     sys.signup.trigger("to-users", p);
-                }); 
-            });
+                });
+            }
         }
     },
     Crypto: {

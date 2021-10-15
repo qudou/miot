@@ -7,7 +7,9 @@
 
 const xmlplus = require("xmlplus");
 
-xmlplus("c4af113c-e299-4b5c-a376-27dfc6665266", (xp, $_) => { // 用户界面+系统状态
+xmlplus("c4af113c-e299-4b5c-a376-27dfc6665266", (xp, $_) => { // 用户界面
+
+const UID = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
 
 $_().imports({
     Index: {
@@ -23,7 +25,7 @@ $_().imports({
         fun: function (sys, items, opts) {
             this.watch("/ui/areas", (e, p) => {
                 let stmt = `SELECT distinct areas.* FROM areas,links,parts,auths,status
-                            WHERE areas.id = links.area AND links.id = parts.link AND parts.id = auths.part AND auths.user=status.user_id AND status.client_id='${p.cid}'`
+                            WHERE areas.id = links.area AND links.id = parts.link AND parts.id = auths.part AND auths.user=status.user_id AND status.client_id='${p.cid}' AND parts.id <> '${UID}'`
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -37,7 +39,7 @@ $_().imports({
         fun: function (sys, items, opts) {
             this.watch("/ui/links", (e, p) => {
                 let stmt = `SELECT distinct links.* FROM links,parts,auths,status
-                            WHERE links.area = '${p.body.area}' AND links.id = parts.link AND parts.id = auths.part AND auths.user=status.user_id AND status.client_id='${p.cid}'`;
+                            WHERE links.area = '${p.body.area}' AND links.id = parts.link AND parts.id = auths.part AND auths.user=status.user_id AND status.client_id='${p.cid}' AND parts.id <> '${UID}'`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = {area: p.body.area, links: data};
@@ -51,7 +53,7 @@ $_().imports({
         fun: function (sys, items, opts) {
             this.watch("/ui/parts", (e, p) => {
                 let stmt = `SELECT parts.* FROM parts,auths,status
-                            WHERE parts.link = '${p.body.link}' AND parts.id = auths.part AND auths.user=status.user_id AND status.client_id='${p.cid}'`;
+                            WHERE parts.link = '${p.body.link}' AND parts.id = auths.part AND auths.user=status.user_id AND status.client_id='${p.cid}' AND parts.id <> '${UID}'`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = {link: p.body.link, parts: []};

@@ -399,7 +399,6 @@ $_("content/index").imports({
     Areas: {
         xml: "<List id='areas' xmlns='list'/>",
         fun: function (sys, items, opts) {
-            let table = {};
             this.watch("/ui/areas", (e, p) => {
                 let prev, area,
                     pid = localStorage.getItem("area");
@@ -417,19 +416,13 @@ $_("content/index").imports({
             });
             this.watch("/open/area", (e, area) => {
                 localStorage.setItem("area", area.id);
-                if (table[area.id])
-                    return this.notify("/ui/links", [table[area.id]]);
+                if (opts[area.id])
+                    return this.notify("/ui/links", [opts[area.id]]);
                 this.trigger("publish", {topic: "/ui/links", body: {area: area.id}});
             });
-            this.watch("/ui/link", (e, p) => {
-                for (let k in table)
-                table[k].data.links.forEach(link => {
-                    link.id == p.data.mid && (link.online = p.data.online);
-                }); 
-            });
-            this.watch("$offline", e => table = {});
+            this.watch("$offline", e => opts = {});
             this.watch("/show/areas", items.areas.show);
-            this.watch("/ui/links", (e, p) => (table[p.data.area] = p));
+            this.watch("/ui/links", (e, p) => (opts[p.data.area] = p));
         }
     },
     Links: {
@@ -452,6 +445,12 @@ $_("content/index").imports({
                 this.trigger("checked", true);
                 items.links.hide().notify("/open/link", this.data("data"));
             });
+            this.watch("message", (e, p) => {
+                p.lid && sys.links.children().forEach(link => {
+                    let data = link.data("data");
+                    data.id == p.lid && (data.online = p.online);
+                });
+            });
             this.watch("/show/links", items.links.show);
         }
     },
@@ -463,11 +462,11 @@ $_("content/index").imports({
                 text(opts = link);
                 this.trigger("publish", {topic: "/ui/parts", body: {link: link.id}});
             });
-            function text(p) { 
-                sys.title.text(p.online ? opts.name : opts.name + "(离线)")
+            function text(link) { 
+                sys.title.text(link.online ? opts.name : opts.name + "(离线)")
             }
-            this.watch("/ui/link", (e, p) => {
-                opts.id == p.data.mid && text(p.data)
+            this.watch("message", (e, p) => {
+                opts.id == p.lid && text(p);
             });
             this.on(Click, e => this.notify("/show/links"));
         }
@@ -493,8 +492,7 @@ $_("content/index").imports({
                 opts[open] && opts[open].trigger(Click);
             });
             this.watch("message", (e, p) => {
-                if (p.topic == "/SYS")
-                    opts[p.mid] && opts[p.mid].value()(p);
+                p.topic == "/SYS" && opts[p.mid] && opts[p.mid].value()(p);
             });
             sys.parts.on(Click, "*", function (e) {
                 let data = this.data("data");

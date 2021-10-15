@@ -14,7 +14,6 @@ log4js.configure({
     categories: { default: { appenders: ["miot"], level: "info" } }
 });
 const logger = log4js.getLogger("miot");
-const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
 const config = JSON.parse(require("fs").readFileSync(`${__dirname}/config.json`));
 
 xmlplus("miot", (xp, $_) => {
@@ -44,12 +43,10 @@ $_().imports({
             });
             server.on("subscribed", async (topic, client) => {
                 await items.links.update(topic, 1);
-                this.notify("to-users", {topic: "/ui/link", mid: uid, data: {mid: topic, online: 1}});
             });
             server.on("unsubscribed", async (topic, client) => {
                 await items.links.update(topic, 0);
                 await items.parts.update(topic, 0);
-                this.notify("to-users", {topic: "/ui/link", mid: uid, data: {mid: topic, online: 0}});
                 let parts = await items.parts.getPartsByLink(topic);
                 parts.forEach(item => this.notify("to-users", {topic: "/SYS", mid: item.id, online: 0}));
             });
