@@ -353,7 +353,7 @@ $_("content").imports({
                 opts = part;
                 items.mask.show();
                 sys.client.addClass("#modal-in");
-                require([`/parts/${part.class}/index.js`], () => load(part), () => {
+                require([`/views/${part.class}/index.js`], () => load(part), () => {
                     items.mask.hide();
                     sys.client.removeClass("#modal-in");
                     window.app.dialog.alert("操作页面不存在", "提示")
@@ -538,7 +538,7 @@ $_("content/index").imports({
         fun: function (sys, items, opts) {
             let icon = sys.icon;
             return (klass) => {
-                require([`/parts/${klass}/icon.js`], e => {
+                require([`/views/${klass}/icon.js`], e => {
                     let iconPath = `//${klass}/Icon`;
                     show(xp.hasComponent(iconPath) ? iconPath : "Unknow");
                 }, ()=> show("Unknow"));
