@@ -56,7 +56,7 @@ $_().imports({
                 let p = JSON.parse(packet.payload + '');
                 let m = await items.parts.getPartByLink(client.id, p.pid);
                 if (!m) return;
-                if (p.topic == "/SYS")
+                if (typeof p.online == "number") 
                     await items.parts.cache(m.id, p);
                 p.mid = m.id;
                 await items.middle.create(m['class'], p);
