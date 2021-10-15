@@ -27,7 +27,7 @@ $_().imports({
               </main>",
         map: { share: "sqlite/Sqlite Util" }
     },
-    Mosca: { // 本 MQTT 服务器用于连接内网网关
+    Mosca: { // 本服务器用于连接内网网关
         xml: "<main id='mosca' xmlns:i='mosca'>\
                 <i:Authorize id='auth'/>\
                 <i:Links id='links'/>\
@@ -50,8 +50,6 @@ $_().imports({
                 await items.links.update(topic, 0);
                 await items.parts.update(topic, 0);
                 this.notify("to-users", {topic: "/ui/link", mid: uid, data: {mid: topic, online: 0}});
-                let parts = await items.parts.getPartsByLink(topic);
-                parts.forEach(item => this.notify("to-users", {topic: "/SYS", mid: item.id, online: 0}));
             });
             server.on("published", async (packet, client) => {
                 if (packet.topic !== "/SYS") return;
@@ -69,7 +67,7 @@ $_().imports({
             });
         }
     },
-    Proxy: { // 本代理用于连接客户端，一般是浏览器上的客户端
+    Proxy: { // 本服务器用于连接用户端
         xml: "<main id='proxy' xmlns:i='proxy'>\
                 <i:Authorize id='auth'/>\
                 <i:Users id='users'/>\
@@ -93,9 +91,10 @@ $_().imports({
                 p.mid = packet.topic;
                 await items.middle.create(m['class'], p);
             });
-            this.watch("to-user", (e, topic, payload) => {
-                payload = JSON.stringify(payload);
-                server.publish({topic: topic, payload: payload, qos: 1, retain: false});
+            this.watch("to-user", (e, topic, p) => {
+                p = (p.mid == uid) ? p : {mid: uid, topic: "/ui/part", data: p};
+                p = JSON.stringify(p);
+                server.publish({topic: topic, payload: p, qos: 1, retain: false});
             });
             this.watch("to-users", async (e, payload) => {
                 let users = await items.users.getUsersByMiddle(payload.mid);
@@ -245,7 +244,7 @@ $_("mosca").imports({
             }
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
-                let payload = { mid: p.mid, topic: p.topic, data: p.data };
+                let payload = {mid: p.mid, topic: p.topic, data: p.data};
                 p.topic == "/SYS" && (payload.online = p.online);
                 this.notify("to-users", payload);
             });
@@ -389,7 +388,7 @@ $_("proxy").imports({
             }
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
-                let payload = { mid: p.mid, topic: p.topic, data: p.data };
+                let payload = {mid: p.mid, topic: p.topic, data: p.data};
                 p.cid ? this.notify("to-user", [p.cid, payload]) : this.notify("to-users", payload);
             });
             this.on("to-local", async (e, p) => {

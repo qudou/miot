@@ -131,7 +131,7 @@ $_().imports({
                 this.notify("/open/part", p);
             });
             this.watch("message", (e, p) => {
-                p.mid == uid && this.notify(p.topic, p);
+                p.mid == uid && this.notify(p.topic, [p.data]);
             });
             this.watch("subscribed", () => this.trigger("publish", {topic: "/ui/areas"}));
         }
@@ -335,7 +335,7 @@ $_("content").imports({
                 e.stopPropagation();
                 this.notify("publish", [opts.mid, {topic: topic, body: body}]);
             });
-            this.watch("message", (e, p) => {
+            this.watch("/ui/part", (e, p) => {
                 let client = sys.mask.prev();
                 if (client && opts.mid == p.mid)
                     p.online == 0 ? this.trigger("close") : client.notify(p.topic, [p.data]);
@@ -404,7 +404,7 @@ $_("content/index").imports({
                 let prev, area,
                     pid = localStorage.getItem("area");
                 sys.areas.children().call("remove");
-                p.data.forEach(item => {
+                p.forEach(item => {
                     area = sys.areas.append("list/Item", {key:"area"});
                     area.value()(item);
                     item.id == pid && (prev = area);
@@ -423,13 +423,13 @@ $_("content/index").imports({
             });
             this.watch("/ui/link", (e, p) => {
                 for (let k in table)
-                table[k].data.links.forEach(link => {
-                    link.id == p.data.mid && (link.online = p.data.online);
+                table[k].links.forEach(link => {
+                    link.id == p.mid && (link.online = p.online);
                 }); 
             });
             this.watch("$offline", e => table = {});
             this.watch("/show/areas", items.areas.show);
-            this.watch("/ui/links", (e, p) => (table[p.data.area] = p));
+            this.watch("/ui/links", (e, p) => (table[p.area] = p));
         }
     },
     Links: {
@@ -439,7 +439,7 @@ $_("content/index").imports({
                 let prev, link,
                     pid = localStorage.getItem("link");
                 sys.links.children().call("remove");
-                p.data.links.forEach(item => {
+                p.links.forEach(item => {
                     link = sys.links.append("list/Item", {key: "link"});
                     link.value()(item);
                     item.id == pid && (prev = link);
@@ -467,7 +467,7 @@ $_("content/index").imports({
                 sys.title.text(p.online ? opts.name : opts.name + "(离线)")
             }
             this.watch("/ui/link", (e, p) => {
-                opts.id == p.data.mid && text(p.data)
+                opts.id == p.mid && text(p)
             });
             this.on(Click, e => this.notify("/show/links"));
         }
@@ -477,32 +477,38 @@ $_("content/index").imports({
               #parts > * { margin: 4px }",
         xml: "<Query id='parts' xmlns='/'/>",
         fun: function (sys, items, opts) {
-            let open = items.parts.open;
-            delete items.parts.open;
+            let link, table = {},
+                open = items.parts.open;
+                delete items.parts.open;
             this.watch("/ui/parts", (e, p) => {
-                opts = {};
+                table = {},
+                link = p.link;
                 let i,list = sys.parts.children();
-                for (i = 0; i < p.data.parts.length; i++) {
-                    let item = p.data.parts[i];
+                for (i = 0; i < p.parts.length; i++) {
+                    let item = p.parts[i];
                     list[i] || list.push(sys.parts.append("Thumbnail"));
                     list[i].value()(item);
-                    opts[item.mid] = list[i].show();
+                    table[item.mid] = list[i].show();
                 }
                 for (let k = i; k < list.length; k++)
                     list[k].hide(); 
-                opts[open] && opts[open].trigger(Click);
+                table[open] && table[open].trigger(Click);
             });
-            this.watch("message", (e, p) => {
-                if (p.topic == "/SYS")
-                    opts[p.mid] && opts[p.mid].value()(p);
+            this.watch("/ui/part", (e, p) => {
+                let o = table[p.mid];
+                o && p.topic == "/SYS" && o.value()(p);
             });
             sys.parts.on(Click, "*", function (e) {
                 let data = this.data("data");
                 data.online && this.trigger("/open/part", data);
             });
-            this.watch("$offline", e => {
-                sys.parts.children().forEach(item => item.value()({online: 0}));
+            this.watch("/ui/link", (e, p) => {
+                link == p.mid && !p.online && offlineAll();
             });
+            function offlineAll() {
+                sys.parts.children().forEach(item => item.value()({online: 0}));
+            }
+            this.watch("$offline", offlineAll);
         }
     },
     Thumbnail: {
@@ -517,9 +523,9 @@ $_("content/index").imports({
               </a>",
         fun: function (sys, items, opts) {
             let that = this;
-            return function (payload) {
+            return function (p) {
                 let data = that.data("data") || {};
-                that.data("data",xp.extend(true, data, payload));
+                that.data("data",xp.extend(true, data, p));
                 items.icon(data["class"]);
                 sys.label.text(data.name);
                 sys.thumbnail[data.online ? "addClass" : "removeClass"]("#active");
