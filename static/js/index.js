@@ -496,14 +496,14 @@ $_("content/index").imports({
             });
             this.watch("/ui/part", (e, p) => {
                 let o = table[p.mid];
-                o && p.topic == "/SYS" && o.value()(p);
+                o && typeof p.online == "number" && o.value()(p);
             });
             sys.parts.on(Click, "*", function (e) {
                 let data = this.data("data");
                 data.online && this.trigger("/open/part", data);
             });
             this.watch("/ui/link", (e, p) => {
-                link == p.mid && !p.online && offlineAll();
+                link == p.mid && p.online == 0 && offlineAll();
             });
             function offlineAll() {
                 sys.parts.children().forEach(item => item.value()({online: 0}));
