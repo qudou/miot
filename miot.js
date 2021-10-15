@@ -52,7 +52,7 @@ $_().imports({
                 this.notify("to-users", {topic: "/ui/link", mid: uid, data: {mid: topic, online: 0}});
             });
             server.on("published", async (packet, client) => {
-                if (packet.topic !== "/SYS") return;
+                if (packet.topic !== uid) return;
                 let p = JSON.parse(packet.payload + '');
                 let m = await items.parts.getPartByLink(client.id, p.pid);
                 if (!m) return;
@@ -245,7 +245,7 @@ $_("mosca").imports({
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
                 let payload = {mid: p.mid, topic: p.topic, data: p.data};
-                p.topic == "/SYS" && (payload.online = p.online);
+                typeof p.online == "number" && (payload.online = p.online);
                 this.notify("to-users", payload);
             });
             this.on("to-local", (e, p) => {
