@@ -127,9 +127,9 @@ $_().imports({
                 e.stopPropagation();
                 this.notify("publish", [uid, p]);
             });
-            this.on("/open/part", (e, p) => {
+            this.on("/open/app", (e, p) => {
                 e.stopPropagation();
-                this.notify("/open/part", p);
+                this.notify("/open/app", p);
             });
             this.watch("message", (e, p) => {
                 p.mid == uid && this.notify(p.topic, [p.data]);
@@ -307,13 +307,13 @@ $_("login").imports({
 $_("content").imports({
     Index: {
         css: "#index { padding: 12px; }\
-              #parts { max-height: calc(100% - 130px); overflow: hidden; }",
+              #apps { max-height: calc(100% - 130px); overflow: hidden; }",
         xml: "<div id='index' xmlns:i='index'>\
                 <i:Header id='header'/>\
                 <i:Areas id='areas'/>\
                 <i:Title id='title'/>\
                 <i:Links id='links'/>\
-                <i:Parts id='parts'/>\
+                <i:Apps id='apps'/>\
               </div>"
     },
     About: {
@@ -336,25 +336,25 @@ $_("content").imports({
                 e.stopPropagation();
                 this.notify("publish", [opts.mid, {topic: topic, body: body}]);
             });
-            this.watch("/ui/part", (e, p) => {
+            this.watch("/ui/app", (e, p) => {
                 let client = sys.mask.prev();
                 if (client && opts.mid == p.mid)
                     p.online == 0 ? this.trigger("close") : client.notify(p.topic, [p.data]);
             });
-            function load(part) {
-                let Client = `//${part.view}/Index`;
+            function load(app) {
+                let Client = `//${app.view}/Index`;
                 let c = xp.hasComponent(Client);
-                if (!c) return setTimeout(i=>load(part), 10);
+                if (!c) return setTimeout(i=>load(app), 10);
                 c.map.msgscope = true;
-                sys.mask.before(Client, part);
+                sys.mask.before(Client, app);
                 items.mask.hide();
                 sys.client.once("close", close)
             }
-            this.watch("/open/part", (e, part) => {
-                opts = part;
+            this.watch("/open/app", (e, app) => {
+                opts = app;
                 items.mask.show();
                 sys.client.addClass("#modal-in");
-                require([`/views/${part.view}/index.js`], () => load(part), () => {
+                require([`/views/${app.view}/index.js`], () => load(app), () => {
                     items.mask.hide();
                     sys.client.removeClass("#modal-in");
                     window.app.dialog.alert("操作页面不存在", "提示")
@@ -462,7 +462,7 @@ $_("content/index").imports({
         fun: function (sys, items, opts) {
             this.watch("/open/link", (e, link) => {
                 text(opts = link);
-                this.trigger("publish", {topic: "/ui/parts", body: {link: link.id}});
+                this.trigger("publish", {topic: "/ui/apps", body: {link: link.id}});
             });
             function text(p) { 
                 sys.title.text(p.online ? opts.name : opts.name + "(离线)")
@@ -473,21 +473,21 @@ $_("content/index").imports({
             this.on(Click, e => this.notify("/show/links"));
         }
     },
-    Parts: {
-        css: "#parts { display: flex; overflow: hidden; flex-wrap: wrap; }\
-              #parts > * { margin: 4px }",
-        xml: "<Query id='parts' xmlns='/'/>",
+    Apps: {
+        css: "#apps { display: flex; overflow: hidden; flex-wrap: wrap; }\
+              #apps > * { margin: 4px }",
+        xml: "<Query id='apps' xmlns='/'/>",
         fun: function (sys, items, opts) {
             let link, table = {},
-                open = items.parts.open;
-                delete items.parts.open;
-            this.watch("/ui/parts", (e, p) => {
+                open = items.apps.open;
+                delete items.apps.open;
+            this.watch("/ui/apps", (e, p) => {
                 table = {},
                 link = p.link;
-                let i,list = sys.parts.children();
-                for (i = 0; i < p.parts.length; i++) {
-                    let item = p.parts[i];
-                    list[i] || list.push(sys.parts.append("Thumbnail"));
+                let i,list = sys.apps.children();
+                for (i = 0; i < p.apps.length; i++) {
+                    let item = p.apps[i];
+                    list[i] || list.push(sys.apps.append("Thumbnail"));
                     list[i].value()(item);
                     table[item.mid] = list[i].show();
                 }
@@ -495,19 +495,19 @@ $_("content/index").imports({
                     list[k].hide(); 
                 table[open] && table[open].trigger(Click);
             });
-            this.watch("/ui/part", (e, p) => {
+            this.watch("/ui/app", (e, p) => {
                 let o = table[p.mid];
                 o && typeof p.online == "number" && o.value()(p);
             });
-            sys.parts.on(Click, "*", function (e) {
+            sys.apps.on(Click, "*", function (e) {
                 let data = this.data("data");
-                data.online && this.trigger("/open/part", data);
+                data.online && this.trigger("/open/app", data);
             });
             this.watch("/ui/link", (e, p) => {
                 link == p.mid && p.online == 0 && offlineAll();
             });
             function offlineAll() {
-                sys.parts.children().forEach(item => item.value()({online: 0}));
+                sys.apps.children().forEach(item => item.value()({online: 0}));
             }
             this.watch("$offline", offlineAll);
         }

@@ -1,5 +1,5 @@
 /*!
- * miot.js v1.1.0
+ * miot.js v1.1.1
  * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
@@ -31,14 +31,14 @@ $_().imports({
         xml: "<main id='mosca' xmlns:i='mosca'>\
                 <i:Authorize id='auth'/>\
                 <i:Links id='links'/>\
-                <i:Parts id='parts'/>\
+                <i:Apps id='apps'/>\
                 <i:Middle id='middle'/>\
               </main>",
         fun: async function (sys, items, opts) {
             let server = new mosca.Server({port: config.mqtt_port});
             server.on("ready", async () => {
                 await items.links.offlineAll();
-                await items.parts.offlineAll();
+                await items.apps.offlineAll();
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
                 logger.info("Mosca server is up and running"); 
             });
@@ -48,16 +48,16 @@ $_().imports({
             });
             server.on("unsubscribed", async (topic, client) => {
                 await items.links.update(topic, 0);
-                await items.parts.update(topic, 0);
+                await items.apps.update(topic, 0);
                 this.notify("to-users", {topic: "/ui/link", mid: uid, data: {mid: topic, online: 0}});
             });
             server.on("published", async (packet, client) => {
                 if (packet.topic !== uid) return;
                 let p = JSON.parse(packet.payload + '');
-                let m = await items.parts.getPartByLink(client.id, p.pid);
+                let m = await items.apps.getAppByLink(client.id, p.pid);
                 if (!m) return;
                 if (typeof p.online == "number") 
-                    await items.parts.cache(m.id, p);
+                    await items.apps.cache(m.id, p);
                 p.mid = m.id;
                 await items.middle.create(m.view, p);
             });
@@ -86,13 +86,13 @@ $_().imports({
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 let p = JSON.parse(packet.payload + '');
-                let m = await items.util.getPartById(packet.topic);
+                let m = await items.util.getAppById(packet.topic);
                 p.cid = client.id;
                 p.mid = packet.topic;
                 await items.middle.create(m.view, p);
             });
             this.watch("to-user", (e, topic, p) => {
-                p = (p.mid == uid) ? p : {mid: uid, topic: "/ui/part", data: p};
+                p = (p.mid == uid) ? p : {mid: uid, topic: "/ui/app", data: p};
                 p = JSON.stringify(p);
                 server.publish({topic: topic, payload: p, qos: 1, retain: false});
             });
@@ -111,16 +111,16 @@ $_().imports({
                     fs.exists(path, e => resolve(e));
                 });
             }
-            function getPartById(partId) {
+            function getAppById(appid) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM parts WHERE id = '${partId}'`;
+                    let stmt = `SELECT * FROM apps WHERE id = '${appid}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data[0]);
                     });
                 });
             }
-            return { getPartById: getPartById, exists: exists };
+            return { getAppById: getAppById, exists: exists };
         }
     }
 });
@@ -129,7 +129,7 @@ $_("mosca").imports({
     Authorize: {
         xml: "<main id='authorize'>\
                 <Links id='links'/>\
-                <Parts id='parts'/>\
+                <Apps id='apps'/>\
               </main>",
         fun: function (sys, items, opts) {
             async function authenticate(client, user, pass, callback) {
@@ -171,11 +171,11 @@ $_("mosca").imports({
             return { canLink: canLink, update: update, offlineAll: offlineAll };
         }
     },
-    Parts: {
+    Apps: {
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
             async function cache(mid, payload) {
-                let str = "UPDATE parts SET online=% WHERE id=?";
+                let str = "UPDATE apps SET online=% WHERE id=?";
                 let stmt = items.sqlite.prepare(str.replace('%', payload.online == undefined ? 1 : payload.online));
                 stmt.run(mid, err => {
                     if (err) throw err;
@@ -183,7 +183,7 @@ $_("mosca").imports({
             }
             function update(linkId, online) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE link=? AND type>1");
+                    let stmt = items.sqlite.prepare("UPDATE apps SET online=? WHERE link=? AND type>1");
                     stmt.run(online, linkId, err => {
                         if (err) throw err;
                         resolve(true);
@@ -192,32 +192,32 @@ $_("mosca").imports({
             }
             function offlineAll() {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE parts SET online=? WHERE type>1");
+                    let stmt = items.sqlite.prepare("UPDATE apps SET online=? WHERE type>1");
                     stmt.run(0, err => {
                         if (err) throw err;
                         resolve(true);
                     });
                 });
             }
-            function getPartByLink(linkId, partId) {
+            function getAppByLink(linkId, partId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM parts WHERE link='${linkId}' AND part = '${partId}'`;
+                    let stmt = `SELECT * FROM apps WHERE link='${linkId}' AND part='${partId}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data[0]);
                     });
                 });
             }
-            function getPartsByLink(linkId) {
+            function getAppsByLink(linkId) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM parts WHERE link='${linkId}' AND type>1`;
+                    let stmt = `SELECT * FROM apps WHERE link='${linkId}' AND type>1`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data);
                     });
                 });
             }
-            return { cache: cache, update: update, offlineAll: offlineAll, getPartByLink: getPartByLink, getPartsByLink: getPartsByLink };
+            return { cache: cache, update: update, offlineAll: offlineAll, getAppByLink: getAppByLink, getAppsByLink: getAppsByLink };
         }
     },
     Middle: {
@@ -250,7 +250,7 @@ $_("mosca").imports({
             });
             this.on("to-local", (e, p) => {
                 e.stopPropagation();
-                let m = items.uitl.getPartById(p.mid);
+                let m = items.uitl.getAppById(p.mid);
                 let body = { topic: p.topic, body: p.body };
                 this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });
@@ -329,7 +329,7 @@ $_("proxy").imports({
             function getUsersByMiddle(mid) {
                 return new Promise((resolve, reject) => {
                     let stmt = `SELECT distinct status.* FROM users,auths,status
-                                WHERE users.id = status.user_id AND users.id = auths.user AND auths.part = '${mid}'`;
+                                WHERE users.id = status.user_id AND users.id = auths.user AND auths.app = '${mid}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(data);
@@ -393,7 +393,7 @@ $_("proxy").imports({
             });
             this.on("to-local", async (e, p) => {
                 e.stopPropagation();
-                let m = await items.util.getPartById(p.mid);
+                let m = await items.util.getAppById(p.mid);
                 let body = { topic: p.topic, body: p.body };
                 this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });

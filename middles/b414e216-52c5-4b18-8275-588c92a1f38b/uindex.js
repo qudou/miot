@@ -14,7 +14,7 @@ $_().imports({
         xml: "<main id='index'>\
                 <Areas id='areas'/>\
                 <Links id='links'/>\
-                <Parts id='parts'/>\
+                <Apps id='apps'/>\
                 <Views id='views'/>\
                 <Signup id='signup'/>\
                 <Remove id='remove'/>\
@@ -25,7 +25,7 @@ $_().imports({
         xml: "<Sqlite id='areas' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             let stmt = "SELECT id, name FROM areas WHERE id <> 0";
-            this.watch("/parts/areas", (e, p) => {
+            this.watch("/apps/areas", (e, p) => {
                 items.areas.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -38,7 +38,7 @@ $_().imports({
         xml: "<Sqlite id='links' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             let stmt = "SELECT id, name, area FROM links WHERE area<>0 ORDER BY area";
-            this.watch("/parts/links", (e, p) => {
+            this.watch("/apps/links", (e, p) => {
                 items.links.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -47,12 +47,12 @@ $_().imports({
             });
         }
     },
-    Parts: {
-        xml: "<Sqlite id='parts' xmlns='//miot/sqlite'/>",
+    Apps: {
+        xml: "<Sqlite id='apps' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/parts/parts", (e, p) => {
-                let stmt = `SELECT id,name,link,part,view,type FROM parts WHERE link='${p.body.link}' AND type<>0`;
-                items.parts.all(stmt, (err, data) => {
+            this.watch("/apps/list", (e, p) => {
+                let stmt = `SELECT id,name,link,part,view,type FROM apps WHERE link='${p.body.link}' AND type<>0`;
+                items.apps.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
                     this.trigger("to-users", p);
@@ -63,7 +63,7 @@ $_().imports({
     Views: {
         xml: "<Sqlite id='views' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/parts/views", (e, p) => {
+            this.watch("/apps/views", (e, p) => {
                 let stmt = `SELECT id,name,desc FROM views WHERE type<>0`;
                 items.views.all(stmt, (err, data) => {
                     if (err) throw err;
@@ -79,14 +79,14 @@ $_().imports({
                 <i:Signup/>\
               </Flow>",
         fun: function (sys, items, opts) {
-            this.watch("/parts/signup", items.signup.start);
+            this.watch("/apps/signup", items.signup.start);
         }
     },
     Remove: {
         xml: "<Sqlite id='remove' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/parts/remove", (e, p) => {
-                let remove = "DELETE FROM parts WHERE id=?";
+            this.watch("/apps/remove", (e, p) => {
+                let remove = "DELETE FROM apps WHERE id=?";
                 let stmt = items.remove.prepare(remove);
                 stmt.run(p.body.id, function (err) {
                     if (err) throw err;
@@ -102,7 +102,7 @@ $_().imports({
                 <i:Update/>\
               </Flow>",
         fun: function (sys, items, opts) {
-            this.watch("/parts/update", items.update.start);
+            this.watch("/apps/update", items.update.start);
         }
     },
     Flow: {
@@ -139,7 +139,7 @@ $_("signup").imports({
         fun: function (sys, items, opts) {
             let uuidv1 = require("uuid/v1");
             let uuidv4 = require("uuid/v4");
-            let str = "INSERT INTO parts (id,name,link,part,view,type,online) VALUES(?,?,?,?,?,?,?)";
+            let str = "INSERT INTO apps (id,name,link,part,view,type,online) VALUES(?,?,?,?,?,?,?)";
             this.on("exec", (e, p) => {
                 let stmt = items.signup.prepare(str);
                 let b = p.body;
@@ -149,9 +149,9 @@ $_("signup").imports({
                 stmt.run(id,b.name,b.link,part,b.view,b.type,online);
                 stmt.finalize(() => insertToAuths(p, id)); 
             });
-            function insertToAuths(p, partId) {
-                let stmt = items.signup.prepare("INSERT INTO auths (user,part) VALUES(0,?)");
-                stmt.run(partId);
+            function insertToAuths(p, appid) {
+                let stmt = items.signup.prepare("INSERT INTO auths (user,app) VALUES(0,?)");
+                stmt.run(appid);
                 stmt.finalize(() => {
                     p.data = {code: 0, desc: "注册成功"};
                     sys.signup.trigger("to-users", p);
@@ -168,7 +168,7 @@ $_("update").imports({
     Update: {
         xml: "<Sqlite id='update' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            let update = "UPDATE parts SET name=?,link=?,part=?,view=?,type=?str WHERE id=?";
+            let update = "UPDATE apps SET name=?,link=?,part=?,view=?,type=?str WHERE id=?";
             this.on("exec", (e, p) => {
                 let b = p.body;
                 let s = b.type > 1 ? ',online=1' : '';

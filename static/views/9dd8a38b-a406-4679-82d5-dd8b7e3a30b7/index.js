@@ -11,7 +11,7 @@ $_().imports({
     Index: {
         xml: "<i:ViewStack id='index' xmlns:i='//miot'>\
                 <Overview id='overview'/>\
-                <Parts id='parts'/>\
+                <Apps id='apps'/>\
                 <Service id='service'/>\
                 <Guide id='guide'/>\
               </i:ViewStack>",
@@ -28,8 +28,8 @@ $_().imports({
             return {title: items.navbar.title};
         }
     },
-    Parts: {
-        xml: "<div id='parts' xmlns:i='parts'>\
+    Apps: {
+        xml: "<div id='apps' xmlns:i='apps'>\
                 <i:Navbar id='navbar'/>\
                 <i:Content id='content'/>\
               </div>",
@@ -112,14 +112,14 @@ $_("overview").imports({
                 links = {};
                 data.map(i => links[i.id]=i);
             });
-            this.on("parts", (e, linkId) => {
+            this.on("apps", (e, linkId) => {
                 let data = xp.extend({},links[linkId]);
                 data.area = areas[data.area];
                 data.user = items.users.getValue().id;
-                this.trigger("switch", ["parts", data]);
+                this.trigger("switch", ["apps", data]);
             });
-            this.watch("auth-change", (e, part) => {
-                let payload = { user:items.users.getValue().id, part:part.id, auth:part.auth };
+            this.watch("auth-change", (e, app) => {
+                let payload = { user:items.users.getValue().id, app:app.id, auth:app.auth };
                 this.trigger("publish", ["/auths/auth", payload]);
             });
         }
@@ -215,7 +215,7 @@ $_("overview/links").imports({
                 sys.label.text(link.name);
             }
             this.on(Click, (e) => {
-                this.trigger("parts", opts.id);
+                this.trigger("apps", opts.id);
             });
             return Object.defineProperty({}, "value", {set: setValue});
         }
@@ -227,7 +227,7 @@ $_("overview/links").imports({
     }
 });
 
-$_("parts").imports({
+$_("apps").imports({
     Navbar: {
         css: ".ios .navbar-inner { padding: 0 10px; }",
         xml: "<div id='navbar' class='navbar'>\
@@ -251,18 +251,18 @@ $_("parts").imports({
     Content: {
         xml: "<div class='page'>\
                 <div id='content' class='page-content'>\
-                  <List id='parts' xmlns='/overview/users'/>\
+                  <List id='apps' xmlns='/overview/users'/>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
             function init(p) {
                 opts = p;
-                sys.content.trigger("publish", ["/auths/parts", {user: p.user, link: p.id}]);
+                sys.content.trigger("publish", ["/auths/apps", {user: p.user, link: p.id}]);
             }
-            this.watch("/auths/parts", (e, data) => {
-                sys.parts.children().call("remove");
+            this.watch("/auths/apps", (e, data) => {
+                sys.apps.children().call("remove");
                 data.forEach(item => {
-                    sys.parts.append("Item").value().value = item;
+                    sys.apps.append("Item").value().value = item;
                 });
             });
             this.on("update", (e, data) => {
@@ -285,10 +285,10 @@ $_("parts").imports({
                </label>\
               </li>",
         fun: function (sys, items, opts) {
-            function setValue(part) {
-                opts = part;
-                sys.label.text(part.name);
-                sys.input.prop("checked", !!part.auth);
+            function setValue(app) {
+                opts = app;
+                sys.label.text(app.name);
+                sys.input.prop("checked", !!app.auth);
             }
             sys.input.on("change", (e) => {
                 opts.auth = sys.input.prop("checked");

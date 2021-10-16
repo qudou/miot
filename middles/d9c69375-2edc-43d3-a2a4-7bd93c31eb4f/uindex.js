@@ -144,9 +144,9 @@ $_("signup").imports({
                 stmt.finalize(()=>insertToAuths(p));
             });
             function insertToAuths(p) {
-                let part = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
-                let stmt = items.db.prepare("INSERT INTO auths (user,part) VALUES(last_insert_rowid(),?)");
-                stmt.run(part);
+                let appid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
+                let stmt = items.db.prepare("INSERT INTO auths (user,app) VALUES(last_insert_rowid(),?)");
+                stmt.run(appid);
                 stmt.finalize(() => {
                     p.data = {code: 0, desc: "注册成功"};
                     sys.signup.trigger("to-users", p);

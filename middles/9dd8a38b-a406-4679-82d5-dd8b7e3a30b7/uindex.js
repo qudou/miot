@@ -15,7 +15,7 @@ $_().imports({
                 <Users id='users'/>\
                 <Areas id='areas'/>\
                 <Links id='links'/>\
-                <Parts id='parts'/>\
+                <Apps id='apps'/>\
                 <Auth id='auth'/>\
               </main>"
     },
@@ -61,22 +61,22 @@ $_().imports({
             });
         }
     },
-    Parts: {
-        xml: "<Sqlite id='parts' xmlns='//miot/sqlite'/>",
+    Apps: {
+        xml: "<Sqlite id='apps' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/auths/parts", async (e, p) => {
+            this.watch("/auths/apps", async (e, p) => {
                 let table = {};
-                let parts = await getParts(p.body.link);
-                parts.forEach(i=>table[i.id]=i);
+                let apps = await getApps(p.body.link);
+                apps.forEach(i=>table[i.id]=i);
                 let auths = await getAuths(p.body.user);
-                auths.forEach(i=>table[i.part] && (table[i.part].auth = 1));
-                p.data = parts;
+                auths.forEach(i=>table[i.app] && (table[i.app].auth = 1));
+                p.data = apps;
                 this.trigger("to-users", p);
             });
-            function getParts(link) {
+            function getApps(link) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT id,name,link,view FROM parts WHERE link='${link}' AND type<>0`;
-                    items.parts.all(stmt, (err, rows) => {
+                    let stmt = `SELECT id,name,link,view FROM apps WHERE link='${link}' AND type<>0`;
+                    items.apps.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(rows);
                     });
@@ -85,7 +85,7 @@ $_().imports({
             function getAuths(user) {
                 return new Promise((resolve, reject) => {
                     let stmt = `SELECT * FROM auths WHERE user = ${user}`;
-                    items.parts.all(stmt, (err, rows) => {
+                    items.apps.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(rows);
                     });
@@ -100,7 +100,7 @@ $_().imports({
                 p.body.auth ? exists(p) : remove(p);
             });
             function exists(p) {
-                let stmt = `SELECT * FROM auths WHERE user=${p.body.user} AND part='${p.body.part}'`;
+                let stmt = `SELECT * FROM auths WHERE user=${p.body.user} AND app='${p.body.app}'`;
                 items.auth.all(stmt, (err, data) => {
                     if (err) throw err;
                     if (!data.length)
@@ -110,16 +110,16 @@ $_().imports({
                 });
             }
             function insert(p) {
-                let stmt = items.auth.prepare("INSERT INTO auths (user,part) VALUES(?,?)");
-                stmt.run(p.body.user, p.body.part);
+                let stmt = items.auth.prepare("INSERT INTO auths (user,app) VALUES(?,?)");
+                stmt.run(p.body.user, p.body.app);
                 stmt.finalize(() => {
                     p.data = {code: 0, desc: "授权成功"};
                     sys.auth.trigger("to-users", p);
                 });
             }
             function remove(p) {
-                let stmt = items.auth.prepare("DELETE FROM auths WHERE user=? AND part=?");
-                stmt.run(p.body.user, p.body.part, function (err) {
+                let stmt = items.auth.prepare("DELETE FROM auths WHERE user=? AND app=?");
+                stmt.run(p.body.user, p.body.app, function (err) {
                     if (err) throw err;
                     p.data = this.changes ? {code: 0, desc: "删除成功"} : {code: -1, desc: "删除失败"};
                     sys.auth.trigger("to-users", p);

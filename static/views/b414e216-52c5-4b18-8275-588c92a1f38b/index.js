@@ -11,7 +11,7 @@ $_().imports({
     Index: {
         xml: "<i:ViewStack id='index' xmlns:i='//miot'>\
                 <Overview id='overview'/>\
-                <PartList id='partlist'/>\
+                <AppList id='applist'/>\
                 <Signup id='signup'/>\
                 <Remove id='remove'/>\
                 <Update id='update'/>\
@@ -31,8 +31,8 @@ $_().imports({
             return {title: items.navbar.title};
         }
     },
-    PartList: {
-        xml: "<div id='partlist' xmlns:i='partlist'>\
+    AppList: {
+        xml: "<div id='applist' xmlns:i='applist'>\
                 <i:Navbar id='navbar'/>\
                 <i:Content id='content'/>\
               </div>",
@@ -66,8 +66,8 @@ $_().imports({
         fun: function (sys, items, opts) {
             this.watch("remove", (e, p) => {
                 window.app.dialog.confirm("确定删除该应用吗？", "温馨提示", () => {
-                    this.trigger("publish", ["/parts/remove", {id: p.id}]);
-                    this.glance("/parts/remove", (m, p) => {
+                    this.trigger("publish", ["/apps/remove", {id: p.id}]);
+                    this.glance("/apps/remove", (m, p) => {
                         this.trigger("message", ["msg", p.desc]);
                         p.code == 0 && e.target.remove();
                     },1);
@@ -89,13 +89,13 @@ $_().imports({
             this.on("show", (e, to, p) => {
                 items.content.text(`${p}不存在,请先添加${p}`);
             });
-            this.watch("/parts/areas", (e, data) => {
-                data.length ? this.trigger("publish", "/parts/links") : this.trigger("switch", ["guide", "区域"]);
+            this.watch("/apps/areas", (e, data) => {
+                data.length ? this.trigger("publish", "/apps/links") : this.trigger("switch", ["guide", "区域"]);
             });
-            this.watch("/parts/links", (e, data) => {
-                data.length ? this.trigger("publish", "/parts/views") : this.trigger("switch", ["guide", "网关"]);
+            this.watch("/apps/links", (e, data) => {
+                data.length ? this.trigger("publish", "/apps/views") : this.trigger("switch", ["guide", "网关"]);
             });
-            this.watch("/parts/views", (e, data) => {
+            this.watch("/apps/views", (e, data) => {
                 data.length || this.trigger("switch", ["guide", "视图"]);
             });
         }
@@ -126,10 +126,10 @@ $_("overview").imports({
               </div>",
         fun: function (sys, items, opts) {
             let areas = {}, links = {}; 
-            this.watch("/parts/areas", (e, data) => {
+            this.watch("/apps/areas", (e, data) => {
                 data.map(i => areas[i.id] = i);
             });
-            this.watch("/parts/links", (e, data) => {
+            this.watch("/apps/links", (e, data) => {
                 let area, list;
                 data.forEach(item => {
                     if (area != item.area) {
@@ -142,12 +142,12 @@ $_("overview").imports({
                 links = {};
                 data.map(i => links[i.id]=i);
             });
-            this.watch("partlist", (e, linkId) => {
+            this.watch("applist", (e, linkId) => {
                 let data = xp.extend({},links[linkId]);
                 data.area = areas[data.area];
-                this.trigger("switch", ["partlist", data]);
+                this.trigger("switch", ["applist", data]);
             });
-            this.trigger("publish", "/parts/areas");
+            this.trigger("publish", "/apps/areas");
         }
     },
     Title: {
@@ -175,7 +175,7 @@ $_("overview").imports({
                 sys.label.text(link.name);
             }
             this.on(Click, (e) => {
-                this.notify("partlist", opts.id);
+                this.notify("applist", opts.id);
             });
             return Object.defineProperty({}, "value", {set: setValue});
         }
@@ -187,7 +187,7 @@ $_("overview").imports({
     }
 });
 
-$_("partlist").imports({
+$_("applist").imports({
     Navbar: {
         css: ".ios .navbar-inner { padding: 0 10px; }",
         xml: "<div id='navbar' class='navbar'>\
@@ -214,18 +214,18 @@ $_("partlist").imports({
     Content: {
         xml: "<div class='page'>\
                 <div id='content' class='page-content'>\
-                  <PartList id='list'/>\
+                  <AppList id='list'/>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
             function init(p) {
                 opts = p;
-                sys.content.trigger("publish", ["/parts/parts", {link: p.id}]);
+                sys.content.trigger("publish", ["/apps/list", {link: p.id}]);
             }
-            this.watch("/parts/parts", (e, data) => {
+            this.watch("/apps/list", (e, data) => {
                 sys.list.children().call("remove");
                 data.forEach(item => {
-                    sys.list.append("PartItem").value().value = item;
+                    sys.list.append("AppItem").value().value = item;
                 });
                 data.length ? sys.list.show() : sys.list.hide();
             });
@@ -234,16 +234,16 @@ $_("partlist").imports({
                 item.link = opts;
                 this.trigger("switch", ["update", item]);
             });
-            this.watch("/parts/remove", (e, p) => {
+            this.watch("/apps/remove", (e, p) => {
                 sys.list.children().length || sys.list.hide();
             });
             return {init: init};
         }
     },
-    PartList: {
+    AppList: {
         map: { extend: {'from': '../overview/LinkList'} }
     },
-    PartItem: {
+    AppItem: {
         css: "#icon { width: 28px; height: 28px; border-radius: 6px; box-sizing: border-box; }",
         xml: "<li class='swipeout'>\
                <div class='item-content swipeout-content'>\
@@ -251,7 +251,7 @@ $_("partlist").imports({
                  <div class='item-inner'>\
                    <div class='item-title'>\
                      <div id='label'/>\
-                     <div id='part' class='item-footer'/>\
+                     <div id='app' class='item-footer'/>\
                    </div>\
                  </div>\
                </div>\
@@ -262,10 +262,10 @@ $_("partlist").imports({
               </li>",
         fun: function (sys, items, opts) {
             sys.edit.on(Click, () => this.trigger("update", opts));
-            function setValue(part) {
-                opts = part;
-                sys.label.text(part.name);
-                sys.part.text(part.id);
+            function setValue(app) {
+                opts = app;
+                sys.label.text(app.name);
+                sys.app.text(app.id);
             }
             sys.remove.on(Click, () => this.notify("remove", opts));
             return Object.defineProperty({}, "value", { set: setValue});
@@ -292,7 +292,7 @@ $_("signup").imports({
               </div>",
         fun: function (sys, items, opts) {
             sys.title.text(opts.title);
-            sys.backward.on(Click, e => this.trigger("switch", "partlist"));
+            sys.backward.on(Click, e => this.trigger("switch", "applist"));
         }
     },
     Content: {
@@ -302,7 +302,7 @@ $_("signup").imports({
                       <i:Name id='nane'/>\
                       <i:Area id='area'/>\
                       <i:Link id='link'/>\
-                      <i:Class id='klass'/>\
+                      <i:View id='view'/>\
                       <i:Type id='type'/>\
                     </i:Form>\
                     <i:Button id='submit'>注册</i:Button>\
@@ -314,14 +314,14 @@ $_("signup").imports({
                 opts = p;
                 e.stopPropagation();
                 this.trigger("switch", "service");
-                this.trigger("publish", ["/parts/signup", p]);
-                this.glance("/parts/signup", callback);
+                this.trigger("publish", ["/apps/signup", p]);
+                this.glance("/apps/signup", callback);
             });
             function callback(e, p) {
                 this.trigger("message", ["msg", p.desc]);
                 if (p.code == -1)
                     return this.trigger("switch", "signup");
-                this.notify("partlist", opts.link);
+                this.notify("applist", opts.link);
             }
             function init(p) {
                 items.nane.val("").focus();
@@ -356,29 +356,29 @@ $_("signup/form").imports({
         }
     },
     Name: {
-        xml: "<Input id='part' label='名称' placeholder='请输入应用名称' maxlength='32'/>",
+        xml: "<Input id='app' label='名称' placeholder='请输入应用名称' maxlength='32'/>",
         fun: function (sys, items, opts) {
             function error( msg ) {
-                items.part.focus();
-                sys.part.trigger("message", ["error", msg]);
+                items.app.focus();
+                sys.app.trigger("message", ["error", msg]);
             }
             this.on("start", function (e, o) {
-                o.name = items.part.val();
+                o.name = items.app.val();
                 if (o.name === "") {
                     error("请输入应用名称");
                 } else if (o.name.length < 2) {
                     error("应用名称至少需要2个字符");
                 } else {
-                    sys.part.trigger("next", o);
+                    sys.app.trigger("next", o);
                 }
             });
-            return items.part;
+            return items.app;
         }
     },
     Area: {
         xml: "<Picker id='area' label='区域'/>",
         fun: function (sys, items, opts) {
-            this.watch("/parts/areas", (e, data) => {
+            this.watch("/apps/areas", (e, data) => {
                 data.length ? sys.area.show().value().init(data) : sys.area.hide();
             });
             this.on("value-change", (e, value) => {
@@ -392,7 +392,7 @@ $_("signup/form").imports({
         xml: "<Picker id='link' label='网关' setid='1'/>",
         fun: function (sys, items, opts) {
             let links = {};
-            this.watch("/parts/links", (e, data) => {
+            this.watch("/apps/links", (e, data) => {
                 data.map(i => {
                     links[i.area] = links[i.area] || [];
                     links[i.area].push(i);
@@ -430,7 +430,7 @@ $_("signup/form").imports({
         xml: "<Picker id='view' label='视图' setid='1'/>",
         fun: function (sys, items, opts) {
             let table = {}; 
-            this.watch("/parts/views", (e, data) => {
+            this.watch("/apps/views", (e, data) => {
                 data.length && items.view.init(data);
                 data.map(i=>table[i.id]=i);
             });
@@ -562,14 +562,14 @@ $_("update").imports({
                 p.id = items.guid.val();
                 e.stopPropagation();
                 this.trigger("switch", "service");
-                this.trigger("publish", ["/parts/update", p]);
-                this.glance("/parts/update", callback);
+                this.trigger("publish", ["/apps/update", p]);
+                this.glance("/apps/update", callback);
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
                 if (p.code == -1)
                     return e.target.trigger("switch", "update");
-                e.target.notify("partlist", opts.link);
+                e.target.notify("applist", opts.link);
             }
             function init(data) {
                 items.guid.val(data.id);
