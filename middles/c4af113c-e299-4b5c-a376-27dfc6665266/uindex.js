@@ -1,6 +1,6 @@
 /*!
  * index.js v1.0.0
- * https://github.com/qudou/miot-parts
+ * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
  */
@@ -58,7 +58,7 @@ $_().imports({
                     if (err) throw err;
                     p.data = {link: p.body.link, parts: []};
                     data.forEach(i => {
-                        p.data.parts.push({'mid':i.id,'name':i.name,'class':i.class,'type':i.type,'online':i.online});
+                        p.data.parts.push({'mid':i.id,'name':i.name,'view':i.view,'type':i.type,'online':i.online});
                     });
                     this.trigger("to-users", p);
                 });

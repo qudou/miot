@@ -1,11 +1,11 @@
 /*!
  * index.js v1.0.0
- * https://github.com/qudou/miot-parts
+ * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
  */
 
-xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => { // 模板管理
+xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => { // 视图管理
 
 $_().imports({
     Index: {
@@ -18,7 +18,7 @@ $_().imports({
               </i:ViewStack>",
         fun: function (sys, items, opts) {
             items.overview.title(opts.name);
-            this.trigger("publish", "/classes/select");
+            this.trigger("publish", "/views/select");
         }
     },
     Overview: {
@@ -32,7 +32,7 @@ $_().imports({
     },
     Signup: {
         xml: "<div id='signup' xmlns:i='signup'>\
-                <i:Navbar id='navbar' title='模板注册'/>\
+                <i:Navbar id='navbar' title='视图注册'/>\
                 <i:Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
@@ -41,7 +41,7 @@ $_().imports({
     },
     Update: {
         xml: "<div id='update' xmlns:i='signup'>\
-                <i:Navbar id='navbar' title='模板修改'/>\
+                <i:Navbar id='navbar' title='视图修改'/>\
                 <Content id='content' xmlns='update'/>\
               </div>",
         fun: function (sys, items, opts) {
@@ -53,9 +53,9 @@ $_().imports({
     Remove: {
         fun: function (sys, items, opts) {
             this.watch("remove", (e, p) => {
-                window.app.dialog.confirm("确定删除该模板吗？", "温馨提示", () => {
-                    this.trigger("publish", ["/classes/remove", {id: p.id}]);
-                    this.glance("/classes/remove", (m, p) => {
+                window.app.dialog.confirm("确定删除该视图吗？", "温馨提示", () => {
+                    this.trigger("publish", ["/views/remove", {id: p.id}]);
+                    this.glance("/views/remove", (m, p) => {
                         this.trigger("message", ["msg", p.desc]);
                         p.code == 0 && e.target.remove();
                     },1);
@@ -93,30 +93,30 @@ $_("overview").imports({
     Content: {
         xml: "<div id='content' class='page'>\
                 <div class='page-content'>\
-                  <ClassList id='list'/>\
+                  <ViewList id='list'/>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            this.watch("/classes/select", (e, data) => {
+            this.watch("/views/select", (e, data) => {
                 sys.list.children().call("remove");
                 data.length ? sys.list.show() : sys.list.hide();
                 data.forEach(item => {
-                    let klass = sys.list.append("ClassItem").value();
+                    let klass = sys.list.append("ViewItem").value();
                     klass.value = item;
                 });
             });
-            this.watch("/classes/remove", (e, p) => {
+            this.watch("/views/remove", (e, p) => {
                 sys.list.children().length || sys.list.hide();
             });
         }
     },
-    ClassList: {
+    ViewList: {
         xml: "<div class='list'>\
                 <ul id='list'/>\
               </div>",
         map: { appendTo: "list" }
     },
-    ClassItem: {
+    ViewItem: {
         css: "#icon { width: 28px; height: 28px; border-radius: 6px; box-sizing: border-box; }",
         xml: "<li class='swipeout deleted-callback'>\
                <div class='item-content swipeout-content'>\
@@ -186,14 +186,14 @@ $_("signup").imports({
             sys.desc.on("next", (e, p) => {
                 e.stopPropagation();
                 this.trigger("switch", "service");
-                this.trigger("publish", ["/classes/signup", p]);
-                this.glance("/classes/signup", callback);
+                this.trigger("publish", ["/views/signup", p]);
+                this.glance("/views/signup", callback);
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
                 if (p.code == -1) 
                     return e.target.trigger("switch", "signup");
-                e.target.trigger("publish", "/classes/select").trigger("switch", "overview");
+                e.target.trigger("publish", "/views/select").trigger("switch", "overview");
             }
             function clear() {
                 items.klass.val("");
@@ -226,24 +226,24 @@ $_("signup/form").imports({
             return { start: start };
         }
     },
-    Class: {
-        xml: "<Input id='klass' label='名称' placeholder='请输入模板名称' maxlength='32'/>",
+    View: {
+        xml: "<Input id='view' label='名称' placeholder='请输入视图名称' maxlength='32'/>",
         fun: function (sys, items, opts) {
             function error( msg ) {
-                items.klass.focus();
-                sys.klass.trigger("message", ["error", msg]);
+                items.view.focus();
+                sys.view.trigger("message", ["error", msg]);
             }
             this.on("start", function (e, o) {
-                o.name = items.klass.val();
+                o.name = items.view.val();
                 if (o.name === "") {
-                    error("请输入模板名称");
+                    error("请输入视图名称");
                 } else if (o.name.length < 2) {
-                    error("模板名称至少需要2个字符");
+                    error("视图名称至少需要2个字符");
                 } else {
-                    sys.klass.trigger("next", o);
+                    sys.view.trigger("next", o);
                 }
             });
-            return items.klass;
+            return items.view;
         }
     },
     Desc: {
@@ -297,7 +297,7 @@ $_("update").imports({
                 <div class='page-content' xmlns:i='../signup/form'>\
                     <i:Form id='update'>\
                       <GUID id='id'/>\
-                      <i:Class id='klass'/>\
+                      <i:View id='view'/>\
                       <i:Desc id='desc'/>\
                     </i:Form>\
                     <i:Button id='submit'>确定更新</i:Button>\
@@ -307,21 +307,21 @@ $_("update").imports({
             sys.submit.on(Click, items.update.start);
             function val(value) {
                 items.id.val(value.id);
-                items.klass.val(value.name);
+                items.view.val(value.name);
                 items.desc.val(value.desc);
             }
             sys.desc.on("next", (e) => {
                 e.stopPropagation();
-                let p = {id:items.id.val(), name:items.klass.val(),desc:items.desc.val()};
+                let p = {id:items.id.val(), name:items.view.val(),desc:items.desc.val()};
                 this.trigger("switch", "service");
-                this.trigger("publish", ["/classes/update", p]);
-                this.glance("/classes/update", callback);
+                this.trigger("publish", ["/views/update", p]);
+                this.glance("/views/update", callback);
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
                 if (p.code == -1)
                     return e.target.trigger("switch", "update");
-                e.target.trigger("publish", "/classes/select").trigger("switch", "overview");
+                e.target.trigger("publish", "/views/select").trigger("switch", "overview");
             }
             return {val: val};
         }

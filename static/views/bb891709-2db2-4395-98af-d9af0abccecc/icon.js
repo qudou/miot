@@ -1,11 +1,11 @@
 /*!
  * icon.js v1.0.0
- * https://github.com/qudou/miot-parts
+ * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
  */
 
-xmlplus("bb891709-2db2-4395-98af-d9af0abccecc", (xp, $_, t) => {
+xmlplus("bb891709-2db2-4395-98af-d9af0abccecc", (xp, $_) => {
 
 $_().imports({
     Icon: {

@@ -1,6 +1,6 @@
 /*!
  * index.js v1.0.0
- * https://github.com/qudou/miot-parts
+ * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
  */
@@ -15,7 +15,7 @@ $_().imports({
                 <Areas id='areas'/>\
                 <Links id='links'/>\
                 <Parts id='parts'/>\
-                <Classes id='classes'/>\
+                <Views id='views'/>\
                 <Signup id='signup'/>\
                 <Remove id='remove'/>\
                 <Update id='update'/>\
@@ -51,7 +51,7 @@ $_().imports({
         xml: "<Sqlite id='parts' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.watch("/parts/parts", (e, p) => {
-                let stmt = `SELECT id,name,link,part,class,type FROM parts WHERE link='${p.body.link}' AND type<>0`;
+                let stmt = `SELECT id,name,link,part,view,type FROM parts WHERE link='${p.body.link}' AND type<>0`;
                 items.parts.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -60,12 +60,12 @@ $_().imports({
             });
         }
     },
-    Classes: {
-        xml: "<Sqlite id='classes' xmlns='//miot/sqlite'/>",
+    Views: {
+        xml: "<Sqlite id='views' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/parts/classes", (e, p) => {
-                let stmt = `SELECT id,name,desc FROM classes WHERE type<>0`;
-                items.classes.all(stmt, (err, data) => {
+            this.watch("/parts/views", (e, p) => {
+                let stmt = `SELECT id,name,desc FROM views WHERE type<>0`;
+                items.views.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
                     this.trigger("to-users", p);
@@ -139,14 +139,14 @@ $_("signup").imports({
         fun: function (sys, items, opts) {
             let uuidv1 = require("uuid/v1");
             let uuidv4 = require("uuid/v4");
-            let str = "INSERT INTO parts (id,name,link,part,class,type,online) VALUES(?,?,?,?,?,?,?)";
+            let str = "INSERT INTO parts (id,name,link,part,view,type,online) VALUES(?,?,?,?,?,?,?)";
             this.on("exec", (e, p) => {
                 let stmt = items.signup.prepare(str);
                 let b = p.body;
                 let id = uuidv1();
                 let part = uuidv4();
                 let online = b.type > 1 ? 0 : 1;
-                stmt.run(id,b.name,b.link,part,b.class,b.type,online);
+                stmt.run(id,b.name,b.link,part,b.view,b.type,online);
                 stmt.finalize(() => insertToAuths(p, id)); 
             });
             function insertToAuths(p, partId) {
@@ -168,12 +168,12 @@ $_("update").imports({
     Update: {
         xml: "<Sqlite id='update' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            let update = "UPDATE parts SET name=?,link=?,part=?,class=?,type=?str WHERE id=?";
+            let update = "UPDATE parts SET name=?,link=?,part=?,view=?,type=?str WHERE id=?";
             this.on("exec", (e, p) => {
                 let b = p.body;
                 let s = b.type > 1 ? ',online=1' : '';
                 let stmt = items.update.prepare(update.replace("str",s));
-                stmt.run(b.name,b.link,b.part,b.class,b.type,b.id, err => {
+                stmt.run(b.name,b.link,b.part,b.view,b.type,b.id, err => {
                     if (err) throw err;
                     p.data = {code: 0, desc: "更新成功"};
                     this.trigger("to-users", p);

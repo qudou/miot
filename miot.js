@@ -1,5 +1,5 @@
 /*!
- * miot.js v1.0.9
+ * miot.js v1.1.0
  * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
@@ -59,7 +59,7 @@ $_().imports({
                 if (typeof p.online == "number") 
                     await items.parts.cache(m.id, p);
                 p.mid = m.id;
-                await items.middle.create(m['class'], p);
+                await items.middle.create(m.view, p);
             });
             this.watch("to-local", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
@@ -89,7 +89,7 @@ $_().imports({
                 let m = await items.util.getPartById(packet.topic);
                 p.cid = client.id;
                 p.mid = packet.topic;
-                await items.middle.create(m['class'], p);
+                await items.middle.create(m.view, p);
             });
             this.watch("to-user", (e, topic, p) => {
                 p = (p.mid == uid) ? p : {mid: uid, topic: "/ui/part", data: p};

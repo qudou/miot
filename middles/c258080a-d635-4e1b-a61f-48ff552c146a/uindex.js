@@ -1,13 +1,13 @@
 /*!
  * index.js v1.0.0
- * https://github.com/qudou/miot-parts
+ * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
  */
 
 const xmlplus = require("xmlplus");
 
-xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => { // 模板管理
+xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => { // 视图管理
 
 $_().imports({
     Index: {
@@ -21,8 +21,8 @@ $_().imports({
     Select: {
         xml: "<Sqlite id='select' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/classes/select", (e, p) => {
-                let stmt = `SELECT * FROM classes WHERE type<>0`;
+            this.watch("/views/select", (e, p) => {
+                let stmt = `SELECT * FROM views WHERE type<>0`;
                 items.select.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;
@@ -37,14 +37,14 @@ $_().imports({
                 <i:Signup/>\
               </Flow>",
         fun: function (sys, items, opts) {
-            this.watch("/classes/signup", items.signup.start);
+            this.watch("/views/signup", items.signup.start);
         }
     },
     Remove: {
         xml: "<Sqlite id='remove' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
-            this.watch("/classes/remove", (e, p) => {
-                let remove = "DELETE FROM classes WHERE id=?";
+            this.watch("/views/remove", (e, p) => {
+                let remove = "DELETE FROM views WHERE id=?";
                 let stmt = items.remove.prepare(remove);
                 stmt.run(p.body.id, function (err) {
                     if (err) throw err;
@@ -60,7 +60,7 @@ $_().imports({
                 <i:Update/>\
               </Flow>",
         fun: function (sys, items, opts) {
-            this.watch("/classes/update", items.update.start);
+            this.watch("/views/update", items.update.start);
         }
     },
     Flow: {
@@ -87,7 +87,7 @@ $_("signup").imports({
                 e.stopPropagation();
                 if (p.body.name.length > 1)
                     return this.trigger("next", p);
-                p.data = {code: -1, desc: "模板名称至少2个字符"};
+                p.data = {code: -1, desc: "视图名称至少2个字符"};
                 this.trigger("to-users", p);
             });
         }
@@ -96,7 +96,7 @@ $_("signup").imports({
        xml: "<Sqlite id='signup' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("exec", (e, p) => {
-                let stmt = items.signup.prepare("INSERT INTO classes (id,name,desc) VALUES(?,?,?)");
+                let stmt = items.signup.prepare("INSERT INTO views (id,name,desc) VALUES(?,?,?)");
                 let id = require("uuid/v1")();
                 stmt.run(id, p.body.name, p.body.desc);
                 stmt.finalize(() => {
@@ -116,7 +116,7 @@ $_("update").imports({
         xml: "<Sqlite id='update' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.on("exec", (e, p) => {
-                let update = "UPDATE classes SET name=?, desc=? WHERE id=?";
+                let update = "UPDATE views SET name=?, desc=? WHERE id=?";
                 let stmt = items.update.prepare(update);
                 stmt.run(p.body.name,p.body.desc,p.body.id, err => {
                     if (err) throw err;

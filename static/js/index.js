@@ -69,6 +69,7 @@ $_().imports({
                     this.trigger("switch", "content").notify("$online");
                 });
                 client.on("message", (topic, p) => {
+                    console.log(JSON.parse(p.toString()));
                     this.notify("message", JSON.parse(p.toString()));
                 });
                 client.on("close", e => this.notify("$offline"));
@@ -341,7 +342,7 @@ $_("content").imports({
                     p.online == 0 ? this.trigger("close") : client.notify(p.topic, [p.data]);
             });
             function load(part) {
-                let Client = `//${part.class}/Index`;
+                let Client = `//${part.view}/Index`;
                 let c = xp.hasComponent(Client);
                 if (!c) return setTimeout(i=>load(part), 10);
                 c.map.msgscope = true;
@@ -353,7 +354,7 @@ $_("content").imports({
                 opts = part;
                 items.mask.show();
                 sys.client.addClass("#modal-in");
-                require([`/views/${part.class}/index.js`], () => load(part), () => {
+                require([`/views/${part.view}/index.js`], () => load(part), () => {
                     items.mask.hide();
                     sys.client.removeClass("#modal-in");
                     window.app.dialog.alert("操作页面不存在", "提示")
@@ -526,7 +527,7 @@ $_("content/index").imports({
             return function (p) {
                 let data = that.data("data") || {};
                 that.data("data",xp.extend(true, data, p));
-                items.icon(data["class"]);
+                items.icon(data["view"]);
                 sys.label.text(data.name);
                 sys.thumbnail[data.online ? "addClass" : "removeClass"]("#active");
             };
@@ -537,9 +538,9 @@ $_("content/index").imports({
         xml: "<span id='icon'/>",
         fun: function (sys, items, opts) {
             let icon = sys.icon;
-            return (klass) => {
-                require([`/views/${klass}/icon.js`], e => {
-                    let iconPath = `//${klass}/Icon`;
+            return (view) => {
+                require([`/views/${view}/icon.js`], e => {
+                    let iconPath = `//${view}/Icon`;
                     show(xp.hasComponent(iconPath) ? iconPath : "Unknow");
                 }, ()=> show("Unknow"));
                 function show(iconPath) {

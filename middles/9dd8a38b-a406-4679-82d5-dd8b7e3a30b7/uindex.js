@@ -1,6 +1,6 @@
 /*!
  * index.js v1.0.0
- * https://github.com/qudou/miot-parts
+ * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
  */
@@ -75,7 +75,7 @@ $_().imports({
             });
             function getParts(link) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT id,name,link,class FROM parts WHERE link='${link}' AND type<>0`;
+                    let stmt = `SELECT id,name,link,view FROM parts WHERE link='${link}' AND type<>0`;
                     items.parts.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(rows);

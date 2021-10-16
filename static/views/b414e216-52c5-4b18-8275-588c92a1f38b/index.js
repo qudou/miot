@@ -1,6 +1,6 @@
 /*!
  * index.js v1.0.0
- * https://github.com/qudou/miot-parts
+ * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
  */
@@ -93,10 +93,10 @@ $_().imports({
                 data.length ? this.trigger("publish", "/parts/links") : this.trigger("switch", ["guide", "区域"]);
             });
             this.watch("/parts/links", (e, data) => {
-                data.length ? this.trigger("publish", "/parts/classes") : this.trigger("switch", ["guide", "网关"]);
+                data.length ? this.trigger("publish", "/parts/views") : this.trigger("switch", ["guide", "网关"]);
             });
-            this.watch("/parts/classes", (e, data) => {
-                data.length || this.trigger("switch", ["guide", "模板"]);
+            this.watch("/parts/views", (e, data) => {
+                data.length || this.trigger("switch", ["guide", "视图"]);
             });
         }
     }
@@ -407,7 +407,7 @@ $_("signup/form").imports({
         }
     },
     PUID: {
-        xml: "<Input id='part' label='局部标识符' placeholder='请输入局部标识符'/>",
+        xml: "<Input id='part' label='配件标识符' placeholder='请输入配件标识符'/>",
         fun: function (sys, items, opts) {
             function error( msg ) {
                 items.part.focus();
@@ -416,9 +416,9 @@ $_("signup/form").imports({
             this.on("start", (e, o) => {
                 o.part = items.part.val();
                 if (o.part === "") {
-                    error("请输入局部标识符");
+                    error("请输入配件标识符");
                 } else if (o.part.length != 36) {
-                    error("局部标识符需要34个字符");
+                    error("配件标识符需要34个字符");
                 } else {
                     sys.part.trigger("next", o);
                 }
@@ -426,20 +426,20 @@ $_("signup/form").imports({
             return items.part;
         }
     },
-    Class: {
-        xml: "<Picker id='class' label='模板' setid='1'/>",
+    View: {
+        xml: "<Picker id='view' label='视图' setid='1'/>",
         fun: function (sys, items, opts) {
             let table = {}; 
-            this.watch("/parts/classes", (e, data) => {
-                data.length && items.class.init(data);
+            this.watch("/parts/views", (e, data) => {
+                data.length && items.view.init(data);
                 data.map(i=>table[i.id]=i);
             });
             this.on("start", (e, p) => {
-                p.class = items.class.getValue().id;
+                p.view = items.view.getValue().id;
                 this.trigger("next", p);
             });
-            function setValue(classId) {
-                items.class.setValue(table[classId]);
+            function setValue(viewId) {
+                items.view.setValue(table[viewId]);
             }
             return { setValue: setValue };
         }
@@ -549,7 +549,7 @@ $_("update").imports({
                       <i:Area id='area'/>\
                       <i:Link id='link'/>\
                       <i:PUID id='puid'/>\
-                      <i:Class id='class'/>\
+                      <i:View id='view'/>\
                       <i:Type id='type'/>\
                     </i:Form>\
                     <i:Button id='submit'>确定更新</i:Button>\
@@ -577,7 +577,7 @@ $_("update").imports({
                 items.area.setValue(data.link.area);
                 items.link.setValue(data.link);
                 items.puid.val(data.part);
-                items.class.setValue(data.class);
+                items.view.setValue(data.view);
                 items.type.setValue(data.type);
             }
             return {init: init};
@@ -589,7 +589,7 @@ $_("update").imports({
 		xml: "<li id='guid'>\
                <div class='item-content item-input'>\
                  <div class='item-inner'>\
-                   <div id='label' class='item-title item-label'>全局标识符</div>\
+                   <div id='label' class='item-title item-label'>应用标识符</div>\
                    <div class='item-input-wrap'>\
                      <div id='text'/>\
                    </div>\
