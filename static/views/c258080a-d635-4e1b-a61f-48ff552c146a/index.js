@@ -101,8 +101,8 @@ $_("overview").imports({
                 sys.list.children().call("remove");
                 data.length ? sys.list.show() : sys.list.hide();
                 data.forEach(item => {
-                    let klass = sys.list.append("ViewItem").value();
-                    klass.value = item;
+                    let view = sys.list.append("ViewItem").value();
+                    view.value = item;
                 });
             });
             this.watch("/views/remove", (e, p) => {
@@ -134,14 +134,14 @@ $_("overview").imports({
                </div>\
               </li>",
         fun: function (sys, items, opts) {
-            let klass;
-            sys.edit.on(Click, () => this.trigger("switch", ["update", klass]));
+            let view;
+            sys.edit.on(Click, () => this.trigger("switch", ["update", view]));
             function setValue(value) {
-                klass = value;
-                sys.label.text(klass.name);
-                sys.id.text(klass.id);
+                view = value;
+                sys.label.text(view.name);
+                sys.id.text(view.id);
             }
-            sys.remove.on(Click, () => this.notify("remove", klass));
+            sys.remove.on(Click, () => this.notify("remove", view));
             return Object.defineProperty({}, "value", { set: setValue});
         }
     },
@@ -175,7 +175,7 @@ $_("signup").imports({
         xml: "<div id='content' class='page'>\
                 <div class='page-content' xmlns:i='form'>\
                     <i:Form id='signup'>\
-                      <i:Class id='klass'/>\
+                      <i:View id='view'/>\
                       <i:Desc id='desc'/>\
                     </i:Form>\
                     <i:Button id='submit'>注册</i:Button>\
@@ -196,7 +196,7 @@ $_("signup").imports({
                 e.target.trigger("publish", "/views/select").trigger("switch", "overview");
             }
             function clear() {
-                items.klass.val("");
+                items.view.val("");
                 items.desc.val("").focus();
             }
             return {clear: clear};

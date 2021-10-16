@@ -69,7 +69,6 @@ $_().imports({
                     this.trigger("switch", "content").notify("$online");
                 });
                 client.on("message", (topic, p) => {
-                    console.log(JSON.parse(p.toString()));
                     this.notify("message", JSON.parse(p.toString()));
                 });
                 client.on("close", e => this.notify("$offline"));
