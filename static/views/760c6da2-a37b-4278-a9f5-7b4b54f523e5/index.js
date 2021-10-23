@@ -80,7 +80,7 @@ $_("overview").imports({
                    </div>\
                    <div id='title' class='title'/>\
                    <div class='right'>\
-                    <button id='signup' class='button' style='border:none;'>新增</button>\
+                    <button id='signup' class='button' style='border:none;'>注册</button>\
                    </div>\
                 </div>\
               </div>",
