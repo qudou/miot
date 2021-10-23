@@ -1,5 +1,5 @@
 /*!
- * miot.js v1.1.3
+ * miot.js v1.1.4
  * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license

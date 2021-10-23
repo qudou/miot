@@ -10,12 +10,6 @@
 $ npm install miot-local
 ```
 
-或者，你也可以通过 git 和 npm 使用如下的命令来安装：
-
-```bash
-$ git clone https://github.com/qudou/miot-local.git && cd miot-local && npm install
-```
-
 ## 配置文件
 
 局域网关项目中最关键的是下面两个文件：

@@ -8,7 +8,7 @@
 
 1. 配件端通过局域网关将 `(pid,topic,data)` 发送给外网网关
 
-2. 外网网关根据 `(part = pid, link = client.id)` 在表 `parts` 中查出唯一的 `mid` 记录
+2. 外网网关根据 `(part = pid, link = client.id)` 在表 `apps` 中查出唯一的 `mid` 记录
 
 3. 外网网关在授权表 `auths` 中根据 `mid` 查出已授权的用户 `id` 列表
 

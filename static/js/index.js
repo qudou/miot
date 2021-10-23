@@ -506,7 +506,9 @@ $_("content/index").imports({
                 link == p.mid && p.online == 0 && offlineAll();
             });
             function offlineAll() {
-                sys.apps.children().forEach(item => item.value()({online: 0}));
+                sys.apps.children().forEach(item => {
+                    item.data("data").type == 2 && item.value()({online: 0});
+                });
             }
             this.watch("$offline", offlineAll);
         }

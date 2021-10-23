@@ -69,14 +69,13 @@ trigger("to-parts", [targets, messageType, data]);
 下面是一个向局域配件集发送消息的示例，该示例在接收到 `/close` 命令后，会向局域内所有的机器下达关闭命令。
 
 ```js
-    Index: {
-        cfg: { ... } },
-        xml: "<i:Client id='index' xmlns:i='//miot-parts'/>",
-        fun: function (sys, items, opts) {
-            this.watch("/close", (e, body)=> {
-                this.trigger("to-parts", ["/machine/*", "/close"]);
-            });
-        }
+Index: {
+    cfg: { ... } },
+    xml: "<i:Client id='index' xmlns:i='//miot-parts'/>",
+    fun: function (sys, items, opts) {
+        this.watch("/close", (e, body)=> {
+            this.trigger("to-parts", ["/machine/*", "/close"]);
+        });
     }
-
+}
 ```
