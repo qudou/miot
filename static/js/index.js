@@ -26,6 +26,7 @@ $_().imports({
         fun: function(sys, items, opts) {
             let toast;
             this.on("message", (e, t, msg) => {
+                toast && toast.close();
                 window.app.toast.destroy(toast);
                 toast = window.app.toast.create({ text: msg, position: 'top', closeTimeout: 3000});
                 toast.open();
@@ -96,7 +97,7 @@ $_().imports({
                 </i:Form>\
               </div></div>",
         fun: function (sys, items, opts) {
-            function keypress() {
+            function keypress(e) {
                 e.which == 13 && sys.submit.trigger(Click);
             }
             sys.user.on("keypress", keypress);
@@ -409,7 +410,12 @@ $_("content/index").imports({
                     area.value()(item);
                     item.id == pid && (prev = area);
                 });
-                (prev || sys.areas.first()).trigger(Click);
+                try {
+                    (area = prev || sys.areas.first()).trigger(Click);
+                } catch(e) {
+                    this.trigger("message", ["error", "该用户未获得任何应用的授权！"]);
+                    this.notify("logout");
+                } 
             });
             sys.areas.on(Click, "*", function (e) {
                 this.trigger("checked", true);
