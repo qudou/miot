@@ -330,6 +330,7 @@ $_("content").imports({
               #client > * { width: 100%; height: 100%; }",
         xml: "<div id='client'>\
                 <Overlay id='mask' xmlns='/verify'/>\
+                <Query id='query' xmlns='/'/>\
               </div>",
         fun: function (sys, items, opts) {
             this.on("publish", (e, topic, body) => {
@@ -338,8 +339,11 @@ $_("content").imports({
             });
             this.watch("/ui/app", (e, p) => {
                 let client = sys.mask.prev();
-                if (client && opts.mid == p.mid)
-                    p.online == 0 ? this.trigger("close") : client.notify(p.topic, [p.data]);
+                if (client && opts.mid == p.mid) {
+                    let topic = p.topic || "$status";
+                    client.notify(topic, [p.data || p.online]);
+                    !items.query.hc && p.online == 0 && this.trigger("close");
+                }
             });
             function load(app) {
                 let Client = `//${app.view}/Index`;
@@ -365,7 +369,11 @@ $_("content").imports({
                 sys.client.removeClass("#modal-in");
                 sys.client.once("transitionend", sys.mask.prev().remove);
             }
-            this.watch("$offline", () => this.trigger("close"));
+            this.watch("$offline", () => {
+                let client = sys.mask.prev();
+                client && client.notify("$status", [0]);
+                items.query.hc || this.trigger("close");
+            });
         }
     },
     Footer: {
@@ -485,7 +493,6 @@ $_("content/index").imports({
         fun: function (sys, items, opts) {
             let link, table = {},
                 open = items.apps.open;
-                delete items.apps.open;
             this.watch("/ui/apps", (e, p) => {
                 table = {},
                 link = p.link;
