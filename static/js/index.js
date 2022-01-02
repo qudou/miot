@@ -478,7 +478,7 @@ $_("content/index").imports({
                 this.trigger("publish", {topic: "/ui/apps", body: {link: link.id}});
             });
             function text(p) { 
-                sys.title.text(p.online ? opts.name : opts.name + "(离线)")
+                sys.title.text(p.online ? opts.name : opts.name + "*")
             }
             this.watch("/ui/link", (e, p) => {
                 opts.id == p.mid && text(p)
@@ -523,7 +523,7 @@ $_("content/index").imports({
                     item.data("data").type > type && item.value()({online: 0});
                 });
             }
-            this.watch("$offline", () => offlineAll(0));
+            this.watch("$offline", () => offlineAll(-1));
         }
     },
     Thumbnail: {
