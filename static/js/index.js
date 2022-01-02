@@ -361,7 +361,7 @@ $_("content").imports({
                 require([`/views/${app.view}/index.js`], () => load(app), () => {
                     items.mask.hide();
                     sys.client.removeClass("#modal-in");
-                    window.app.dialog.alert("操作页面不存在", "提示")
+                    window.app.dialog.alert("页面获取超时", "提示")
                 });
             });
             function close(e) {
@@ -516,14 +516,14 @@ $_("content/index").imports({
                 data.online && this.trigger("/open/app", data);
             });
             this.watch("/ui/link", (e, p) => {
-                link == p.mid && p.online == 0 && offlineAll();
+                link == p.mid && p.online == 0 && offlineAll(1);
             });
-            function offlineAll() {
+            function offlineAll(type) {
                 sys.apps.children().forEach(item => {
-                    item.data("data").type == 2 && item.value()({online: 0});
+                    item.data("data").type > type && item.value()({online: 0});
                 });
             }
-            this.watch("$offline", offlineAll);
+            this.watch("$offline", () => offlineAll(0));
         }
     },
     Thumbnail: {
