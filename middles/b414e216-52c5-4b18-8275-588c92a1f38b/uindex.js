@@ -140,6 +140,7 @@ $_("signup").imports({
             let uuidv1 = require("uuid/v1");
             let uuidv4 = require("uuid/v4");
             let str = "INSERT INTO apps (id,name,link,part,view,type,online) VALUES(?,?,?,?,?,?,?)";
+            // 这里有两个连续的插入操作，应该使用事务!!!
             this.on("exec", (e, p) => {
                 let stmt = items.signup.prepare(str);
                 let b = p.body;
@@ -147,7 +148,7 @@ $_("signup").imports({
                 let part = uuidv4();
                 let online = b.type > 1 ? 0 : 1;
                 stmt.run(id,b.name,b.link,part,b.view,b.type,online);
-                stmt.finalize(() => insertToAuths(p, id)); 
+                stmt.finalize(() => insertToAuths(p, id));
             });
             function insertToAuths(p, appid) {
                 let stmt = items.signup.prepare("INSERT INTO auths (user,app) VALUES(0,?)");

@@ -442,8 +442,27 @@ $_("proxy/login").imports({
 $_("sqlite").imports({
     Sqlite: {
         fun: function (sys, items, opts) {
-            let sqlite = require("sqlite3").verbose(),
-                db = new sqlite.Database(`${__dirname}/data.db`);
+            let sqlite3 = require("sqlite3").verbose(),
+                db = new sqlite3.Database(`${__dirname}/data.db`);
+            sqlite3.Database.prototype.runAsync = function (sql, ...params) {
+                return new Promise((resolve, reject) => {
+                    this.run(sql, params, function (err) {
+                        if (err) return reject(err);
+                        resolve(this);
+                    });
+                });
+            };
+            sqlite3.Database.prototype.runBatchAsync = function (statements) {
+                var results = [];
+                var batch = ['BEGIN', ...statements, 'COMMIT'];
+                return batch.reduce((chain, statement) => chain.then(result => {
+                    results.push(result);
+                    return db.runAsync(...[].concat(statement));
+                }), Promise.resolve())
+                .catch(err => db.runAsync('ROLLBACK').then(() => Promise.reject(err +
+                    ' in statement #' + results.length)))
+                .then(() => results.slice(2));
+            };
             db.exec("VACUUM");
             db.exec("PRAGMA foreign_keys = ON");
             return db;

@@ -130,7 +130,7 @@ $_("signup").imports({
             }
         }
     },
-    Signup: {
+    Signup2: {
        xml: "<main id='signup'>\
                 <Sqlite id='db' xmlns='//miot/sqlite'/>\
                 <Crypto id='crypto'/>\
@@ -152,6 +152,30 @@ $_("signup").imports({
                     sys.signup.trigger("to-users", p);
                 });
             }
+        }
+    },
+    Signup: {
+       xml: "<main id='signup'>\
+                <Sqlite id='db' xmlns='//miot/sqlite'/>\
+                <Crypto id='crypto'/>\
+              </main>",
+        fun: function (sys, items, opts) {
+            this.on("exec", (e, p) => {
+                let salt = items.crypto.salt();
+                let pass = items.crypto.encrypt(p.body.pass, salt);
+                let stmt = "INSERT INTO users (email,name,pass,salt,repeat_login) VALUES(?,?,?,?,?)";
+                let appid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
+                let statements = [
+                    ["INSERT INTO users (email,name,pass,salt,repeat_login) VALUES(?,?,?,?,?)",p.body.email, p.body.name, pass, salt, p.body.relogin],
+                    ["INSERT INTO auths (user,app) VALUES(last_insert_rowid(),?)", appid]
+                ];
+                items.db.runBatchAsync(statements).then(results => {
+                    p.data = {code: 0, desc: "注册成功"};
+                    sys.signup.trigger("to-users", p);
+                }).catch(err => {
+                    p.data = {code: -1, desc: "BATCH FAILED: " + err};
+                });
+            });
         }
     },
     Crypto: {
