@@ -130,30 +130,6 @@ $_("signup").imports({
             }
         }
     },
-    Signup2: {
-       xml: "<main id='signup'>\
-                <Sqlite id='db' xmlns='//miot/sqlite'/>\
-                <Crypto id='crypto'/>\
-              </main>",
-        fun: function (sys, items, opts) {
-            this.on("exec", (e, p) => {
-                var salt = items.crypto.salt(),
-                    pass = items.crypto.encrypt(p.body.pass, salt);
-                    stmt = items.db.prepare("INSERT INTO users (email,name,pass,salt,repeat_login) VALUES(?,?,?,?,?)");
-                stmt.run(p.body.email, p.body.name, pass, salt, p.body.relogin);
-                stmt.finalize(()=>insertToAuths(p));
-            });
-            function insertToAuths(p) {
-                let appid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
-                let stmt = items.db.prepare("INSERT INTO auths (user,app) VALUES(last_insert_rowid(),?)");
-                stmt.run(appid);
-                stmt.finalize(() => {
-                    p.data = {code: 0, desc: "注册成功"};
-                    sys.signup.trigger("to-users", p);
-                });
-            }
-        }
-    },
     Signup: {
        xml: "<main id='signup'>\
                 <Sqlite id='db' xmlns='//miot/sqlite'/>\
@@ -163,7 +139,6 @@ $_("signup").imports({
             this.on("exec", (e, p) => {
                 let salt = items.crypto.salt();
                 let pass = items.crypto.encrypt(p.body.pass, salt);
-                let stmt = "INSERT INTO users (email,name,pass,salt,repeat_login) VALUES(?,?,?,?,?)";
                 let appid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
                 let statements = [
                     ["INSERT INTO users (email,name,pass,salt,repeat_login) VALUES(?,?,?,?,?)",p.body.email, p.body.name, pass, salt, p.body.relogin],
@@ -174,6 +149,7 @@ $_("signup").imports({
                     sys.signup.trigger("to-users", p);
                 }).catch(err => {
                     p.data = {code: -1, desc: "BATCH FAILED: " + err};
+                    sys.signup.trigger("to-users", p);
                 });
             });
         }
