@@ -444,6 +444,7 @@ $_("sqlite").imports({
         fun: function (sys, items, opts) {
             let sqlite3 = require("sqlite3").verbose(),
                 db = new sqlite3.Database(`${__dirname}/data.db`);
+            // the next two stmts from：https://stackoverflow.com/questions/53299322/transactions-in-node-sqlite3
             sqlite3.Database.prototype.runAsync = function (sql, ...params) {
                 return new Promise((resolve, reject) => {
                     this.run(sql, params, function (err) {
