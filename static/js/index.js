@@ -116,6 +116,7 @@ $_().imports({
                 <i:Client id='client'/>\
                 <i:Footer id='footer'/>\
               </div>",
+        map: { defer: "about" },
         fun: function (sys, items, opts) {
             const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
             sys.footer.on("switch", (e, page) => {
@@ -689,11 +690,18 @@ $_("content/about").imports({
         css: "#body { height: 100%; overflow-y: auto; display: -ms-flexbox; display: -webkit-flex; display: flex; flex-direction: column; justify-content: center; }\
               #logo { margin: 0 auto; width: 160px; border-radius: 10px; background: rgba(255,255,255,0.8) none repeat scroll; }\
               #body { margin: 0; box-sizing: border-box; }\
-              #content > * { margin: 0 0 .5em; }",
+              #content > * { margin: 0 0 .5em; }\
+              #user,#version { text-align:center; margin-top: 5px; color: #333; }",
         xml: "<div id='body'>\
                 <Logo id='logo' xmlns='/login'/>\
+                <div id='user'>当前用户：1001</div>\
+                <div id='version'>版本号：1.1.6</div>\
                 <Logout id='logout'/>\
-              </div>"
+              </div>",
+        fun: function (sys, items, opts) {
+            let user = localStorage.getItem("username");
+            sys.user.text(`当前用户：${user}`);
+        }
     },
     Icon: {
         map: { extend: {"from": "../index/header/Icon"} }
