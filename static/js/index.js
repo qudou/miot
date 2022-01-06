@@ -225,7 +225,7 @@ $_("login").imports({
               </svg>"
     },
     User: {
-        xml: "<Input id='user' placeholder='用户名' maxlength='32'/>",
+        xml: "<Input id='user' icon='person' placeholder='用户名' maxlength='32'/>",
         fun: function (sys, items, opts) {
             var patt = /^[a-z0-9_]{4,31}$/i;
             function error( msg ) {
@@ -248,7 +248,7 @@ $_("login").imports({
         }
     },
     Pass: {
-        xml: "<Input id='pass' placeholder='密　码' type='password' maxlength='16'/>",
+        xml: "<Input id='pass' icon='lock_circle' placeholder='密　码' type='password' maxlength='16'/>",
         fun: function (sys, items, opts) {
             function error(msg) {
                 items.pass.focus();
@@ -268,8 +268,8 @@ $_("login").imports({
         }
     },
     Submit: {
-        xml: "<li id='submit'>\
-                <a href='#' class='item-link list-button'>登录</a>\
+        xml: "<li id='submit' style='margin:15px;'>\
+                <a href='#' class='button button-large button-raised button-fill' style='height:44px;border-radius:20px;font-size:16px; padding:6px;'>登录</a>\
               </li>",
         fun: function (sys, items, opts) {
             this.on("start", (e, o) => {
@@ -278,7 +278,11 @@ $_("login").imports({
         }
     },
     Input: {
+        css: ".ios .list .item-inner:after {width: calc(100% - 15px);}",
         xml: "<li class='item-content item-input'>\
+               <div class='item-media' style='height:52px;padding:12px 0 3px;'>\
+                <i id='icon' class='icon f7-icons ios-only'>person</i>\
+               </div>\
                <div class='item-inner'>\
                 <div id='label' class='item-title item-label'/>\
                 <div class='item-input-wrap'>\
@@ -289,6 +293,7 @@ $_("login").imports({
              </li>",
         map: { attrs: { input: "name value type maxlength placeholder" } },
         fun: function (sys, items, opts) {
+            sys.icon.text(opts.icon);
             function focus() {
                 sys.input.elem().focus();
                 return this;
