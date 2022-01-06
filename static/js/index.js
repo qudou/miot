@@ -116,7 +116,6 @@ $_().imports({
                 <i:Client id='client'/>\
                 <i:Footer id='footer'/>\
               </div>",
-        map: { defer: "about" },
         fun: function (sys, items, opts) {
             const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
             sys.footer.on("switch", (e, page) => {
@@ -595,7 +594,7 @@ $_("content/index/header").imports({
         xml: "<span id='text'/>"
     },
     Stat: {
-        xml: "<Text id='stat'>离线</Text>",
+        xml: "<Text id='stat'>在线</Text>",
         fun: function (sys, items, opts) {
             this.watch("$online", e => this.text("在线"));
             this.watch("$offline", e => this.text("离线"));
@@ -699,8 +698,9 @@ $_("content/about").imports({
                 <Logout id='logout'/>\
               </div>",
         fun: function (sys, items, opts) {
-            let user = localStorage.getItem("username");
-            sys.user.text(`当前用户：${user}`);
+            this.watch("$online", e => {
+                sys.user.text(`当前用户：${localStorage.getItem("username")}`);
+            });
         }
     },
     Icon: {
