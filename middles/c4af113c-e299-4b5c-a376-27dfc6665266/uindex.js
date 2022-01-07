@@ -24,7 +24,8 @@ $_().imports({
         fun: function (sys, items, opts) {
             this.watch("/ui/areas", (e, p) => {
                 let stmt = `SELECT distinct areas.* FROM areas,links,apps,auths,status
-                            WHERE areas.id = links.area AND links.id = apps.link AND apps.id = auths.app AND auths.user=status.user_id AND status.client_id='${p.cid}' AND apps.id <> '${UID}'`
+                            WHERE areas.id = links.area AND links.id = apps.link AND apps.id = auths.app AND auths.user=status.user_id AND status.client_id='${p.cid}' AND apps.id <> '${UID}'
+                            ORDER BY areas.id ASC`
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;

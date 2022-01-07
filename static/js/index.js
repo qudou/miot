@@ -15,6 +15,8 @@ $_().imports({
         css: "* { -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }\
               input { -webkit-user-select: text; } \
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
+              #index { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
+              #login { background: #FFF; }\
               #index > * { width: 100%; height: 100%; }",
         xml: "<ViewStack id='index'>\
                 <Verify id='verify'/>\
@@ -106,8 +108,7 @@ $_().imports({
         }
     },
     Content: {
-        css: "#content { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
-              #stack, #client, #stack > * { width: 100%; height: 100%; box-sizing: border-box;}",
+        css: "#stack, #client, #stack > * { width: 100%; height: 100%; box-sizing: border-box;}",
         xml: "<div id='content' xmlns:i='content'>\
                 <ViewStack id='stack'>\
                     <i:Index id='index'/>\
