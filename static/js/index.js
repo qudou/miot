@@ -367,7 +367,7 @@ $_("content").imports({
                 require([`/views/${app.view}/index.js`], () => load(app), () => {
                     items.mask.hide();
                     sys.client.removeClass("#modal-in");
-                    window.app.dialog.alert("页面获取超时", "提示")
+                    window.app.dialog.alert("页面获取失败，请稍后再试！", "提示")
                 });
             });
             function close(e) {
