@@ -17,7 +17,8 @@ $_().imports({
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
               #index { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
               #login { background: #FFF; }\
-              #index > * { width: 100%; height: 100%; }",
+              #index > * { width: 100%; height: 100%; }\
+              .toast-text { width:100%; text-align: center;}",
         xml: "<ViewStack id='index'>\
                 <Verify id='verify'/>\
                 <Service id='service'/>\
@@ -81,7 +82,7 @@ $_().imports({
                 client.end();
                 localStorage.clear();
                 this.trigger("switch", "login");
-                err && window.app.dialog.alert(err.message, "提示");
+                err && this.trigger("message", ["error", err.message]);
             });
             this.watch("publish", (e, topic, p = {}) => {
                 client.publish(topic, JSON.stringify(p));
