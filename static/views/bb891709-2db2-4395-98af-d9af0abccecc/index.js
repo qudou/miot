@@ -49,7 +49,7 @@ $_().imports({
 
 $_("content").imports({
     Table: {
-        xml: "<div id='table' class='data-table'>\
+        xml: "<div id='table' class='data-table card'>\
                 <table>\
                    <Header id='header'/>\
                    <tbody id='body'/>\

@@ -368,7 +368,7 @@ $_("content").imports({
                 require([`/views/${app.view}/index.js`], () => load(app), () => {
                     items.mask.hide();
                     sys.client.removeClass("#modal-in");
-                    window.app.dialog.alert("页面获取失败，请稍后再试！", "提示")
+                    this.trigger("message", ["error", "应用打开失败，请稍后再试！"]);
                 });
             });
             function close(e) {
@@ -527,7 +527,8 @@ $_("content/index").imports({
             });
             function offlineAll(type) {
                 sys.apps.children().forEach(item => {
-                    item.data("data").type > type && item.value()({online: 0});
+                    let i = item.data("data");
+                    i.type > type && sys.apps.notify("/ui/app", {mid: i.mid, online: 0});
                 });
             }
             this.watch("$offline", () => offlineAll(-1));
