@@ -269,13 +269,16 @@ $_("proxy").imports({
             async function authenticate(client, user, pass, callback) {
                 let result = await items.login(user, pass + '');
                 if (!result) return callback(true, false);
-                result = items.users.connected(client, result);
+                result = await items.users.connected(client, result);
                 callback(null, result);
             }
             async function authorizeSubscribe(client, topic, callback) {
                 callback(null, await items.users.canSubscribe(client, topic));
             }
-            return { authenticate: authenticate, authorizeSubscribe: authorizeSubscribe };
+            async function authorizePublish(client, topic, payload, callback) {
+                callback(null, await items.users.canPublish(client, topic), payload);
+            }
+            return { authenticate: authenticate, authorizeSubscribe: authorizeSubscribe, authorizePublish: authorizePublish };
         }
     },
     Login: {
@@ -317,9 +320,20 @@ $_("proxy").imports({
     Users: {
         xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
-            function canSubscribe(client) {
+            function canSubscribe(client, topic) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM status WHERE client_id='${client.id}'`;
+                    let stmt = `SELECT * FROM status
+                                WHERE client_id='${client.id}' AND client_id='${topic}'`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(!!data.length);
+                    });
+                });
+            }
+            function canPublish(client, topic) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT status.* FROM status,auths
+                                WHERE status.user_id = auths.user AND auths.app = '${topic}' AND status.client_id='${client.id}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(!!data.length);
@@ -361,7 +375,7 @@ $_("proxy").imports({
                     });
                 });
             }
-            return { canSubscribe: canSubscribe, getUsersByMiddle: getUsersByMiddle, connected: connected, disconnected: disconnected, offlineAll: offlineAll };
+            return { canSubscribe: canSubscribe, canPublish: canPublish, getUsersByMiddle: getUsersByMiddle, connected: connected, disconnected: disconnected, offlineAll: offlineAll };
         }
     },
     Middle: {
