@@ -185,6 +185,7 @@ $_("signup").imports({
                       <i:User id='user'/>\
                       <i:Email id='email'/>\
                       <i:Pass id='pass'/>\
+                      <i:Livetime id='livetime'/>\
                       <i:Relogin id='relogin'/>\
                     </i:Form>\
                     <i:Button id='submit'>注册</i:Button>\
@@ -207,6 +208,7 @@ $_("signup").imports({
             function clear() {
                 items.email.val("");
                 items.pass.val("");
+                items.livetime.val("");
                 items.user.val("").focus();
             }
             return {clear: clear};
@@ -304,6 +306,26 @@ $_("signup/form").imports({
             return items.pass;
         }
     },
+    Livetime: {
+        xml: "<Input id='livetime' type='number' label='登录时效/天' placeholder='请输入登录时效' value='30'/>",
+        fun: function (sys, items, opts) {
+            function error(msg) {
+                items.livetime.focus();
+                sys.livetime.trigger("message", ["error", msg]);
+            }
+            this.on("start", (e, o) => {
+                o.livetime = items.livetime.val();
+                if (o.livetime === "") {
+                    error("请输入登录时效");
+                } else if (o.livetime > 365 || o.livetime < 1) {
+                    error("登录时效在 1 至 365 之间");
+                } else {
+                    sys.livetime.trigger("next", o);
+                }
+            });
+            return items.livetime;
+        }
+    },
     Relogin: {
         css: "#icon { width: 28px; height: 28px; border-radius: 6px; box-sizing: border-box; }",
         xml: "<li>\
@@ -346,7 +368,7 @@ $_("signup/form").imports({
                  </div>\
                </div>\
               </li>",
-		map: { attrs: { text: "name value type maxlength placeholder disabled" } },
+		map: { attrs: { text: "name value type maxlength placeholder disabled min max" } },
 		fun: function (sys, items, opts) { 
             sys.label.text(opts.label);
 			function focus() {
@@ -371,6 +393,7 @@ $_("update").imports({
                     <i:Form id='update'>\
                       <i:User id='user'/>\
                       <i:Email id='email'/>\
+                      <i:Livetime id='livetime'/>\
                       <Relogin id='relogin' xmlns='/signup/form'/>\
                     </i:Form>\
                     <i:Button id='submit'>确定更新</i:Button>\
@@ -383,11 +406,12 @@ $_("update").imports({
                 opts = value;
                 items.user.val(value.name);
                 items.email.val(value.email);
+                items.livetime.val(value.livetime);
                 items.relogin.value = value.repeat_login;
             }
             sys.email.on("next", (e) => {
                 e.stopPropagation();
-                let p = {id:opts.id, name:items.user.val(),email:items.email.val(), relogin: items.relogin.value};
+                let p = {id:opts.id, name:items.user.val(),email:items.email.val(), livetime: items.livetime.val(), relogin: items.relogin.value};
                 this.trigger("switch", "service");
                 this.trigger("publish", ["/users/update", p]);
                 this.glance("/users/update", callback);
