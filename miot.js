@@ -1,7 +1,7 @@
 /*!
  * miot.js v1.1.6
  * https://github.com/qudou/miot
- * (c) 2009-2017 qudou
+ * (c) 2017-2022 qudou
  * Released under the MIT license
  */
 
@@ -27,7 +27,7 @@ $_().imports({
               </main>",
         map: { share: "sqlite/Sqlite Util" }
     },
-    Mosca: { // 本服务器用于连接内网网关
+    Mosca: { // 连接内网网关
         xml: "<main id='mosca' xmlns:i='mosca'>\
                 <i:Authorize id='auth'/>\
                 <i:Links id='links'/>\
@@ -67,7 +67,7 @@ $_().imports({
             });
         }
     },
-    Proxy: { // 本服务器用于连接用户端
+    Proxy: { // 连接用户端
         xml: "<main id='proxy' xmlns:i='proxy'>\
                 <i:Authorize id='auth'/>\
                 <i:Users id='users'/>\
@@ -267,7 +267,7 @@ $_("proxy").imports({
               </main>",
         fun: function (sys, items, opts) {
             async function authenticate(client, user, pass, callback) {
-                let result = await items.login(user, pass + '');
+                let result = await items.login(client, user, pass + '');
                 if (!result) return callback(true, false);
                 result = await items.users.connected(client, result);
                 callback(null, result);
@@ -283,37 +283,24 @@ $_("proxy").imports({
     },
     Login: {
         xml: "<main id='login' xmlns:i='login'>\
-                <Sqlite id='sqlite' xmlns='/sqlite'/>\
-                <i:Crypto id='crypto'/>\
-                <i:InputCheck id='check'/>\
+                <i:CheckUser id='checkUser'/>\
+                <i:CheckPass id='checkPass'/>\
+                <i:Session id='session'/>\
               </main>",
         fun: function (sys, items, opts) {
-            function checkName(name, pass) {
-                return new Promise(async (resolve, reject) => {
-                    let count = await login_count(name);
-                    let stmt = `SELECT users.* FROM users,auths
-                                WHERE name="${name}" AND auths.user = users.id AND (repeat_login=1 OR ${count}=0)`;
-                    items.sqlite.all(stmt, (err, rows) => {
-                        if (err) throw err;
-                        resolve(!!rows.length && checkPass(pass, rows[0]) && rows[0]);
-                    });
-                });
+            async function byAccount(user, pass) {
+                let item = await items.checkUser(user);
+                return item ? (items.checkPass(pass, item.pass, item.salt) && item) : false;
             }
-            function login_count(name) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT count(*) as count FROM users,status
-                                WHERE users.id = status.user_id AND users.name = '${name}'`;
-                    items.sqlite.all(stmt, (err, rows) => {
-                        if (err) throw err;
-                        resolve(rows[0].count);
-                    });
-                });
+            async function bySession(clientId) {
+                let s = await items.session.detail(clientId);
+                if (s == false)
+                    return false;
+                let timeout = new Date() - new Date(s.login_time) > s.livetime * 24000 * 3600;
+                return timeout ? await items.session.clean(s.client_id) : s;
             }
-            function checkPass(pass, record) {
-                return items.crypto.encrypt(pass, record.salt) == record.pass;
-            }
-            return async (name, pass) => {
-                return items.check("u", name) && items.check("p", pass) && await checkName(name, pass);
+            return async function (client, user, pass) {
+                return user ? await byAccount(user, pass) : await bySession(client.id);
             };
         }
     },
@@ -350,16 +337,19 @@ $_("proxy").imports({
                     });
                 });
             }
-            function connected(client, user) {
+            function connected(client, stat) {
                 return new Promise((resolve, reject) => {
-                    let insert = `INSERT INTO status VALUES(?,?,(datetime('now','localtime')))`;
+                    let insert = `REPLACE INTO status VALUES(?,?,1,(datetime('now','localtime')))`;
                     let stmt = items.sqlite.prepare(insert);
-                    stmt.run(client.id, user.id, err => resolve(!!!err));
+                    stmt.run(client.id, stat.id, err => {
+                        if (err) throw err;
+                        resolve(true)
+                    });
                 });
             }
             function disconnected(client) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("DELETE FROM status WHERE client_id=?");
+                    let stmt = items.sqlite.prepare("UPDATE status SET online=0 WHERE client_id=?");
                     stmt.run(client.id, err => {
                         if (err) throw err;
                         resolve(true);
@@ -417,31 +407,96 @@ $_("proxy").imports({
 });
 
 $_("proxy/login").imports({
-    InputCheck: {
+    CheckUser: {
+        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
         fun: function (sys, items, opts) {
-            var ureg = /^[A-Z0-9]{4,}$/i,
-                ereg = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i;
-            var table = { u: user, p: pass, e: email };
-            function user( v ) {
-                return v.length <= 32 && ureg.test(v);
+            var ureg = /^[a-z0-9_]{4,31}$/i;
+            function rightInDB(user) {
+                return new Promise(async (resolve, reject) => {
+                    let count = await loginTimes(user);
+                    let stmt = `SELECT users.* FROM users,auths
+                                WHERE name="${user}" AND auths.user = users.id AND (repeat_login=1 OR ${count}=0)`;
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if (err) throw err;
+                        resolve(!!rows.length && rows[0]);
+                    });
+                });
             }
-            function pass( v ) {
-                return 6 <= v.length && v.length <= 16 
+            function loginTimes(user) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT count(*) as count FROM users,status
+                                WHERE users.id = status.user_id AND users.name = '${user}' AND status.online = 1`;
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if (err) throw err;
+                        resolve(rows[0].count);
+                    });
+                });
             }
-            function email( v ) {
-                return v.length <= 32 && ereg.test(v);
+            return async function (user) {
+                let strOk = typeof user == "string" && user.length <= 32 && ureg.test(user);
+                return strOk ? await rightInDB(user) : false
+            };
+        }
+    },
+    CheckPass: {
+        xml: "<Crypto id='crypto'/>",
+        fun: function (sys, items, opts) {
+            return function (pass, realPass, salt) {
+                let strOk = typeof pass == "string" && 6 <= pass.length && pass.length <= 16;
+                let rightInDB = (items.crypto.encrypt(pass, salt) == realPass);
+                return strOk && rightInDB;
+            };
+        }
+    },
+    Session: {
+        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
+        fun: function (sys, items, opts) {
+            let schedule = require("node-schedule");
+            function getClients() {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT status.*,users.livetime FROM users,status
+                                WHERE users.id = status.user_id AND status.online = 0`;
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if (err) throw err;
+                        resolve(rows);
+                    });
+                });
             }
-            function check( key, value ) {
-                return typeof value == "string" && table[key](value);
+            schedule.scheduleJob(`0 1 * * *`, async e => {
+                let clients = await getClients();
+                clients.forEach(async s => {
+                    let timeout = new Date() - new Date(s.login_time) > s.livetime * 24000 * 3600;
+                    timeout && await clean(s.client_id)
+                });
+            });
+            function detail(clientId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT status.*,id,livetime FROM users,status
+                                WHERE users.id = status.user_id AND status.client_id='${clientId}'`;
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if (err) throw err;
+                        resolve(!!rows.length && rows[0]);
+                    });
+                });
             }
-            return check;
+            function clean(clientId) {
+                return new Promise((resolve, reject) => {
+                    let remove = `DELETE FROM status WHERE client_id=?`;
+                    let stmt = items.sqlite.prepare(remove);
+                    stmt.run(clientId, err => {
+                        if (err) throw err;
+                        resolve(false);
+                    });
+                });
+            }
+            return { detail: detail, clean: clean };
         }
     },
     Crypto: {
         opt: { keySize: 512/32, iterations: 32 },
         map: { format: { "int": "keySize iterations" } },
         fun: function (sys, items, opts) {
-            var cryptoJS = require("crypto-js");
+            let cryptoJS = require("crypto-js");
             function encrypt(plaintext, salt) {
                 return cryptoJS.PBKDF2(plaintext, salt, opts).toString();
             }
@@ -458,7 +513,8 @@ $_("sqlite").imports({
         fun: function (sys, items, opts) {
             let sqlite3 = require("sqlite3").verbose(),
                 db = new sqlite3.Database(`${__dirname}/data.db`);
-            // the next two stmts from：https://stackoverflow.com/questions/53299322/transactions-in-node-sqlite3
+            // 下面两个语句来自
+            // https://stackoverflow.com/questions/53299322/transactions-in-node-sqlite3
             sqlite3.Database.prototype.runAsync = function (sql, ...params) {
                 return new Promise((resolve, reject) => {
                     this.run(sql, params, function (err) {

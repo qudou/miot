@@ -17,6 +17,7 @@ $_().imports({
                 <Areas id='areas'/>\
                 <Links id='links'/>\
                 <Apps id='apps'/>\
+                <Logout id='logout'/>\
               </main>"
     },
     Areas: {
@@ -60,6 +61,19 @@ $_().imports({
                     data.forEach(i => {
                         p.data.apps.push({'mid':i.id,'name':i.name,'view':i.view,'type':i.type,'online':i.online});
                     });
+                    this.trigger("to-users", p);
+                });
+            });
+        }
+    },
+    Logout: {
+        xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
+        fun: function (sys, items, opts) {
+            this.watch("/ui/logout", (e, p) => {
+                let remove = `DELETE FROM status WHERE client_id=?`;
+                let stmt = items.sqlite.prepare(remove);
+                stmt.run(p.cid, err => {
+                    if (err) throw err;
                     this.trigger("to-users", p);
                 });
             });

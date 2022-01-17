@@ -19,7 +19,7 @@ $_().imports({
         xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.watch("/status", (e, p) => {
-                let stmt = "SELECT users.name AS user_name,status.* FROM users,status WHERE users.id=status.user_id";
+                let stmt = "SELECT * FROM status ORDER BY online DESC";
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = data;

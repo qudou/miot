@@ -41,16 +41,9 @@ $_().imports({
                 <Query id='query' xmlns='/'/>\
               </Overlay>",
         fun: function (sys, items, opts) {
-            let o = {
-                username: items.query["name"] || localStorage.getItem("username"),
-                password: items.query["password"] || localStorage.getItem("password")
-            };
+            let clientId = items.query["session"] || localStorage.getItem("session");
             setTimeout(e => {
-                if (o.username && o.password) {
-                    sys.verify.trigger("switch", ["service", o]);
-                } else {
-                    sys.verify.trigger("switch", "login");
-                }
+                this.trigger("switch", clientId ? ["service", {clientId: clientId}] : "login");
             }, 0);
         }
     },
@@ -60,12 +53,12 @@ $_().imports({
         fun: function (sys, items, opts) {
             let client = null;
             let Server = document.querySelector("meta[name='mqtt-server']").getAttribute("content");
-            this.on("show", (e, key, config) => {
-                client = mqtt.connect(Server, config);
+            this.on("show", (e, key, cfg) => {
+                client = mqtt.connect(Server, cfg);
                 client.on("connect", e => {
-                    localStorage.setItem("username", config.username);
-                    localStorage.setItem("password", config.password);
-                    client.subscribe(client.options.clientId, err => {
+                    localStorage.setItem("session", cfg.clientId);
+                    localStorage.setItem("username", cfg.clientId.split('@')[1]);
+                    client.subscribe(cfg.clientId, err => {
                         if (err) throw err;
                         this.notify("subscribed");
                     });
@@ -76,13 +69,15 @@ $_().imports({
                     this.notify("message", JSON.parse(p.toString()));
                 });
                 client.on("close", e => this.notify("$offline"));
-                client.on("error", e => this.notify("logout", e));
+                client.on("error", e => {
+                    this.trigger("message", ["error", e.message]);
+                    e.message == "Bad username or password" && this.notify("/ui/logout");
+                });
             });
-            this.watch("logout", (e, err) => {
+            this.watch("/ui/logout", (e, p) => {
                 client.end();
                 localStorage.clear();
                 this.trigger("switch", "login");
-                err && this.trigger("message", ["error", err.message]);
             });
             this.watch("publish", (e, topic, p = {}) => {
                 client.publish(topic, JSON.stringify(p));
@@ -275,8 +270,12 @@ $_("login").imports({
               </li>",
         fun: function (sys, items, opts) {
             this.on("start", (e, o) => {
-                this.trigger("switch", ["service", {username: o.name, password: o.pass}]);
+                let clientId = `${defaultId()}@${o.name}`;
+                this.trigger("switch", ["service", {username: o.name, password: o.pass, clientId: clientId}]);
             });
+            function defaultId() {
+                return Math.random().toString(16).substr(2, 8);
+            }
         }
     },
     Input: {
@@ -428,8 +427,8 @@ $_("content/index").imports({
                 try {
                     (area = prev || sys.areas.first()).trigger(Click);
                 } catch(e) {
+                    this.trigger("publish", {topic: "/ui/logout"});
                     this.trigger("message", ["error", "该用户未获得任何应用的授权！"]);
-                    this.notify("logout");
                 } 
             });
             sys.areas.on(Click, "*", function (e) {
@@ -702,7 +701,8 @@ $_("content/about").imports({
               </div>",
         fun: function (sys, items, opts) {
             this.watch("$online", e => {
-                sys.user.text(`当前用户：${localStorage.getItem("username")}`);
+                let user = localStorage.getItem("username");
+                sys.user.text(`当前用户：${user}`);
             });
         }
     },
@@ -717,8 +717,15 @@ $_("content/about").imports({
                 <ul><li><a href='#' class='list-button item-link color-red'>退出</a></li></ul>\
               </div>",
         fun: function (sys, items, opts) {
+            let online = 0;
+            this.watch("$online", e => online = 1);
+            this.watch("$offline", e => online = 0);
             this.on(Click, e => {
-                app.dialog.confirm("确定退出系统吗？", "温馨提示", e => this.notify("logout"));
+                if (online == 0)
+                    this.trigger("message", ["msg", "当前系统离线，无法退出！"]);
+                else app.dialog.confirm("确定退出系统吗？", "温馨提示", e => {
+                    this.trigger("publish", {topic: "/ui/logout"});
+                });
             });
         }
     }
