@@ -139,25 +139,23 @@ $_("signup").imports({
         fun: function (sys, items, opts) {
             let uuidv1 = require("uuid/v1");
             let uuidv4 = require("uuid/v4");
-            let str = "INSERT INTO apps (id,name,link,part,view,type,online) VALUES(?,?,?,?,?,?,?)";
-            // 这里有两个连续的插入操作，应该使用事务!!!
             this.on("exec", (e, p) => {
-                let stmt = items.signup.prepare(str);
                 let b = p.body;
                 let id = uuidv1();
                 let part = uuidv4();
                 let online = b.type > 1 ? 0 : 1;
-                stmt.run(id,b.name,b.link,part,b.view,b.type,online);
-                stmt.finalize(() => insertToAuths(p, id));
-            });
-            function insertToAuths(p, appid) {
-                let stmt = items.signup.prepare("INSERT INTO auths (user,app) VALUES(0,?)");
-                stmt.run(appid);
-                stmt.finalize(() => {
+                let statements = [
+                    ["INSERT INTO apps (id,name,link,part,view,type,online) VALUES(?,?,?,?,?,?,?)", id, b.name, b.link, part, b.view, b.type, online],
+                    ["INSERT INTO auths (user,app) VALUES(0,?)", id]
+                ];
+                items.signup.runBatchAsync(statements).then(results => {
                     p.data = {code: 0, desc: "注册成功"};
                     sys.signup.trigger("to-users", p);
+                }).catch(err => {
+                    p.data = {code: -1, desc: "BATCH FAILED: " + err};
+                    sys.signup.trigger("to-users", p);
                 });
-            }
+            });
         }
     }
 });
