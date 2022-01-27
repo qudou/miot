@@ -415,7 +415,7 @@ $_("proxy/login").imports({
                 return new Promise(async (resolve, reject) => {
                     let count = await loginTimes(user);
                     let stmt = `SELECT users.* FROM users,auths
-                                WHERE name="${user}" AND auths.user = users.id AND (repeat_login=1 OR ${count}=0)`;
+                                WHERE name="${user}" AND auths.user = users.id AND (relogin=1 OR ${count}=0)`;
                     items.sqlite.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(!!rows.length && rows[0]);

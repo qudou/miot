@@ -24,12 +24,12 @@ $_().imports({
         xml: "<Sqlite id='select' xmlns='//miot/sqlite'/>",
         fun: function (sys, items, opts) {
             this.watch("/users/select", (e, p) => {
-                let stmt = `SELECT id,name,email,livetime,repeat_login FROM users`;
+                let stmt = `SELECT id,name,email,livetime,relogin FROM users`;
                 items.select.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = [];
                     data.forEach(i => {
-                        p.data.push({'id':i.id,'name':i.name,'email':i.email,'livetime':i.livetime,'repeat_login':i.repeat_login});
+                        p.data.push({'id':i.id,'name':i.name,'email':i.email,'livetime':i.livetime,'relogin':i.relogin});
                     });
                     this.trigger("to-users", p);
                 });
@@ -148,7 +148,7 @@ $_("signup").imports({
                 let pass = items.crypto.encrypt(p.body.pass, salt);
                 let appid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
                 let statements = [
-                    ["INSERT INTO users (email,name,pass,salt,livetime,repeat_login) VALUES(?,?,?,?,?,?)",p.body.email, p.body.name, pass, salt, p.body.livetime, p.body.relogin],
+                    ["INSERT INTO users (email,name,pass,salt,livetime,relogin) VALUES(?,?,?,?,?,?)",p.body.email, p.body.name, pass, salt, p.body.livetime, p.body.relogin],
                     ["INSERT INTO auths (user,app) VALUES(last_insert_rowid(),?)", appid]
                 ];
                 items.db.runBatchAsync(statements).then(results => {
@@ -243,7 +243,7 @@ $_("update").imports({
               </main>",
         fun: function (sys, items, opts) {
             this.on("exec", (e, p) => {
-                let update = "UPDATE users SET name=?,email=?,livetime=?,repeat_login=? WHERE id=?";
+                let update = "UPDATE users SET name=?,email=?,livetime=?,relogin=? WHERE id=?";
                 let stmt = items.db.prepare(update);
                 stmt.run(p.body.name,p.body.email,p.body.livetime,p.body.relogin,p.body.id, err => {
                     if (err) throw err;

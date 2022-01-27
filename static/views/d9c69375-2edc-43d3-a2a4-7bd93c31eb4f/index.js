@@ -326,29 +326,36 @@ $_("signup/form").imports({
             return items.livetime;
         }
     },
-    Relogin: {
-        css: "#icon { width: 28px; height: 28px; border-radius: 6px; box-sizing: border-box; }",
-        xml: "<li>\
-               <label class='item-checkbox item-content'>\
-                 <input id='input' type='checkbox'/>\
-                 <i class='icon icon-checkbox'/>\
-                 <div class='item-inner'>\
-                   <div id='label' class='item-title'>重复登录</div>\
-                 </div>\
-               </label>\
+    ReLogin: {
+        css: ".sheet-modal { z-index: 100000; }",
+        xml: "<li id='picker'>\
+                  <div class='item-content item-input'>\
+                    <div class='item-inner'>\
+                      <div id='label' class='item-title item-label'>重复登录</div>\
+                      <div class='item-input-wrap'>\
+                        <input id='input' type='text' readonly='readonly'/>\
+                      </div>\
+                      <div class='item-footer'/>\
+                    </div>\
+                  </div>\
               </li>",
         fun: function (sys, items, opts) {
-            function setValue(value) {
-                sys.input.prop("checked", !!value);
-            }
-            function getValue() {
-                return sys.input.prop("checked") ? 1 : 0;
-            }
+            let data = ["允许", "不允许"];
+            let picker = window.app.picker.create({
+                inputEl: sys.input.elem(),
+                rotateEffect: true,
+                toolbarCloseText: "确定",
+                cols: [{values: data}],
+                value: [data[0]]
+            });
             this.on("start", (e, p) => {
-                p.relogin = getValue();
+                p.relogin = picker.value[0] == "允许" ? 1 : 0;
                 this.trigger("next", p);
             });
-            return Object.defineProperty({}, "value", { set: setValue, get: getValue});
+            function setValue(value) {
+                picker.setValue([value ? "允许" : "不允许"]);
+            }
+            return { val: setValue };
         }
     },
 	Button: {
@@ -407,11 +414,11 @@ $_("update").imports({
                 items.user.val(value.name);
                 items.email.val(value.email);
                 items.livetime.val(value.livetime);
-                items.relogin.value = value.repeat_login;
+                items.relogin.val(value.relogin);
             }
-            sys.email.on("next", (e) => {
+            sys.relogin.on("next", (e, p) => {
                 e.stopPropagation();
-                let p = {id:opts.id, name:items.user.val(),email:items.email.val(), livetime: items.livetime.val(), relogin: items.relogin.value};
+                p.id = opts.id;
                 this.trigger("switch", "service");
                 this.trigger("publish", ["/users/update", p]);
                 this.glance("/users/update", callback);
