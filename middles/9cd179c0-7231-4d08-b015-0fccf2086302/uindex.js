@@ -20,7 +20,7 @@ $_().imports({
               </main>"
     },
     Areas: {
-        xml: "<Sqlite id='areas' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='areas' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/links/areas", (e, p) => {
                 let stmt = `SELECT * FROM areas WHERE id<>0`;
@@ -36,7 +36,7 @@ $_().imports({
         }
     },
     Select: {
-        xml: "<Sqlite id='select' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='select' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             let stmt = `SELECT links.id, links.name, area, areas.name AS areaName
                         FROM links, areas
@@ -61,7 +61,7 @@ $_().imports({
         }
     },
     Remove: {
-        xml: "<Sqlite id='remove' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='remove' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/links/remove", (e, p) => {
                 let remove = "DELETE FROM links WHERE id=?";
@@ -113,7 +113,7 @@ $_("signup").imports({
         }
     },
     Signup: {
-       xml: "<Sqlite id='signup' xmlns='//miot/sqlite'/>",
+       xml: "<Sqlite id='signup' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.on("exec", (e, p) => {
                 let stmt = items.signup.prepare("INSERT INTO links (id,name,area) VALUES(?,?,?)");
@@ -133,7 +133,7 @@ $_("update").imports({
         map: {extend: {"from": "../signup/Validate"}}
     },
     Update: {
-        xml: "<Sqlite id='update' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='update' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.on("exec", (e, p) => {
                 let update = "UPDATE links SET name=?, area=? WHERE id=?";

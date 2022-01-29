@@ -19,7 +19,7 @@ $_().imports({
               </main>"
     },
     Select: {
-        xml: "<Sqlite id='select' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='select' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/views/select", (e, p) => {
                 let stmt = `SELECT * FROM views WHERE type<>0`;
@@ -41,7 +41,7 @@ $_().imports({
         }
     },
     Remove: {
-        xml: "<Sqlite id='remove' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='remove' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/views/remove", (e, p) => {
                 let remove = "DELETE FROM views WHERE id=?";
@@ -93,7 +93,7 @@ $_("signup").imports({
         }
     },
     Signup: {
-       xml: "<Sqlite id='signup' xmlns='//miot/sqlite'/>",
+       xml: "<Sqlite id='signup' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.on("exec", (e, p) => {
                 let stmt = items.signup.prepare("INSERT INTO views (id,name,desc) VALUES(?,?,?)");
@@ -113,7 +113,7 @@ $_("update").imports({
         map: {extend: {"from": "../signup/Validate"}}
     },
     Update: {
-        xml: "<Sqlite id='update' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='update' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.on("exec", (e, p) => {
                 let update = "UPDATE views SET name=?, desc=? WHERE id=?";

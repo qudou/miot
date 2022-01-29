@@ -22,7 +22,7 @@ $_().imports({
               </main>"
     },
     Areas: {
-        xml: "<Sqlite id='areas' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='areas' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             let stmt = "SELECT id, name FROM areas WHERE id <> 0";
             this.watch("/apps/areas", (e, p) => {
@@ -35,7 +35,7 @@ $_().imports({
         }
     },
     Links: {
-        xml: "<Sqlite id='links' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='links' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             let stmt = "SELECT id, name, area FROM links WHERE area<>0 ORDER BY area";
             this.watch("/apps/links", (e, p) => {
@@ -48,7 +48,7 @@ $_().imports({
         }
     },
     Apps: {
-        xml: "<Sqlite id='apps' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='apps' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/apps/list", (e, p) => {
                 let stmt = `SELECT id,name,link,part,view,type FROM apps WHERE link='${p.body.link}' AND type<>0`;
@@ -61,7 +61,7 @@ $_().imports({
         }
     },
     Views: {
-        xml: "<Sqlite id='views' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='views' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/apps/views", (e, p) => {
                 let stmt = `SELECT id,name,desc FROM views WHERE type<>0`;
@@ -83,7 +83,7 @@ $_().imports({
         }
     },
     Remove: {
-        xml: "<Sqlite id='remove' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='remove' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/apps/remove", (e, p) => {
                 let remove = "DELETE FROM apps WHERE id=?";
@@ -135,7 +135,7 @@ $_("signup").imports({
         }
     },
     Signup: {
-       xml: "<Sqlite id='signup' xmlns='//miot/sqlite'/>",
+       xml: "<Sqlite id='signup' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             let uuidv1 = require("uuid/v1");
             let uuidv4 = require("uuid/v4");
@@ -165,7 +165,7 @@ $_("update").imports({
         map: {extend: {"from": "../signup/Validate"}}
     },
     Update: {
-        xml: "<Sqlite id='update' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='update' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             let update = "UPDATE apps SET name=?,link=?,part=?,view=?,type=?str WHERE id=?";
             this.on("exec", (e, p) => {

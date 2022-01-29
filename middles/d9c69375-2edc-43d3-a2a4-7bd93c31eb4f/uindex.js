@@ -18,10 +18,10 @@ $_().imports({
                 <Update id='update'/>\
                 <Chpasswd id='chpasswd'/>\
               </main>",
-        map: { share: "signup/Crypto signup/InputCheck" }
+        map: { share: "signup/InputCheck" }
     },
     Select: {
-        xml: "<Sqlite id='select' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='select' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/users/select", (e, p) => {
                 let stmt = `SELECT id,name,email,livetime,relogin FROM users`;
@@ -46,7 +46,7 @@ $_().imports({
         }
     },
     Remove: {
-        xml: "<Sqlite id='remove' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='remove' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/users/remove", (e, p) => {
                 let remove = "DELETE FROM users WHERE id=? AND id<>0";
@@ -97,7 +97,7 @@ $_().imports({
 $_("signup").imports({
     Validate: {
         xml: "<main id='validate'>\
-                <Sqlite id='db' xmlns='//miot/sqlite'/>\
+                <Sqlite id='db' xmlns='//miot'/>\
                 <InputCheck id='check'/>\
               </main>",
         fun: function ( sys, items, opts ) {
@@ -138,14 +138,14 @@ $_("signup").imports({
         }
     },
     Signup: {
-       xml: "<main id='signup'>\
-                <Sqlite id='db' xmlns='//miot/sqlite'/>\
-                <Crypto id='crypto'/>\
+       xml: "<main id='signup' xmlns:i='//miot'>\
+                <i:Sqlite id='db'/>\
+                <i:Crypto id='crypto'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("exec", (e, p) => {
+            this.on("exec", async (e, p) => {
                 let salt = items.crypto.salt();
-                let pass = items.crypto.encrypt(p.body.pass, salt);
+                let pass = await items.crypto.encrypt(p.body.pass, salt);
                 let appid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
                 let statements = [
                     ["INSERT INTO users (email,name,pass,salt,livetime,relogin) VALUES(?,?,?,?,?,?)",p.body.email, p.body.name, pass, salt, p.body.livetime, p.body.relogin],
@@ -159,23 +159,6 @@ $_("signup").imports({
                     sys.signup.trigger("to-users", p);
                 });
             });
-        }
-    },
-    Crypto: {
-        opt: { keySize: 512/32, iterations: 32 },
-        map: { format: { "int": "keySize iterations" } },
-        fun: function (sys, items, opts) {
-            var cryptoJS = require("crypto-js");
-            function encrypt(plaintext, salt) {
-                return cryptoJS.PBKDF2(plaintext, salt, opts).toString();
-            }
-            function salt() {
-                return cryptoJS.lib.WordArray.random(128/8).toString();
-            }
-            function md5(data) {
-                return cryptoJS.MD5(data).toString();
-            }
-            return { encrypt: encrypt, salt: salt, md5: md5 };
         }
     },
     InputCheck: {
@@ -203,7 +186,7 @@ $_("signup").imports({
 $_("update").imports({
     Validate: {
         xml: "<main id='validate'>\
-                <Sqlite id='db' xmlns='//miot/sqlite'/>\
+                <Sqlite id='db' xmlns='//miot'/>\
                 <InputCheck id='check' xmlns='../signup'/>\
               </main>",
         fun: function (sys, items, opts) {
@@ -237,9 +220,9 @@ $_("update").imports({
         }
     },
     Update: {
-        xml: "<main id='update'>\
-                <Sqlite id='db' xmlns='//miot/sqlite'/>\
-                <Crypto id='crypto' xmlns='../signup'/>\
+        xml: "<main id='update' xmlns:i='//miot'>\
+                <i:Sqlite id='db'/>\
+                <i:Crypto id='crypto'/>\
               </main>",
         fun: function (sys, items, opts) {
             this.on("exec", (e, p) => {
@@ -257,25 +240,26 @@ $_("update").imports({
 
 $_("chpasswd").imports({
     Validate: {
-        xml: "<main id='validate' xmlns:i='../signup'>\
-                <Sqlite id='db' xmlns='//miot/sqlite'/>\
+        xml: "<main id='validate' xmlns:i='../signup' xmlns:k='//miot'>\
+                <k:Sqlite id='db'/>\
+                <k:Crypto id='crypto'/>\
                 <i:InputCheck id='check'/>\
-                <i:Crypto id='crypto'/>\
               </main>",
         fun: function (sys, items, opts) {
             this.on("exec", (e, p) => {
                 e.stopPropagation();
                 let stmt = `SELECT * FROM users WHERE id='${p.body.id}'`;
-                items.db.all(stmt, (err, rows) => {
+                items.db.all(stmt, async (err, rows) => {
                     if (err) throw err;
-                    if (!!rows.length && checkPass(p.body.pass, rows[0]))
+                    if (!!rows.length && await checkPass(p.body.pass, rows[0]))
                         return checkNewPass(p);
                     p.data = {code: -1, desc: "密码有误"};
                     this.trigger("to-users", p);
                 });
             });
-            function checkPass(pass, record) {
-                return items.crypto.encrypt(pass, record.salt) == record.pass;
+            async function checkPass(pass, record) {
+                let inputPass = await items.crypto.encrypt(pass, record.salt);
+                return inputPass == record.pass;
             }
             function checkNewPass(p) {
                 if (items.check("p", p.body.new_pass))
@@ -286,15 +270,15 @@ $_("chpasswd").imports({
         }
     },
     Chpasswd: {
-        xml: "<main id='chpasswd' xmlns:i='../signup'>\
-                <Sqlite id='db' xmlns='//miot/sqlite'/>\
+        xml: "<main id='chpasswd'  xmlns:i='//miot'>\
+                <i:Sqlite id='db'/>\
                 <i:Crypto id='crypto'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("exec", (e, p) => {
+            this.on("exec", async (e, p) => {
                 let update = "UPDATE users SET pass=?,salt=? WHERE id=?";
                 let salt = items.crypto.salt();
-                let pass = items.crypto.encrypt(p.body.new_pass, salt);
+                let pass = await items.crypto.encrypt(p.body.new_pass, salt);
                 let stmt = items.db.prepare(update);
                 stmt.run(pass, salt, p.body.id, function(err) {
                     if (err) throw err;

@@ -9,6 +9,7 @@ const mosca = require("mosca");
 const xmlplus = require("xmlplus");
 
 const log4js = require("log4js");
+const { resolve } = require("path");
 log4js.configure({
     appenders: { "miot": { type: "file", filename: `${__dirname}/miot.log` } },
     categories: { default: { appenders: ["miot"], level: "info" } }
@@ -25,7 +26,7 @@ $_().imports({
                 <Mosca id='mosca'/>\
                 <Proxy id='proxy'/>\
               </main>",
-        map: { share: "sqlite/Sqlite Util" }
+        map: { share: "Tools Crypto Sqlite" }
     },
     Mosca: { // 连接内网网关
         xml: "<main id='mosca' xmlns:i='mosca'>\
@@ -72,7 +73,7 @@ $_().imports({
                 <i:Authorize id='auth'/>\
                 <i:Users id='users'/>\
                 <i:Middle id='middle'/>\
-                <Util id='util' xmlns='.'/>\
+                <Tools id='tools'/>\
               </main>",
         opt: { port: 1888, http: { port: config.http_port, static: `${__dirname}/static`, bundle: true } },
         fun: function (sys, items, opts) {
@@ -86,7 +87,7 @@ $_().imports({
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 let p = JSON.parse(packet.payload + '');
-                let m = await items.util.getAppById(packet.topic);
+                let m = await items.tools.getAppById(packet.topic);
                 p.cid = client.id;
                 p.mid = packet.topic;
                 await items.middle.create(m.view, p);
@@ -102,8 +103,8 @@ $_().imports({
             });
         }
     },
-    Util: {
-        xml: "<Sqlite id='sqlite' xmlns='sqlite'/>",
+    Tools: {
+        xml: "<Sqlite id='sqlite'/>",
         fun: function (sys, items, opts) {
             let fs= require("fs");
             function exists(path) {
@@ -122,6 +123,52 @@ $_().imports({
             }
             return { getAppById: getAppById, exists: exists };
         }
+    },
+    Crypto: {
+        fun: function (sys, items, opts) {
+            let crypto = require("crypto");
+            function encrypt(secret, salt, iterations = 32, keySize = 128) {
+                return new Promise((resolve, reject) => {
+                    crypto.pbkdf2(secret, salt, iterations, keySize/2, "sha1", (err, derivedKey) => {
+                        if (err) throw err;
+                        resolve(derivedKey.toString("hex"));
+                    });
+                });
+            }
+            function salt(len = 32) {
+                return  crypto.randomBytes(Math.ceil(len / 2)).toString('hex').slice(0, len);
+            }
+            return { encrypt: encrypt, salt: salt };
+        }
+    },
+    Sqlite: {
+        fun: function (sys, items, opts) {
+            let sqlite3 = require("sqlite3").verbose(),
+                db = new sqlite3.Database(`${__dirname}/data.db`);
+            // https://stackoverflow.com/questions/53299322/transactions-in-node-sqlite3
+            sqlite3.Database.prototype.runAsync = function (sql, ...params) {
+                return new Promise((resolve, reject) => {
+                    this.run(sql, params, function (err) {
+                        if (err) return reject(err);
+                        resolve(this);
+                    });
+                });
+            };
+            sqlite3.Database.prototype.runBatchAsync = function (statements) {
+                var results = [];
+                var batch = ['BEGIN', ...statements, 'COMMIT'];
+                return batch.reduce((chain, statement) => chain.then(result => {
+                    results.push(result);
+                    return db.runAsync(...[].concat(statement));
+                }), Promise.resolve())
+                .catch(err => db.runAsync('ROLLBACK').then(() => Promise.reject(err +
+                    ' in statement #' + results.length)))
+                .then(() => results.slice(2));
+            };
+            db.exec("VACUUM");
+            db.exec("PRAGMA foreign_keys = ON");
+            return db;
+        }
     }
 });
 
@@ -139,7 +186,7 @@ $_("mosca").imports({
         }
     },
     Links: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
+        xml: "<Sqlite id='sqlite' xmlns='/'/>",
         fun: function (sys, items, opts) {
             function canLink(linkId) {
                 return new Promise((resolve, reject) => {
@@ -172,7 +219,7 @@ $_("mosca").imports({
         }
     },
     Apps: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
+        xml: "<Sqlite id='sqlite' xmlns='/'/>",
         fun: function (sys, items, opts) {
             async function cache(mid, payload) {
                 let str = "UPDATE apps SET online=% WHERE id=?";
@@ -221,26 +268,26 @@ $_("mosca").imports({
         }
     },
     Middle: {
-        xml: "<Util id='util' xmlns='/'/>",
+        xml: "<Tools id='tools' xmlns='/'/>",
         fun: function (sys, items, opts) {
             let table = {};
             async function create(klass, p) {
                 if (!table[klass]) {
                     let path = `${__dirname}/middles/${klass}/pindex.js`;
-                    if (!await items.util.exists(path))
-                        return sys.util.trigger("to-users", p);
+                    if (!await items.tools.exists(path))
+                        return sys.tools.trigger("to-users", p);
                     table[klass] = middle(klass, path);
                 }
                 let msgs = xp.messages(table[klass]);
                 if(msgs.indexOf(p.topic) == -1)
-                    return sys.util.trigger("to-users", p);
+                    return sys.tools.trigger("to-users", p);
                 table[klass].notify(p.topic, p);
             }
             function middle(klass, path) {
                 require(path);
                 let c = xp.hasComponent(`//${klass}/Index`);
                 c.map.msgscope = true;
-                return sys.util.append(`//${klass}/Index`);
+                return sys.tools.append(`//${klass}/Index`);
             }
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
@@ -290,7 +337,8 @@ $_("proxy").imports({
         fun: function (sys, items, opts) {
             async function byAccount(user, pass) {
                 let item = await items.checkUser(user);
-                return item ? (items.checkPass(pass, item.pass, item.salt) && item) : false;
+                let rightPass = await items.checkPass(pass, item.pass, item.salt);
+                return item ? (rightPass && item) : false;
             }
             async function bySession(clientId) {
                 let s = await items.session.detail(clientId);
@@ -305,7 +353,7 @@ $_("proxy").imports({
         }
     },
     Users: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
+        xml: "<Sqlite id='sqlite' xmlns='/'/>",
         fun: function (sys, items, opts) {
             function canSubscribe(client, topic) {
                 return new Promise((resolve, reject) => {
@@ -369,26 +417,26 @@ $_("proxy").imports({
         }
     },
     Middle: {
-        xml: "<Util id='util' xmlns='/'/>",
+        xml: "<Tools id='tools' xmlns='/'/>",
         fun: function (sys, items, opts) {
             let table = {};
             async function create(klass, p) {
                 if (!table[klass]) {
                     let path = `${__dirname}/middles/${klass}/uindex.js`;
-                    if (!await items.util.exists(path))
-                        return sys.util.trigger("to-local", p);
+                    if (!await items.tools.exists(path))
+                        return sys.tools.trigger("to-local", p);
                     table[klass] = middle(klass, path);
                 }
                 let msgs = xp.messages(table[klass]);
                 if(msgs.indexOf(p.topic) == -1)
-                    return sys.util.trigger("to-local", p);
+                    return sys.tools.trigger("to-local", p);
                 table[klass].notify(p.topic, p);
             }
             function middle(klass, path) {
                 require(path);
                 let c = xp.hasComponent(`//${klass}/Index`);
                 c.map.msgscope = true;
-                return sys.util.append(`//${klass}/Index`);
+                return sys.tools.append(`//${klass}/Index`);
             }
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
@@ -397,7 +445,7 @@ $_("proxy").imports({
             });
             this.on("to-local", async (e, p) => {
                 e.stopPropagation();
-                let m = await items.util.getAppById(p.mid);
+                let m = await items.tools.getAppById(p.mid);
                 let body = { topic: p.topic, body: p.body };
                 this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });
@@ -408,7 +456,7 @@ $_("proxy").imports({
 
 $_("proxy/login").imports({
     CheckUser: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
+        xml: "<Sqlite id='sqlite' xmlns='/'/>",
         fun: function (sys, items, opts) {
             var ureg = /^[a-z0-9_]{4,31}$/i;
             function rightInDB(user) {
@@ -439,17 +487,17 @@ $_("proxy/login").imports({
         }
     },
     CheckPass: {
-        xml: "<Crypto id='crypto'/>",
+        xml: "<Crypto id='crypto' xmlns='/'/>",
         fun: function (sys, items, opts) {
-            return function (pass, realPass, salt) {
+            return async function (pass, realPass, salt) {
                 let strOk = typeof pass == "string" && 6 <= pass.length && pass.length <= 16;
-                let rightInDB = (items.crypto.encrypt(pass, salt) == realPass);
-                return strOk && rightInDB;
+                let inputPass = await items.crypto.encrypt(pass, salt);
+                return strOk && (inputPass == realPass);
             };
         }
     },
     Session: {
-        xml: "<Sqlite id='sqlite' xmlns='/sqlite'/>",
+        xml: "<Sqlite id='sqlite' xmlns='/'/>",
         fun: function (sys, items, opts) {
             let schedule = require("node-schedule");
             function getClients() {
@@ -490,53 +538,6 @@ $_("proxy/login").imports({
                 });
             }
             return { detail: detail, clean: clean };
-        }
-    },
-    Crypto: {
-        opt: { keySize: 512/32, iterations: 32 },
-        map: { format: { "int": "keySize iterations" } },
-        fun: function (sys, items, opts) {
-            let cryptoJS = require("crypto-js");
-            function encrypt(plaintext, salt) {
-                return cryptoJS.PBKDF2(plaintext, salt, opts).toString();
-            }
-            function salt() {
-                return cryptoJS.lib.WordArray.random(128/8).toString();
-            }
-            return { encrypt: encrypt, salt: salt };
-        }
-    }
-});
-
-$_("sqlite").imports({
-    Sqlite: {
-        fun: function (sys, items, opts) {
-            let sqlite3 = require("sqlite3").verbose(),
-                db = new sqlite3.Database(`${__dirname}/data.db`);
-            // 下面两个语句来自
-            // https://stackoverflow.com/questions/53299322/transactions-in-node-sqlite3
-            sqlite3.Database.prototype.runAsync = function (sql, ...params) {
-                return new Promise((resolve, reject) => {
-                    this.run(sql, params, function (err) {
-                        if (err) return reject(err);
-                        resolve(this);
-                    });
-                });
-            };
-            sqlite3.Database.prototype.runBatchAsync = function (statements) {
-                var results = [];
-                var batch = ['BEGIN', ...statements, 'COMMIT'];
-                return batch.reduce((chain, statement) => chain.then(result => {
-                    results.push(result);
-                    return db.runAsync(...[].concat(statement));
-                }), Promise.resolve())
-                .catch(err => db.runAsync('ROLLBACK').then(() => Promise.reject(err +
-                    ' in statement #' + results.length)))
-                .then(() => results.slice(2));
-            };
-            db.exec("VACUUM");
-            db.exec("PRAGMA foreign_keys = ON");
-            return db;
         }
     }
 });

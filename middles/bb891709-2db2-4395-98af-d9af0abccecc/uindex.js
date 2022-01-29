@@ -16,7 +16,7 @@ $_().imports({
               </main>"
     },
     Status: {
-        xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='sqlite' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/status", (e, p) => {
                 let stmt = "SELECT * FROM status ORDER BY user_id, online DESC";

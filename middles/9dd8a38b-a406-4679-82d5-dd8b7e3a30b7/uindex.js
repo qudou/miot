@@ -20,7 +20,7 @@ $_().imports({
               </main>"
     },
     Users: {
-        xml: "<Sqlite id='users' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='users' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/auths/users", (e, p) => {
                 let stmt = `SELECT id,name,email FROM users WHERE id<>0`;
@@ -36,7 +36,7 @@ $_().imports({
         }
     },
     Areas: {
-        xml: "<Sqlite id='areas' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='areas' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             let stmt = "SELECT id, name FROM areas WHERE id <> 0";
             this.watch("/auths/areas", (e, p) => {
@@ -49,7 +49,7 @@ $_().imports({
         }
     },
     Links: {
-        xml: "<Sqlite id='links' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='links' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             let stmt = "SELECT id, name, area FROM links WHERE area<>0 ORDER BY area";
             this.watch("/auths/links", (e, p) => {
@@ -62,7 +62,7 @@ $_().imports({
         }
     },
     Apps: {
-        xml: "<Sqlite id='apps' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='apps' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/auths/apps", async (e, p) => {
                 let table = {};
@@ -94,7 +94,7 @@ $_().imports({
         }
     },
     Auth: {
-        xml: "<Sqlite id='auth' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='auth' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/auths/auth", (e, p) => {
                 p.body.auth ? exists(p) : remove(p);

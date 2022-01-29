@@ -21,7 +21,7 @@ $_().imports({
               </main>"
     },
     Areas: {
-        xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='sqlite' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/ui/areas", (e, p) => {
                 let stmt = `SELECT distinct areas.* FROM areas,links,apps,auths,status
@@ -36,7 +36,7 @@ $_().imports({
         }
     },
     Links: {
-        xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='sqlite' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/ui/links", (e, p) => {
                 let stmt = `SELECT distinct links.* FROM links,apps,auths,status
@@ -50,7 +50,7 @@ $_().imports({
         }
     },
     Apps: {
-        xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='sqlite' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/ui/apps", (e, p) => {
                 let stmt = `SELECT apps.* FROM apps,auths,status
@@ -67,7 +67,7 @@ $_().imports({
         }
     },
     Logout: {
-        xml: "<Sqlite id='sqlite' xmlns='//miot/sqlite'/>",
+        xml: "<Sqlite id='sqlite' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/ui/logout", (e, p) => {
                 let remove = `DELETE FROM status WHERE client_id=?`;
