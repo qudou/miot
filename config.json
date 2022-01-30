@@ -1,4 +1,7 @@
 {
-    "mqtt_port": 1883,
-    "http_port": 8080
+    "proxy": {
+        "port": 1888,
+        "http": {"port": 8082, "static": "$dir/static", "bundle": true}
+    },
+    "mqtt_port": 1883
 }

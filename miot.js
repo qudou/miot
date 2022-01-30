@@ -16,7 +16,8 @@ log4js.configure({
 });
 const logger = log4js.getLogger("miot");
 const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
-const config = JSON.parse(require("fs").readFileSync(`${__dirname}/config.json`));
+const config = JSON.parse(require("fs").readFileSync(`${__dirname}/config.json`)
+                                       .toString().replace("$dir", __dirname));
 
 xmlplus("miot", (xp, $_) => {
 
@@ -36,6 +37,7 @@ $_().imports({
                 <i:Middle id='middle'/>\
               </main>",
         fun: async function (sys, items, opts) {
+            // port: 1883/8443
             let server = new mosca.Server({port: config.mqtt_port});
             server.on("ready", async () => {
                 await items.links.offlineAll();
@@ -75,9 +77,8 @@ $_().imports({
                 <i:Middle id='middle'/>\
                 <Tools id='tools'/>\
               </main>",
-        opt: { port: 1888, http: { port: config.http_port, static: `${__dirname}/static`, bundle: true } },
         fun: function (sys, items, opts) {
-            let server = new mosca.Server(opts);
+            let server = new mosca.Server(config.proxy);
             server.on("ready", async () => {
                 await items.users.offlineAll();
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);

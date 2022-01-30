@@ -42,8 +42,12 @@ miot/
 
 ```json
 {
-    "mqtt_port": 1883,
-    "http_port": 8080
+    "proxy": {
+        "port": 1888,
+        "http": {"port": 8080, "static": "$dir/static", "bundle": true}
+        // https: { port: 443, bundle: true, static: `$dir/static` }, secure: { keyPath: SECURE_KEY, certPath: SECURE_CERT } },
+    },
+    "mqtt_port": 8443
 }
 ```
 
