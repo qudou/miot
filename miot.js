@@ -17,7 +17,7 @@ log4js.configure({
 const logger = log4js.getLogger("miot");
 const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
 const config = JSON.parse(require("fs").readFileSync(`${__dirname}/config.json`)
-                                       .toString().replace("$dir", __dirname));
+                                       .toString().replace(/dir/g, __dirname));
 
 xmlplus("miot", (xp, $_) => {
 
@@ -37,8 +37,7 @@ $_().imports({
                 <i:Middle id='middle'/>\
               </main>",
         fun: async function (sys, items, opts) {
-            // port: 1883/8443
-            let server = new mosca.Server({port: config.mqtt_port});
+            let server = new mosca.Server(config.mosca);
             server.on("ready", async () => {
                 await items.links.offlineAll();
                 await items.apps.offlineAll();

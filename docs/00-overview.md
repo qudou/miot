@@ -13,8 +13,8 @@ miot 是一个基于 MQTT 协议的物联网平台框架。通过它，你可以
 
 此外，为了便于后面的叙述，下面对涉及平台相关的一些名词做出解释：
 
-- 视图 : 视图层的组成单元，WEB 应用，通过 MQTT 协议与外网网关相联
-- 配件 : 配件层的组成单元，终端应用，通过 MQTT 协议与内网网关相联
+- 视图 : 视图层的组成单元，WEB 应用，通过 MQTT 协议与外网网关相连
+- 配件 : 配件层的组成单元，终端应用，通过 MQTT 协议与内网网关相连
 - 中间件 : 与视图及配件相匹配，含两个文件，一个为视图提供服务，另一个为配件提供服务
 - 应用 : 由视图，中间件以及配件按 1:1:1 组成，其中任何一部分都是可选的
 
@@ -43,15 +43,18 @@ miot/
 ```json
 {
     "proxy": {
-        "port": 1888,
-        "http": {"port": 8080, "static": "$dir/static", "bundle": true}
-        // https: { port: 443, bundle: true, static: `$dir/static` }, secure: { keyPath: SECURE_KEY, certPath: SECURE_CERT } },
+        "http": {"port": 8080, "static": "dir/static"}
+        //"https": { "port": 443, bundle: true, "static": "$dir/static" }, 
+        //"secure": { keyPath: SECURE_KEY, certPath: SECURE_CERT } },
     },
-    "mqtt_port": 8443
+    "mosca": {
+        "port": 1883
+        //"secure": { "port": 8443, "keyPath": SECURE_KEY,  "certPath": SECURE_CERT }
+    }
 }
 ```
 
-上面配置中，mqtt-port 是提供给内网网关连接的端口号，http_port 是提供给视图连接的端口号。
+上面配置中，mosca 是提供给内网网关连接的配置，你可以根据需要来决定是否启用 lts 安全连接。proxy 是提供给视图连接的配置，你可以根据需要来决定是否提供 https 服务。
 
 ## 视图层与中间件
 
@@ -63,7 +66,7 @@ miot/
 <meta name="mqtt-server" content="ws://localhost:8080">
 ```
 
-上面 content 中的 8080 即来自上节中配置文件的 http_port 值。当一切配置就绪后，即可使用如下命令启动项目：
+上面 content 中的 8080 即来自上节中配置文件的 port 值。当一切配置就绪后，即可使用如下命令启动项目：
 
 ```bash
 $ node miot.js
@@ -93,11 +96,22 @@ miot-local/
 
 ```json
 {
-    port: 1883,
-    server: "mqtt://localhost:1883",
-    client_id: "62cf572e-7c2a-4b87-96c6-a531cc5890ff",
-    parts: [
-        { "id": "d9ae5656-9e5e-4991-b4e4-343897a11f28", "path": "/system" }
+    "mosca": {
+        "port": 1883
+    },
+    "proxy": {
+        "port": 8443,
+        //"port": 8443,
+        "host": "localhost",
+        "clientId": "be1aa660-2b48-11ec-a191-4dbcbb23f97f",
+        "protocol": "mqtt",
+        //"protocol": "mqtts",
+        //"rejectUnauthorized": true,
+        //"ca": "dir/secure/tls-cert.pem"
+    },
+    "parts": [
+        { "id": "d9ae5656-9e5e-4991-b4e4-343897a11f28", "path": "/system" },
+        { "id": "35e64bc0-1268-477a-9327-94e880e67866", "path": "/player" }
     ]
 }
 ```
@@ -109,7 +123,11 @@ miot-local/
 - client_id : 连接到外网网关的客户端标识符
 - parts : 连接到内网网关的配件列表
 
-上述配件描述中的 path 参数用于唯一地命名配件，其描述方式类似于操作系统的文件定位。当一切配置就绪后，即可使用如下命令启动网关服务：
+上面配置中，mosca 是提供给内网配件连接的配置，你可以根据需要来决定是否开启 lts 安全连接。proxy 是连接到外网网关的配置，你可以根据需要来决定是否使用 lts 连接。
+
+另外，上述 client_id 是连接到外网网关的客户端标识符。parts 是连接到内网网关的配件列表，parts 中的 path 参数用于唯一地命名配件，其描述方式类似于操作系统的文件定位。
+
+当一切配置就绪后，即可使用如下命令启动网关服务：
 
 ```bash
 $ node miot-local.js

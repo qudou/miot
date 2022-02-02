@@ -1,7 +1,8 @@
 {
     "proxy": {
-        "port": 1888,
-        "http": {"port": 8082, "static": "$dir/static", "bundle": true}
+        "http": {"port": 8080, "static": "dir/static"}
     },
-    "mqtt_port": 1883
+    "mosca": {
+        "port": 1883
+    }
 }
