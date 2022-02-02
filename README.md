@@ -41,10 +41,19 @@ miot/
 
 ```json
 {
-    "mqtt_port": 1883, // 提供给内网网关连接的端口号
-    "http_port": 8080  // 提供给用户界面连接的端口号
+    "proxy": {
+        "http": {"port": 8080, "static": "dir/static"}
+        //"https": { "port": 443, bundle: true, "static": "$dir/static" }, 
+        //"secure": { keyPath: SECURE_KEY, certPath: SECURE_CERT } },
+    },
+    "mosca": {
+        "port": 1883
+        //"secure": { "port": 8443, "keyPath": SECURE_KEY,  "certPath": SECURE_CERT }
+    }
 }
 ```
+
+上面配置中，mosca 是提供给内网网关连接的配置，你可以根据需要来决定是否启用 lts 安全连接。proxy 是提供给视图连接的配置，你可以根据需要来决定是否提供 https 服务。
 
 ## 用户界面
 
@@ -56,7 +65,7 @@ miot/
 <meta name="mqtt-server" content="ws://localhost:8080">
 ```
 
-上面 content 中的 8080 即来自上节中配置文件的 `http_port` 值。一个新的 miot 项目，都有一个初始的登录用户名 admin 和密码 123456 以便用户登录配置管理。
+上面 content 中的 8080 即来自上节中配置文件的 `proxy.http.port` 值。一个新的 miot 项目，都有一个初始的登录用户名 admin 和密码 123456 以便用户登录配置管理。
 
 ## 内网网关
 
@@ -78,16 +87,35 @@ miot-local/
 
 ```json
 {
-    port: 1883,                                                             // 提供给内网配件的连接端口
-    server: "mqtt://localhost:1883",                                        // 连接到的外网网关的服务地址
-    client_id: "62cf572e-7c2a-4b87-96c6-a531cc5890ff",                      // 连接到外网网关的客户端标识符
-    parts: [                                                                // 连接到内网网关的配件列表
-        { "id": "d9ae5656-9e5e-4991-b4e4-343897a11f28", "path": "/system" }
+    "mosca": {
+        "port": 1883
+    },
+    "proxy": {
+        "port": 8443,
+        //"port": 8443,
+        "host": "localhost",
+        "clientId": "be1aa660-2b48-11ec-a191-4dbcbb23f97f",
+        "protocol": "mqtt",
+        //"protocol": "mqtts",
+        //"rejectUnauthorized": true,
+        //"ca": "dir/secure/tls-cert.pem"
+    },
+    "parts": [
+        { "id": "d9ae5656-9e5e-4991-b4e4-343897a11f28", "path": "/system" },
+        { "id": "35e64bc0-1268-477a-9327-94e880e67866", "path": "/player" }
     ]
 }
 ```
 
-配件描述中的 path 参数的描述方式类似于操作系统的文件定位，请确保网内各配件的该参数值互不相同。
+上面配置中，mosca 是提供给内网配件连接的配置，你可以根据需要来决定是否开启 lts 安全连接。proxy 是连接到外网网关的配置，你可以根据需要来决定是否使用 lts 连接。
+
+另外，上述 client_id 是连接到外网网关的客户端标识符。parts 是连接到内网网关的配件列表，parts 中的 path 参数用于唯一地命名配件，其描述方式类似于操作系统的文件定位。
+
+当一切配置就绪后，即可使用如下命令启动网关服务：
+
+```bash
+$ node miot-local.js
+```
 
 ## 配件层
 
