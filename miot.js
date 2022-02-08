@@ -1,5 +1,5 @@
 /*!
- * miot.js v1.1.7
+ * miot.js v1.1.8
  * https://github.com/qudou/miot
  * (c) 2017-2022 qudou
  * Released under the MIT license
@@ -7,27 +7,20 @@
 
 const mosca = require("mosca");
 const xmlplus = require("xmlplus");
-
-const log4js = require("log4js");
-const { resolve } = require("path");
-log4js.configure({
-    appenders: { "miot": { type: "file", filename: `${__dirname}/miot.log` } },
-    categories: { default: { appenders: ["miot"], level: "info" } }
-});
-const logger = log4js.getLogger("miot");
 const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
 const config = JSON.parse(require("fs").readFileSync(`${__dirname}/config.json`)
                                        .toString().replace(/dir/g, __dirname));
-
 xmlplus("miot", (xp, $_) => {
 
 $_().imports({
     Index: {
         xml: "<main id='index'>\
+                <Logger id='logger'/>\
                 <Mosca id='mosca'/>\
                 <Proxy id='proxy'/>\
               </main>",
-        map: { share: "Tools Crypto Sqlite" }
+        cfg: { logger: config.logger },
+        map: { share: "Tools Crypto Sqlite Logger" }
     },
     Mosca: { // 连接内网网关
         xml: "<main id='mosca' xmlns:i='mosca'>\
@@ -35,6 +28,7 @@ $_().imports({
                 <i:Links id='links'/>\
                 <i:Apps id='apps'/>\
                 <i:Middle id='middle'/>\
+                <Logger id='logger'/>\
               </main>",
         fun: async function (sys, items, opts) {
             let server = new mosca.Server(config.mosca);
@@ -42,7 +36,7 @@ $_().imports({
                 await items.links.offlineAll();
                 await items.apps.offlineAll();
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
-                logger.info("Mosca server is up and running"); 
+                items.logger.info("Mosca server is up and running"); 
             });
             server.on("subscribed", async (topic, client) => {
                 await items.links.update(topic, 1);
@@ -75,13 +69,14 @@ $_().imports({
                 <i:Users id='users'/>\
                 <i:Middle id='middle'/>\
                 <Tools id='tools'/>\
+                <Logger id='logger'/>\
               </main>",
         fun: function (sys, items, opts) {
             let server = new mosca.Server(config.proxy);
             server.on("ready", async () => {
                 await items.users.offlineAll();
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
-                logger.info("Proxy server is up and running"); 
+                items.logger.info("Proxy server is up and running"); 
             });
             server.on("clientDisconnected", client => items.users.disconnected(client));
             server.on("published", async (packet, client) => {
@@ -103,71 +98,28 @@ $_().imports({
             });
         }
     },
-    Tools: {
-        xml: "<Sqlite id='sqlite'/>",
+    Logger: {
+        opt: { level: "info", appender: "default" },
         fun: function (sys, items, opts) {
-            let fs= require("fs");
-            function exists(path) {
-                return new Promise((resolve, reject) => {
-                    fs.exists(path, e => resolve(e));
-                });
+            let results = {};
+            let levels = {"trace":0,"debug":1,"info":2,"warn":3,"error":4,"fatal":5};
+            let min = levels[opts.level];
+            function format(date, fmt) {
+                var o = { "y+" : date.getFullYear(), "M+" : date.getMonth() + 1, "d+" : date.getDate(), "h+" : date.getHours(), "m+" : date.getMinutes(), "s+" : date.getSeconds(), "S+" : date.getMilliseconds() };
+                var z = { "y+" : '0000', 'M+': '00', 'd+': '00', 'h+': '00', 'm+': '00', 's+': '00', 'S+': '000' };
+                for (var k in o)
+                    if (new RegExp("(" + k + ")").test(fmt))
+                        fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : ((z[k] + o[k]).substr(("" + o[k]).length)));
+                return fmt;
             }
-            function getAppById(appid) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM apps WHERE id = '${appid}'`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(data[0]);
-                    });
-                });
+            function printf(level, appender, text) {
+                // [2010-01-17 11:43:37.987] [DEBUG] [default] - Some debug messages
+                let date = format(new Date, "yyyy-MM-dd hh:mm:ss.SSS")
+                console.log(`[${date}] [${level}] [${appender}] - ${text}`);
             }
-            return { getAppById: getAppById, exists: exists };
-        }
-    },
-    Crypto: {
-        fun: function (sys, items, opts) {
-            let crypto = require("crypto");
-            function encrypt(secret, salt, iterations = 32, keySize = 128) {
-                return new Promise((resolve, reject) => {
-                    crypto.pbkdf2(secret, salt, iterations, keySize/2, "sha1", (err, derivedKey) => {
-                        if (err) throw err;
-                        resolve(derivedKey.toString("hex"));
-                    });
-                });
-            }
-            function salt(len = 32) {
-                return  crypto.randomBytes(Math.ceil(len / 2)).toString('hex').slice(0, len);
-            }
-            return { encrypt: encrypt, salt: salt };
-        }
-    },
-    Sqlite: {
-        fun: function (sys, items, opts) {
-            let sqlite3 = require("sqlite3").verbose(),
-                db = new sqlite3.Database(`${__dirname}/data.db`);
-            // https://stackoverflow.com/questions/53299322/transactions-in-node-sqlite3
-            sqlite3.Database.prototype.runAsync = function (sql, ...params) {
-                return new Promise((resolve, reject) => {
-                    this.run(sql, params, function (err) {
-                        if (err) return reject(err);
-                        resolve(this);
-                    });
-                });
-            };
-            sqlite3.Database.prototype.runBatchAsync = function (statements) {
-                var results = [];
-                var batch = ['BEGIN', ...statements, 'COMMIT'];
-                return batch.reduce((chain, statement) => chain.then(result => {
-                    results.push(result);
-                    return db.runAsync(...[].concat(statement));
-                }), Promise.resolve())
-                .catch(err => db.runAsync('ROLLBACK').then(() => Promise.reject(err +
-                    ' in statement #' + results.length)))
-                .then(() => results.slice(2));
-            };
-            db.exec("VACUUM");
-            db.exec("PRAGMA foreign_keys = ON");
-            return db;
+            for (let l in levels )
+                results[l] = text => (levels[l] >= min && printf(l, opts.appender, text));
+            return results;
         }
     }
 });
@@ -538,6 +490,76 @@ $_("proxy/login").imports({
                 });
             }
             return { detail: detail, clean: clean };
+        }
+    }
+});
+
+$_().imports({
+    Tools: {
+        xml: "<Sqlite id='sqlite'/>",
+        fun: function (sys, items, opts) {
+            let fs= require("fs");
+            function exists(path) {
+                return new Promise((resolve, reject) => {
+                    fs.exists(path, e => resolve(e));
+                });
+            }
+            function getAppById(appid) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT * FROM apps WHERE id = '${appid}'`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data[0]);
+                    });
+                });
+            }
+            return { getAppById: getAppById, exists: exists };
+        }
+    },
+    Crypto: {
+        fun: function (sys, items, opts) {
+            let crypto = require("crypto");
+            function encrypt(secret, salt, iterations = 32, keySize = 128) {
+                return new Promise((resolve, reject) => {
+                    crypto.pbkdf2(secret, salt, iterations, keySize/2, "sha1", (err, derivedKey) => {
+                        if (err) throw err;
+                        resolve(derivedKey.toString("hex"));
+                    });
+                });
+            }
+            function salt(len = 32) {
+                return  crypto.randomBytes(Math.ceil(len / 2)).toString('hex').slice(0, len);
+            }
+            return { encrypt: encrypt, salt: salt };
+        }
+    },
+    Sqlite: {
+        fun: function (sys, items, opts) {
+            let sqlite3 = require("sqlite3").verbose(),
+                db = new sqlite3.Database(`${__dirname}/data.db`);
+            // https://stackoverflow.com/questions/53299322/transactions-in-node-sqlite3
+            sqlite3.Database.prototype.runAsync = function (sql, ...params) {
+                return new Promise((resolve, reject) => {
+                    this.run(sql, params, function (err) {
+                        if (err) return reject(err);
+                        resolve(this);
+                    });
+                });
+            };
+            sqlite3.Database.prototype.runBatchAsync = function (statements) {
+                var results = [];
+                var batch = ['BEGIN', ...statements, 'COMMIT'];
+                return batch.reduce((chain, statement) => chain.then(result => {
+                    results.push(result);
+                    return db.runAsync(...[].concat(statement));
+                }), Promise.resolve())
+                .catch(err => db.runAsync('ROLLBACK').then(() => Promise.reject(err +
+                    ' in statement #' + results.length)))
+                .then(() => results.slice(2));
+            };
+            db.exec("VACUUM");
+            db.exec("PRAGMA foreign_keys = ON");
+            return db;
         }
     }
 });

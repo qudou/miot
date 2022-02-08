@@ -4,5 +4,9 @@
     },
     "mosca": {
         "port": 1883
+    },
+    "logger": {
+        "level": "info",
+        "appender": "miot"
     }
 }
