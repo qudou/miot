@@ -40,21 +40,25 @@ miot/
 
 这里仅对配置文件做些说明，对于其它内容，你只需要稍微了解就可以，当后面各章节会有详细的说明。
 
-```json
+```js
 {
     "proxy": {
         "http": {"port": 8080, "static": "dir/static"}
-        //"https": { "port": 443, bundle: true, "static": "$dir/static" }, 
-        //"secure": { keyPath: SECURE_KEY, certPath: SECURE_CERT } },
+        //"https": { "port": 443, bundle: true, "static": "dir/static" }, 
+        //"secure": { "keyPath": "dir/secure/tls-key.pem", "certPath": "dir/secure/tls-cert.pem" } },
     },
     "mosca": {
         "port": 1883
-        //"secure": { "port": 8443, "keyPath": SECURE_KEY,  "certPath": SECURE_CERT }
+        //"secure": { "port": 8443, "keyPath": "dir/secure/tls-key.pem",  "certPath": "dir/secure/tls-cert.pem" }
+    },
+    "logger": {
+        "lever": "info",
+        "appender" "default"
     }
 }
 ```
 
-上面配置中，mosca 是提供给内网网关连接的配置，你可以根据需要来决定是否启用 lts 安全连接。proxy 是提供给视图连接的配置，你可以根据需要来决定是否提供 https 服务。
+上面配置中，proxy 是提供给视图连接的配置，你可以根据需要来决定是否提供 https 服务。mosca 是提供给内网网关连接的配置，你可以根据需要来决定是否启用 lts 安全连接。logger 是日志打印配置。
 
 ## 视图层与中间件
 
@@ -74,7 +78,7 @@ $ node miot.js
 
 项目启动后，用浏览器访问 index.html，使用初始用户名 admin 和密码 123456 即可登录后台进行配置管理。
 
-与视图不同，中间件依附于外网网关，位于 /miot/middles/ 目录中，中间件由外网网关动态按需实例化。
+与视图类似，中间件也依附于外网网关，位于 /miot/middles/ 目录中，中间件由外网网关动态按需实例化。
 
 ## 内网网关
 
@@ -92,22 +96,21 @@ miot-local/
 └── config.json              // 配置文件
 ```
 
-相对于于外网网关，内网网关比较简单，在此着重对配置文件做些说明：
+相对于于外网网关，内网网关较为简单，在此着重对配置文件做些说明：
 
-```json
+```js
 {
-    "mosca": {
-        "port": 1883
-    },
     "proxy": {
-        "port": 8443,
-        //"port": 8443,
+        "port": 1883,                       // 若开启 tls，则使用 8443 端口
         "host": "localhost",
-        "clientId": "be1aa660-2b48-11ec-a191-4dbcbb23f97f",
-        "protocol": "mqtt",
-        //"protocol": "mqtts",
-        //"rejectUnauthorized": true,
-        //"ca": "dir/secure/tls-cert.pem"
+        "clientId": "be1aa660-2b48-11ec-a191-4dbcbb23f97f", // 连接到外网网关的客户端标识符
+        "protocol": "mqtt",                 // 若开启 tls，则使用 mqtts
+        //"rejectUnauthorized": true,       // 开启授权
+        //"ca": "dir/secure/tls-cert.pem"   // 自签名证书
+    },
+    "mosca": {
+        "port": 1883,
+        //"secure": { "port": 8443, "keyPath": "dir/secure/tls-key.pem",  "certPath": "dir/secure/tls-cert.pem" }
     },
     "parts": [
         { "id": "d9ae5656-9e5e-4991-b4e4-343897a11f28", "path": "/system" },
@@ -116,9 +119,9 @@ miot-local/
 }
 ```
 
-上面配置中，mosca 是提供给内网配件连接的配置，你可以根据需要来决定是否开启 lts 安全连接。proxy 是连接到外网网关的配置，你可以根据需要来决定是否使用 lts 连接。
+上面配置中，proxy 是连接到外网网关的配置，你可以根据需要来决定是否使用 lts 连接。mosca 是提供给内网配件连接的配置，你可以根据需要来决定是否开启 lts 安全连接。
 
-另外，上述 client_id 是连接到外网网关的客户端标识符。parts 是连接到内网网关的配件列表，parts 中的 path 参数用于唯一地命名配件，其描述方式类似于操作系统的文件定位。
+另外，上述 parts 项是连接到内网网关的配件列表，parts 中的 path 参数用于唯一地命名配件，其描述方式类似于操作系统的文件定位。
 
 当一切配置就绪后，即可使用如下命令启动网关服务：
 
@@ -134,18 +137,23 @@ $ node miot-local.js
 $ npm install miot-part
 ```
 
-下面一个是配件的示例，由此示例可知，配件想要连接进局域网关，最重要的是提供局域网关的地址以及当前配件标识符。
+下面一个是配件的示例，由此示例可知，配件想要连接到内网网关，提供的参数与上节中连接到外网网关的 proxy 配置类似。
 
 ```js
-let xmlplus = require("miot-part");                // 模块引入
-let server = "mqtt://localhost:1883";              // 局域网关
-let pid = "d9ae5656-9e5e-4991-b4e4-343897a11f28";  // 配件标识符
+let xmlplus = require("miot-part");     // 模块引入
+let config = {
+    "port": 1883,                       // 若开启 tls，则使用 8443 端口
+    "host": "localhost",
+    "partId": "d9ae5656-9e5e-4991-b4e4-343897a11f28", // 连接到外网网关的客户端标识符
+    "protocol": "mqtt",                 // 若开启 tls，则使用 mqtts
+    //"rejectUnauthorized": true,       // 开启授权
+    //"ca": "dir/secure/tls-cert.pem"   // 自签名证书
+};
 
 xmlplus("part-demo", (xp, $_) => {
-
 $_().imports({
     Index: {
-        cfg: { index: { server: server, pid: pid } },
+        cfg: { index: config },
         xml: "<i:Client id='index' xmlns:i='//miot-part'/>",
         fun: function (sys, items, opts) {
             this.watch("/hi/alice", (e, body)=> {
@@ -154,7 +162,6 @@ $_().imports({
         }
     }
 });
-
 }).startup("//part-demo/Index");
 ```
 
