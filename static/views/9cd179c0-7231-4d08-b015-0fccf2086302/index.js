@@ -111,9 +111,9 @@ $_("overview").imports({
                 <div id='content' class='page-content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            let areas = {}
+            let areas = {};
             this.watch("/links/areas", (e, data) => {
-                sys.content.children().call("remove");
+                sys.content.kids().call("remove");
                 data.forEach(item => {
                     sys.content.append("Title").text(item.name);
                     areas[item.id] = sys.content.append("LinkList");
@@ -121,7 +121,7 @@ $_("overview").imports({
             });
             this.watch("/links/select", (e, data) => {
                 data.forEach(item => {
-                    areas[item.area].append("LinkItem").value().value = item;
+                    areas[item.area].append("LinkItem").val().value = item;
                 });
             });
         }

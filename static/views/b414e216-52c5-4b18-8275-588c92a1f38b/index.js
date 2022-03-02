@@ -137,7 +137,7 @@ $_("overview").imports({
                         sys.content.append("Title").text(areas[item.area].name);
                         list = sys.content.append("LinkList");
                     }
-                    list.append("LinkItem").value().value = item;
+                    list.append("LinkItem").val().value = item;
                 });
                 links = {};
                 data.map(i => links[i.id]=i);
@@ -223,9 +223,9 @@ $_("applist").imports({
                 sys.content.trigger("publish", ["/apps/list", {link: p.id}]);
             }
             this.watch("/apps/list", (e, data) => {
-                sys.list.children().call("remove");
+                sys.list.kids().call("remove");
                 data.forEach(item => {
-                    sys.list.append("AppItem").value().value = item;
+                    sys.list.append("AppItem").val().value = item;
                 });
                 data.length ? sys.list.show() : sys.list.hide();
             });
@@ -235,7 +235,7 @@ $_("applist").imports({
                 this.trigger("switch", ["update", item]);
             });
             this.watch("/apps/remove", (e, p) => {
-                sys.list.children().length || sys.list.hide();
+                sys.list.kids().length || sys.list.hide();
             });
             return {init: init};
         }
@@ -379,7 +379,7 @@ $_("signup/form").imports({
         xml: "<Picker id='area' label='区域'/>",
         fun: function (sys, items, opts) {
             this.watch("/apps/areas", (e, data) => {
-                data.length ? sys.area.show().value().init(data) : sys.area.hide();
+                data.length ? sys.area.show().val().init(data) : sys.area.hide();
             });
             this.on("value-change", (e, value) => {
                 this.next().trigger("area-change", value, false);

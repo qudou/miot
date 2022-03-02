@@ -98,15 +98,15 @@ $_("overview").imports({
               </div>",
         fun: function (sys, items, opts) {
             this.watch("/areas/select", (e, data) => {
-                sys.list.children().call("remove");
+                sys.list.kids().call("remove");
                 data.forEach(item => {
-                    let area = sys.list.append("AreaItem").value();
+                    let area = sys.list.append("AreaItem").val();
                     area.value = item;
                 });
                 data.length ? sys.list.show() : sys.list.hide();
             });
             this.watch("/areas/remove", (e, p) => {
-                sys.list.children().length || sys.list.hide();
+                sys.list.kids().length || sys.list.hide();
             });
         }
     },

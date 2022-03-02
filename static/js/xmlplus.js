@@ -1,10 +1,10 @@
 /*!
- * xmlplus.js v1.6.02
- * http://xmlplus.cn
- * (c) 2009-2017 qudou
+ * xmlplus.js v1.7.1
+ * https://xmlplus.cn
+ * (c) 2017-2022 qudou
  * Released under the MIT license
  */
- (function (isInBrowser, undefined) {
+ (function (inBrowser, undefined) {
 "use strict";
   var ELEMENT_NODE                = 1;
 //var ATTRIBUTE_NODE              = 2;
@@ -23,12 +23,18 @@ var WELL = /#(?=([^}])+?{)/ig;
 var svgns = "http://www.w3.org/2000/svg";
 var htmlns = "http://www.w3.org/1999/xhtml";
 var xlinkns = "http://www.w3.org/1999/xlink";
-var xdocument, $document, XPath, DOMParser_, XMLSerializer_, NodeElementAPI;
+
+// xdocument is for virtual DOM, and $document is for real DOM.
+var xdocument, $document;
+
+var XPath, DOMParser_, XMLSerializer_, NodeElementAPI;
 var Manager = [HtmlManager(),CompManager(),,TextManager(),TextManager(),,,,TextManager(),,];
 var Formater = { "int": parseInt, "float": parseFloat, "bool": new Function("v","return v==true || v=='true';") };
 var Template = { css: "", cfg: {}, opt: {}, ali: {}, map: { share: "", defer: "", cfgs: {}, attrs: {}, format: {} }, fun: new Function };
-var isReady, isSVG = {}, isHTML = {}, Paths = {}, Source = {}, Library = {}, Original = {}, Store = {}, Extends = [], Global = {};
+var isReady, Paths = {}, Binds = {};
 
+// isHTML contains isSVG
+var isSVG = {}, isHTML = {};
 (function () {
     var i = -1, k = -1,
         s = "animate animateMotion animateTransform circle clipPath cursor defs desc discard ellipse feBlend feColorMatrix feComponentTransfer feComposite feConvolveMatrix feDiffuseLighting feDisplacementMap feDistantLight feDropShadow feFlood feFuncA feFuncB feFuncG feFuncR feGaussianBlur feImage feMerge feMergeNode feMorphology feOffset fePointLight feSpecularLighting feSpotLight feTile feTurbulence filter foreignObject g hatch hatchpath image line linearGradient marker mask mesh meshpatch meshrow metadata mpath path pattern polygon polyline radialGradient rect set solidcolor stop svg switch symbol text textPath tspan unknown use view".split(" "),
@@ -36,6 +42,28 @@ var isReady, isSVG = {}, isHTML = {}, Paths = {}, Source = {}, Library = {}, Ori
     while (h[++k]) isHTML[h[k]] = 1;
     while (s[++i]) isSVG[s[i]] = isHTML[s[i]] = 1;
 }());
+
+// The Original contains the set of components imported by the imports function.
+// It contains original, unprocessed components.
+// It contains two levels: the first is the component space and the second is the component name.
+// eg. Original["//xp"][Input] = {};
+var Original = {};
+
+// The Source is used to help implement the inheritance of components, and then it is no longer used.
+var Source = {};
+
+// The Library contains the set of components imported by the imports function.
+// Unlike original, the components are initialized by the system
+// Like original, it contains two levels.
+// eg. Library["//xp"][Input] = {};
+var Library = {};
+
+// The Store establishes the mapping from component instance uid to component instance.
+var Store = {};
+
+// The Global stores the application objects created by the '$.startup' function. 
+// You can access the objects through the function '$.getElementById'.
+var Global = {};
 
 var $ = {
     startup: startup,
@@ -109,6 +137,8 @@ var $ = {
         return objs;
     },
     extend: function () {
+        // This function is modified from jQuery.
+        // https://jquery.com/
         var options, name, src, copy, copyIsArray, clone,
             target = arguments[ 0 ] || {},
             i = 1,
@@ -186,6 +216,10 @@ var $ = {
         s.dir = s.dir.substr(2);
         return Library[s.dir] && Library[s.dir][s.basename] || false;
     },
+    messages: function (obj) {
+        var item = Store[obj.guid()];
+        return item && item.ctr.messages() || [];
+    },
     clearLibrary: function (space) {
         if ( typeof space != "string" )
             $.error("invalid space, expected a string");
@@ -198,9 +232,9 @@ var $ = {
         return this;
     },
     getElementById: function (id, isGuid) {
-        if ( isGuid ) 
+        if ( isGuid )
             return Store[id] && Store[id].api;
-        return isInBrowser ? (Global[id] || $document.getElementById(id)) : null;
+        return inBrowser ? (Global[id] || $document.getElementById(id)) : null;
     }
 };
 
@@ -249,6 +283,7 @@ var ph = (function () {
         var i = path.lastIndexOf('/');
         return { dir: path.substring(0, i), basename: path.substr(i+1).toLowerCase() };
     }
+    // [/dir/foo, ..] => dir, [/dir, ./bar] => dir/bar
     function fullPath(dir, patt) {
         var key = dir + patt;
         if ( table[key] )
@@ -325,16 +360,32 @@ var hp = {
         var ret = this.fn.apply(this.data, [].slice.call(arguments));
         return ret == this.data ? this.api : ret;
     },
-    build: (function () {
-        var table = [], objects = [];
-        return function ( data, object ) {
-            var api = {},
-                k = objects.indexOf(object),
-                keys = table[k] || (objects.push(object) && table[table.push(Object.keys(object))-1]);
-            for ( k = 0; k < keys.length; k++ )
-                api[keys[k]] = hp.callback.bind({fn: object[keys[k]], data: data, api: api});
-            return api;
+    build: (function() {
+        function exportAll() {
+            var table = [], objects = [];
+            return function ( data, object ) {
+                var api = {},
+                    k = objects.indexOf(object),
+                    keys = table[k] || (objects.push(object) && table[table.push(Object.keys(object))-1]);
+                for ( k = 0; k < keys.length; k++ )
+                    api[keys[k]] = hp.callback.bind({fn: object[keys[k]], data: data, api: api});
+                return api;
+            };
         }
+        function onDemand(data, object) {
+            var api = {};
+            var proxy = new Proxy(object, {
+                get(target, propKey, receiver) {
+                    if (object[propKey] === undefined)
+                        return Reflect.get(target, propKey, receiver);
+                    if (!api.hasOwnProperty(propKey))
+                        api[propKey] = hp.callback.bind({fn: object[propKey], data: data, api: proxy});
+                    return api[propKey];
+                },
+            });
+            return proxy;
+        }
+        return inBrowser && !('Proxy' in window) ? exportAll() : onDemand;
     }()),
     create: function (item) {
         item.api || (item.api = item.back = hp.build(item, item.typ > 1 ? TextElementAPI : NodeElementAPI));
@@ -369,15 +420,19 @@ var hp = {
         var i = XPath.select(expr, xml);
         return [].slice.call(i).indexOf(node) != -1
     },
-    xpathQuery: function (expr, xml) {
-        var nodes = [],
-            evaluator = new XPathEvaluator,
-            result = evaluator.evaluate(expr, xml, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-        if ( result )
-            for ( var i = 0, len = result.snapshotLength; i < len; i++)
-                nodes.push(result.snapshotItem(i));
-        return nodes;
-    },
+    xpathQuery: (function() {
+        var exprs = {};
+        return function (expr, xml) {
+            var nodes = [];
+            if (!exprs[expr])
+                exprs[expr] = (new XPathEvaluator).createExpression(expr);
+            var result = exprs[expr].evaluate(xml, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE);
+            if ( result )
+                for ( var i = 0, len = result.snapshotLength; i < len; i++)
+                    nodes.push(result.snapshotItem(i));
+            return nodes;
+        }
+    }()),
     parseHTML: function parse(node) {
         if ( node.nodeType != ELEMENT_NODE ) return;
         if ( isHTML[node.nodeName.toLowerCase()] ) {
@@ -393,7 +448,7 @@ var hp = {
             node.parentNode.replaceChild(node.parentNode.lastChild, node);
         }
     },
-    ready: isInBrowser && (function () {
+    ready: inBrowser && (function () {
         var fn = [], d = document,
             ie = !!(window.attachEvent && !window.opera),
             wk = /webkit\/(\d+)/i.test(navigator.userAgent) && (RegExp.$1 < 525),
@@ -415,6 +470,256 @@ var hp = {
             }
         };
     })()
+};
+
+var bd = {
+    onbind: function (e) {
+        let o = Binds[e.target.guid()];
+        if ($.isPlainObject(o)) {
+            let i = e.target.elem(),
+                n = i.nodeName;
+            let bind = o.view.env.map.bind ||= {};
+            let hook = bind[o.key] || {};
+            let get = bd.Getters[n] || bd.Getters[`${n}-${i.getAttribute("type")}`] || bd.Getters["OTHERS"];;
+            let value = get(i, [e.target]);
+            o.data[o.key] = $.isFunction(hook.get) ? hook.get(value) : value;
+        }
+    },
+    export: (function () {
+        function fromObject(target) {
+            var obj = {};
+            for(let k in target) {
+                if(target[k].push)
+                    obj[k] = fromArray(target[k]);
+                else if (typeof target[k] == "object")
+                    obj[k] = fromObject(target[k])
+                else obj[k] = target[k]
+            }
+            return obj;
+        }
+        function fromArray(target) {
+            let i, arr = [];
+            for (i = 0; i < target.length; i++) {
+                if(target[i].push)
+                    arr.push(fromArray(target[i]))
+                else if (typeof target[i] == "object")
+                    arr.push(fromObject(target[i]))
+                else arr.push(target[i])
+            }
+            return arr;
+        }
+        return target => {
+            if (target.push) return fromArray(target);
+            return typeof target == "object" ? fromObject(target) : target;
+        };
+    }()),
+    isLiteral: function (value) {
+        return $.isNumeric(value) || $.type(value) == "string" || $.type(value) == "boolean";
+    },
+    bindObject: function (that) {
+        let target_ = {}, objects = {};
+        let proxy = new bd.ObjectProxy(target_, objects);
+        function setter(target) {
+            unbind();
+            $.each(Object.getOwnPropertyNames(target), (i,key) => {
+                let value = target[key];
+                objects[key] ||= [];
+                target_[key] = value;
+                let views = that.fdr.sys[key];
+                if (!views) $.error(`no target to bind for: ${key}`);
+                if ($.isSystemObject(views))
+                    views = [views];
+                views = views.map(v => {return Store[v.guid()]});
+                if ($.isArray(value)) {
+                    views.forEach(v => objects[key].push(bd.bindArray(v)));
+                } else if ($.isPlainObject(value)) {
+                    views.forEach(v => objects[key].push(bd.bindObject(v)));
+                } else if (bd.isLiteral(value)) {
+                    views.forEach(v => objects[key].push(bd.bindLiteral(v, proxy, key)));
+                } else {
+                    $.error(`Type error: ${value}`);
+                }
+                proxy[key] = target[key];
+            });
+        }
+        function delter() {
+            for (let k in proxy)
+                delete proxy[k];
+            $.each(Object.getOwnPropertyNames(objects), (i,key) => {
+                delete objects[key];
+            });
+        }
+        function unbind() {
+            $.each(Object.getOwnPropertyNames(objects), (i,key) => {
+                objects[key].forEach(i => i.unbind());
+                delete target_[key];
+                delete objects[key];
+            });
+        }
+        return {get: ()=>{return proxy}, set: setter, del: delter, unbind: unbind};
+    },
+    bindArray: function (that) {
+        let render = that.node.cloneNode(false);
+        render.removeAttribute("id");
+        let proxy = bd.ArrayProxy(that.api.hide(), render);
+        function setter(v) {
+            for (let i in v)
+                proxy[i] = v[i];
+            while (proxy.length > v.length)
+                proxy.pop();
+        }
+        function delter() {
+            unbind();
+            that.api.remove();
+        }
+        function unbind() {
+            while (proxy.length)
+                delete proxy[0];
+        }
+        return {get: ()=>{return proxy}, set: setter, del: delter, unbind: unbind};
+    },
+    bindLiteral: function (that, proxy, key) {
+        let hook = (that.env.map.bind ||= {})[key] || {};
+        let targets = getTargets(that);
+        if (targets.length == 0)
+            $.error(`no target to bind the key: '${key}'`);
+        targets.forEach(i => Binds[i.node.uid] = {view: that, data: proxy, key: key});
+        function getTargets(that) {
+            if (!that.fdr) return [that];
+            let targets = that.fdr.sys[hook.skey || key];
+            if (!targets) return [];
+            if ($.isSystemObject(targets))
+                targets = [targets];
+            let result = [];
+            targets.forEach(i => {
+                let tmp = Store[i.guid()]
+                result = result.concat(tmp.fdr ? getTargets(tmp) : [tmp]);
+            });
+            return result;
+        }
+        function getter() {
+            let e = targets[0].elem();
+            let get = bd.Getters[e.nodeName] || bd.Getters[`${e.nodeName}-${e.getAttribute("type")}`] || bd.Getters["OTHERS"];
+            let value = get(e, targets);
+            return $.isFunction(hook.get) ? hook.get(value) : value;
+        }
+        function setter(value) {
+            if ($.isFunction(hook.set))
+                value = hook.set(value);
+            targets.forEach(target => {
+                let e = target.api.elem();
+                let set = bd.Setters[e.nodeName] || bd.Setters[`${e.nodeName}-${e.getAttribute("type")}`] || bd.Setters["OTHERS"];
+                set(e, value, target);
+            });
+        }
+        function delter() {
+            unbind();
+            that.api.remove();
+        }
+        function unbind() {
+            targets.forEach(item => {
+                delete Binds[item.node.uid];
+            });
+            targets.splice(0);
+        }
+        return {get: getter, set: setter, del: delter, unbind: unbind};
+    },
+    ObjectProxy: function (target, objects) {
+        return new Proxy(target, {
+            get(target, propKey, receiver) {
+                if (objects[propKey] !== undefined)
+                    return objects[propKey][0].get();
+                return Reflect.get(target, propKey, receiver);
+            },
+            set(target, propKey, value, receiver) {
+                if (objects[propKey] !== undefined)
+                    objects[propKey].forEach(i=>i.set(value));
+                return true;
+            },
+            deleteProperty(target, propKey) {
+                if (objects[propKey] !== undefined)
+                    objects[propKey].forEach(i=>i.del());
+                return Reflect.deleteProperty(target, propKey);
+            }
+        });
+    },
+    ArrayProxy: function (holder, render) {
+        let List = new Function;
+        List.prototype = {length: 0, push: push, pop: pop};
+        let [views, list, empty] = [[], new List, []];
+        let proxy = new Proxy(list, {get: getter, set: setter, deleteProperty: delter});
+        function push(value) {
+            let view = holder.before(render.cloneNode(false));
+            views.push(view);
+            empty.push.apply(list, [view.bind(value)])
+            return true;
+        }
+        function pop() {
+            if (!list.length)
+                return undefined;
+            let i = list.length - 1;
+            let item = bd.export(list[i].model);
+            delete proxy[i];
+            return item;
+        }
+        function getter(target, propKey, receiver) {
+            if ($.isNumeric(propKey))
+                return list[propKey].model;
+            return Reflect.get(target, propKey, receiver);
+        }
+        function setter(target, propKey, value) {
+            if (propKey == list.length)
+                return push(value);
+            if (!views[propKey])
+                $.error(`prop name ${propKey} does not exist.`);
+            list[propKey].unbind();
+            empty.splice.apply(list, [propKey, 1, views[propKey].bind(value)]);
+            return true;
+        }
+        function delter(target, propKey) {
+            views[propKey].remove();
+            views.splice(propKey,1);
+            empty.splice.apply(list, [propKey,1]);
+            return true;
+        }
+        return proxy;
+    },
+    Getters: (function () {
+        function textbox(firstElem) {
+            return firstElem.value;
+        }
+        function checkbox(firstElem) {
+            return firstElem.checked;
+        }
+        function radio(firstElem, targets) {
+            let i, e;
+            for (i = 0; i < targets.length; i++) {
+                e = targets[i].elem();
+                if (e.checked) return e.value;
+            }
+        }
+        function others(firstElem) {
+            return firstElem.textContent;
+        }
+        return {"INPUT-radio": radio, "INPUT-checkbox": checkbox, "INPUT-range": textbox, "PROGRESS": textbox, 
+                "INPUT-text": textbox, "TEXTAREA": textbox, "SELECT": textbox, "OTHERS": others};
+    }()),
+    Setters: (function () {
+        function textbox(elem, value) {
+            elem.value = value;
+        }
+        function checkbox(elem, value) {
+            elem.checked = value;
+        }
+        function radio(elem, value) {
+            elem.checked = (elem.value == value);
+        }
+        function others(elem, value, target) {
+            return target.api.text(value);
+        }
+        return {"INPUT-radio": radio, "INPUT-checkbox": checkbox, "INPUT-range": textbox, "PROGRESS": textbox, 
+                "INPUT-text": textbox,"TEXTAREA": textbox, "SELECT": textbox, "OTHERS": others};
+    }())
 };
 
 $.extend(hp, (function () {
@@ -545,7 +850,7 @@ var Communication = function () {
             priority = $.isNumeric(priority) ? priority : -Infinity,
             target = { source: this, fn: fn, priority: priority };
         var i = 0, len = list.length;
-        for ( ; i < len; i++ ) 
+        for ( ; i < len; i++ )
             if ( priority > list[i].priority ) {
                 list.splice(i, 0, target);
                 break;
@@ -585,8 +890,11 @@ var Communication = function () {
         if ( !table[type] ) return;
         data = data == null ? [] : ($.isArray(data) ? data : [data]);
         var i = 0, buf = [].slice.call(table[type]);
-        for ( ; i < buf.length; i++ )
-            buf[i].fn.apply(this.api, [{type: type, target: this.api, currentTarget: buf[i].source.api}].concat(data));
+        for ( ; i < buf.length; i++ ) {
+            var obj = [{type: type, target: this.api, currentTarget: buf[i].source.api}].concat(data);
+            if (buf[i].fn.apply(this.api, obj) === false)
+                return this;
+        }
         return this;
     }
     function remove(item) {
@@ -598,7 +906,10 @@ var Communication = function () {
             table[type] = array;
         }
     }
-    return { watch: watch, glance: glance, unwatch: unwatch, notify: notify, remove: remove };
+    function messages() {
+        return Object.keys(table);
+    }
+    return { watch: watch, glance: glance, unwatch: unwatch, notify: notify, remove: remove, messages: messages };
 };
 
 var EventModuleAPI = (function () {
@@ -729,7 +1040,7 @@ var CommonElementAPI = {
         if ( elem.childNodes.length == 1 && elem.lastChild.nodeType ) {
             this.node.data = elem.lastChild.data = value + "";
         } else {
-            this.api.children(0).call("remove");
+            this.api.kids(0).call("remove");
             this.api.append(xdocument.createTextNode(value + ""));
         }
         return this;
@@ -823,8 +1134,8 @@ var CommonElementAPI = {
     unwatch: function (type, fn) {
         return this.ctr.unwatch.call(this, type, fn);
     },
-    append: function (target, options) {
-        var parent = this.appendTo();
+    append: function (target, options, parent) {
+        parent = parent || this.appendTo();
         if ( $.isSystemObject(target) ) {
             if ( target.contains(this.api) )
                 $.error("attempt to append a target which contains current");
@@ -853,10 +1164,10 @@ var CommonElementAPI = {
         target.nodeType == ELEMENT_NODE && target.hasAttribute("id") && this.env.fdr.refresh();
         return hp.create(Store[this.node.lastChild.uid]).api;
     },
-    before: function (target, options) {
+    before: function (target, options, elem) {
         if ( this.node == this.env.xml.lastChild )
             $.error("insert before document node is not allow");
-        var elem = this.elem();
+        elem = elem || this.elem();
         if ( $.isSystemObject(target) ) {
             if ( target.contains(this.api) )
                 $.error("attempt to insert a target which contains current");
@@ -981,7 +1292,7 @@ var CommonElementAPI = {
             next = next.nextSibling;
         }
     },
-    children: function (nodeType) {
+    kids: function (nodeType) {
         if ( nodeType == undefined )
             nodeType = ELEMENT_NODE;
         var result = new Collection,
@@ -993,7 +1304,7 @@ var CommonElementAPI = {
         }
         return result;
     },
-    value: function () {
+    val: function () {
         return this.value;
     },
     localName: function () {
@@ -1015,6 +1326,47 @@ var CommonElementAPI = {
         if ( prev && prev.nodeType == DOCUMENT_TYPE_NODE )
             elem = elem.ownerDocument;
         return $.serialize(elem);
+    },
+    bind: function (value) {
+        let [view, model] = [this, null];
+        let proxy = new Proxy({}, {get: getter, set: setter, deleteProperty: delter});
+        function getter(target, propKey, receiver) {
+            if (model == null)
+                return Reflect.get(target, propKey, receiver);
+            if (propKey == "model")
+                return model.get();
+            if (propKey == "export")
+                return () => bd.export(proxy.model);
+            if (propKey == "unbind")
+                return unbind;
+        }
+        function setter(target, propKey, value) {
+            if (!proxy || propKey !== "model")
+                return Reflect.set(target, propKey, value);
+            model && model.unbind();
+            if ($.isArray(value)) {
+                model = bd.bindArray(view);
+            } else if ($.isPlainObject(value)) {
+                if (!view.fdr)
+                    $.error("a PlainObject is not allow to bind a htmltag!");
+                model = bd.bindObject(view);
+            } else if (bd.isLiteral(value))
+                model = bd.bindLiteral(view, proxy, propKey);
+            return model.set(value), true;
+        }
+        function unbind() {
+            model.unbind();
+            model = null;
+        }
+        function delter(target, propKey) {
+            if (model && propKey == "model") {
+                model.del();
+                proxy = model = null;
+            }
+            return Reflect.deleteProperty(target, propKey);
+        }
+        proxy.model = value;
+        return proxy;
     }
 };
 
@@ -1233,14 +1585,16 @@ function HtmlManager() {
     function create(env, node, parent) {
         var k = node.nodeName,
             o = (table[k] || (table[k] = [])).pop() || HtmlElement(node, parent);
-        node.defer || resetAttrs(env, node);
+        if (!node.defer)
+            resetAttrs(env, node, aliasMatch(env, node));
         o.ele = hp.createElement(node, parent);
         o.api = node.defer ? hp.build(o, DeferElementAPI) : o.back;
         o.ctr = env.ctr, o.env = env, o.node = node, node.uid = o.uid, o.data = {}, o.ele.xmlTarget = o;
         return Store[o.uid] = o;
     }
     function recycle(item) {
-        var i = 0, o, c = XPath.select("./*", item.node); 
+        var i = 0, o,
+            c = XPath.select("./*", item.node); 
         for ( ; i < c.length; i++ ) {
             o = Store[c[i].uid];
             Manager[o.typ].recycle(o);
@@ -1291,9 +1645,10 @@ function CompManager() {
         o.ctr = o.map.msgscope ? Communication() : env.ctr;
         o.dir = w.dir, o.css = w.css, o.ali = w.ali, o.fun = w.fun, o.cid = w.cid;
         o.smr = env.smr, o.env = env, o.node = node, o.aid = env.aid, node.uid = o.uid, o.data = {};
-        resetAttrs(env, node);
-        resetConfigs(env, node);
-        resetOptions(env, o);
+        var exprs = aliasMatch(env, node);
+        resetAttrs(env, node, exprs);
+        resetConfigs(env, node, exprs);
+        resetOptions(env, o, exprs);
         o.share = $.extend({}, env.share);
         o.map.share.forEach(function( item ) {
             var p = ph.fullPath(o.dir, item),
@@ -1373,16 +1728,16 @@ function StyleManager() {
         }
     }
     function style() {
-        var i, temp = [], children = parent.childNodes;
-        for ( i = 0; i < children.length; i++ )
-            if ( children[i].nodeType == 1 )
-                temp.push(children[i].textContent);
+        var i, temp = [], kids = parent.childNodes;
+        for ( i = 0; i < kids.length; i++ )
+            if ( kids[i].nodeType == 1 )
+                temp.push(kids[i].textContent);
         return temp.join("");
     }
     return { create: create, remove: remove, style: style };
 }
 
-function Finder( env ) {
+function Finder(env) {
     function assert(expr, context) {
         if ( typeof expr != "string" )
             $.error("invalid expression, expected a css selector");
@@ -1410,15 +1765,16 @@ function Finder( env ) {
     }
     function refresh() {
         var i, k, id, item,
-            list = env.xml.querySelector ? env.xml.querySelectorAll("*[id]") : XPath.select("//*[@id]", env.xml);
+            list = XPath.select("//*[@id]", env.xml);
         for ( i in items ) {
-            delete sys[i]; delete items[i];
+            delete sys[i];
+            delete items[i];
         }
         for ( i in env.ali ) {
             sys[i] = sys(env.ali[i]);
             items[i] = new Collection;
             for ( k = 0; k < sys[i].length; k++ )
-                items[i].push(sys[i][k].value());
+                items[i].push(sys[i][k].val());
             sys[i].call("addClass", env.aid + env.cid + i);
         }
         for ( i = 0; i < list.length; i++ ) {
@@ -1435,7 +1791,7 @@ function setDeferNode(env, node) {
     for ( k in env.ali ) {
         temp = env.map.defer.indexOf(k);
         if ( temp != -1 && hp.nodeIsMatch(env.xml, env.ali[k], newNode) ) { 
-            index = temp; 
+            index = temp;
             break;
         }
     }
@@ -1449,11 +1805,19 @@ function setDeferNode(env, node) {
     return newNode;
 }
 
-function resetAttrs(env, node) {
-    var k, attrs = {}, id = node.getAttribute("id");
+function aliasMatch(env, node) {
+    var k, exprs = {};
     for ( k in env.ali )
         if ( hp.nodeIsMatch(env.xml, env.ali[k], node) )
-            $.extend(attrs, env.map.attrs[k]);
+            exprs[k] = 1;
+    return exprs;
+}
+
+function resetAttrs(env, node, exprs) {
+    var k, attrs = {},
+        id = node.getAttribute("id");
+    for ( k in exprs )
+        $.extend(attrs, env.map.attrs[k]);
     if ( id && env.map.attrs[id] )
         attrs = $.extend(attrs, env.map.attrs[id]);
     for ( k in attrs ) {
@@ -1462,11 +1826,11 @@ function resetAttrs(env, node) {
     }
 }
 
-function resetConfigs(env, node) {
-    var k, cfgs = {}, id = node.getAttribute("id");
-    for ( k in env.ali )
-        if ( hp.nodeIsMatch(env.xml, env.ali[k], node) )
-            $.extend(cfgs, env.map.cfgs[k]);
+function resetConfigs(env, node, exprs) {
+    var k, cfgs = {},
+        id = node.getAttribute("id");
+    for ( k in exprs )
+        $.extend(cfgs, env.map.cfgs[k]);
     if ( id && env.map.cfgs[id] )
         cfgs = $.extend(cfgs, env.map.cfgs[id]);
     for ( k in cfgs ) {
@@ -1476,11 +1840,11 @@ function resetConfigs(env, node) {
     }
 }
 
-function resetOptions(env, ins) {
-    var i, k, o, list, id = ins.node.getAttribute("id");
-    for ( k in env.ali )
-        if ( hp.nodeIsMatch(env.xml, env.ali[k], ins.node) )
-            $.extend(ins.opt, env.cfg[k]);
+function resetOptions(env, ins, exprs) {
+    var i, k, o, list,
+        id = ins.node.getAttribute("id");
+    for ( k in exprs )
+        $.extend(ins.opt, env.cfg[k]);
     if ( id && env.cfg[id] )
         $.extend(ins.opt, env.cfg[id]);
     for ( i = 0; i < ins.node.attributes.length; i++ ) {
@@ -1496,6 +1860,7 @@ function resetOptions(env, ins) {
     }
 }
 
+// Here, the component is parsed recursively.
 function parseEnvXML(env, parent, node) {
     function iterate( node, parent ) {
         if ( node.nodeType > 1 ) {
@@ -1503,22 +1868,21 @@ function parseEnvXML(env, parent, node) {
                 return Manager[node.nodeType].create(env, node, parent);
             $.error("create failed, invalid node");
         }
-        var i, ins, father, node = node.loaded ? node : setDeferNode(env, node);
+        var i, ins,
+            node = node.loaded ? node : setDeferNode(env, node);
         if ( isHTML[node.nodeName] ) {
             ins = Manager[0].create(env, node, parent);
             for ( i = 0; i < node.childNodes.length; i++ )
                 iterate(node.childNodes[i], ins.ele);
             env.smr.create(ins);
         } else if ( (ins = Manager[1].create(env, node, parent)) ) {
-            father = ins.map.nofragment && isInBrowser ? $document.body : parent;
-            parseEnvXML(ins, father, ins.xml.lastChild);
+            parseEnvXML(ins, parent, ins.xml.lastChild);
             ins.fdr.refresh();
             var appendTo = ins.appendTo();
             for ( i = 0; i < node.childNodes.length; i++ )
                 iterate(node.childNodes[i], appendTo);
             env.smr.create(ins);
             ins.value = ins.fun.call(ins.api, ins.fdr.sys, ins.fdr.items, ins.opt);
-            ins.map.nofragment && isInBrowser && parent.appendChild($document.body.lastChild);
         } else {
             $.release || console.warn($.serialize(node) + " not found");
             ins = Manager[0].create(env, node, parent);
@@ -1530,6 +1894,10 @@ function parseEnvXML(env, parent, node) {
     }
     return iterate(node, parent);
 }
+
+// In order to implement the inheritance of components,
+// this global array is used to store the inherited components temporarily
+var Extends = [];
 
 function makePackage(root, space) {
     if ( !Library[space] )
@@ -1579,6 +1947,7 @@ function xmlplus(root, callback) {
     return xmlplus;
 }
 
+// The entry function, which will be assigned to xmlplus.
 function startup(xml, parent, param) {
     var instance, fragment,
         env = $.extend(true, {xml: hp.parseToXML(xml), cid: $.guid(), share: {}, dir: ""}, Template);
@@ -1590,26 +1959,29 @@ function startup(xml, parent, param) {
     } else if ( parent === undefined ) {
         parent = $document.body || $document.cloneNode();
     } else if ( typeof parent == "string" ) {
-        parent =  $document.getElementById(parent) || $.error("parent element " + parent + " not found");
+        parent =  $document.getElementById(parent);
+        if (!parent)
+            $.error("parent element " + parent + " not found");
     }
     env.fdr = Finder(env);
     env.smr = StyleManager();
     env.ctr = Communication();
-    env.aid = isInBrowser ? $.guid() : "";
+    env.aid = inBrowser ? $.guid() : "";
     env.api = hp.build(env, NodeElementAPI);
     if ( $.isPlainObject(param) ) {
         env.xml.getAttribute("id") || env.xml.setAttribute("id", $.guid());
         env.cfg[env.xml.getAttribute("id")] = param;
     }
     env.xml = env.xml.parentNode || xdocument.cloneNode().appendChild(env.xml).parentNode;
-    fragment = isInBrowser ? $document.createDocumentFragment() : parent;
+    fragment = inBrowser ? $document.createDocumentFragment() : parent;
     instance = parseEnvXML(env, fragment, env.xml.lastChild);
-    isInBrowser && parent.appendChild(fragment);
-    return $.extend(hp.create(instance).api, {style: env.smr.style});
+    inBrowser && parent.appendChild(fragment);
+    instance = $.extend(hp.create(instance).api, {style: env.smr.style});
+    return instance.on("input", bd.onbind);
 }
 
 (function () {
-    if ( isInBrowser ) {
+    if ( inBrowser ) {
         XPath = window.xpath || { select: hp.xpathQuery };
         DOMParser_ = DOMParser;
         XMLSerializer_ = XMLSerializer;
@@ -1627,6 +1999,7 @@ function startup(xml, parent, param) {
         });
     } else {
         delete $.ready;
+        delete CommonElementAPI.bind;
         XPath = require("xpath");
         DOMParser_ = require("exmldom").DOMParser;
         XMLSerializer_ = require("exmldom").XMLSerializer;

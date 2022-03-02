@@ -107,7 +107,7 @@ $_("overview").imports({
                         sys.content.append("Title").text(areas[item.area].name);
                         list = sys.content.append("users/List");
                     }
-                    list.append("links/Item").value().value = item;
+                    list.append("links/Item").val().value = item;
                 });
                 links = {};
                 data.map(i => links[i.id]=i);
@@ -128,7 +128,7 @@ $_("overview").imports({
         xml: "<Picker id='users' xmlns='users'/>",
         fun: function (sys, items, opts) {
             this.watch("/auths/users", (e, data) => {
-                data.length ? sys.users.show().value().init(data) : sys.users.hide();
+                data.length ? sys.users.show().val().init(data) : sys.users.hide();
             });
             this.on("value-change", (e, value) => {
                 this.notify("user-change", value);
@@ -260,9 +260,9 @@ $_("apps").imports({
                 sys.content.trigger("publish", ["/auths/apps", {user: p.user, link: p.id}]);
             }
             this.watch("/auths/apps", (e, data) => {
-                sys.apps.children().call("remove");
+                sys.apps.kids().call("remove");
                 data.forEach(item => {
-                    sys.apps.append("Item").value().value = item;
+                    sys.apps.append("Item").val().value = item;
                 });
             });
             this.on("update", (e, data) => {

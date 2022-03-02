@@ -110,9 +110,9 @@ $_("overview").imports({
               </div>",
         fun: function (sys, items, opts) {
             this.watch("/users/select", (e, data) => {
-                sys.list.children().call("remove");
+                sys.list.kids().call("remove");
                 data.forEach(item => {
-                    let user = sys.list.append("UserItem").value();
+                    let user = sys.list.append("UserItem").val();
                     user.value = item;
                 });
             });

@@ -137,12 +137,12 @@ $_().imports({
     ViewStack: {
         xml: "<div id='viewstack'/>",
         fun: function (sys, items, opts) {
-            var args, children = this.children(),
-                table = children.call("hide").hash(),
-                ptr = table[opts.index] || children[0];
+            var args, kids = this.kids(),
+                table = kids.call("hide").hash(),
+                ptr = table[opts.index] || kids[0];
             if (ptr) ptr = ptr.trigger("show", null, false).show();
             this.on("switch", function (e, to) {
-                table = this.children().hash();
+                table = this.kids().hash();
                 if (!table[to] || table[to] == ptr) return;
                 e.stopPropagation();
                 args = [].slice.call(arguments).slice(2);
@@ -418,10 +418,10 @@ $_("content/index").imports({
             this.watch("/ui/areas", (e, p) => {
                 let prev, area,
                     pid = localStorage.getItem("area");
-                sys.areas.children().call("remove");
+                sys.areas.kids().call("remove");
                 p.forEach(item => {
                     area = sys.areas.append("list/Item", {key:"area"});
-                    area.value()(item);
+                    area.val()(item);
                     item.id == pid && (prev = area);
                 });
                 try {
@@ -458,10 +458,10 @@ $_("content/index").imports({
             this.watch("/ui/links", (e, p) => {
                 let prev, link,
                     pid = localStorage.getItem("link");
-                sys.links.children().call("remove");
+                sys.links.kids().call("remove");
                 p.links.forEach(item => {
                     link = sys.links.append("list/Item", {key: "link"});
-                    link.value()(item);
+                    link.val()(item);
                     item.id == pid && (prev = link);
                 });
                 (prev || sys.links.first()).trigger(Click);
@@ -469,7 +469,7 @@ $_("content/index").imports({
             sys.links.on(Click, "*", function (e) {
                 let link = this.data("data");
                 localStorage.setItem("link", link.id);
-                this.trigger("checked", true);
+                //this.trigger("checked", true);
                 items.links.hide().notify("/open/link", this.data("data"));
             });
             this.watch("/show/links", items.links.show);
@@ -502,11 +502,11 @@ $_("content/index").imports({
             this.watch("/ui/apps", (e, p) => {
                 table = {},
                 link = p.link;
-                let i,list = sys.apps.children();
+                let i,list = sys.apps.kids();
                 for (i = 0; i < p.apps.length; i++) {
                     let item = p.apps[i];
                     list[i] || list.push(sys.apps.append("Thumbnail"));
-                    list[i].value()(item);
+                    list[i].val()(item);
                     table[item.mid] = list[i].show();
                 }
                 for (let k = i; k < list.length; k++)
@@ -515,7 +515,7 @@ $_("content/index").imports({
             });
             this.watch("/ui/app", (e, p) => {
                 let o = table[p.mid];
-                o && typeof p.online == "number" && o.value()(p);
+                o && typeof p.online == "number" && o.val()(p);
             });
             sys.apps.on(Click, "*", function (e) {
                 let data = this.data("data");
@@ -525,7 +525,7 @@ $_("content/index").imports({
                 link == p.mid && p.online == 0 && offlineAll(1);
             });
             function offlineAll(type) {
-                sys.apps.children().forEach(item => {
+                sys.apps.kids().forEach(item => {
                     let i = item.data("data");
                     i.type > type && sys.apps.notify("/ui/app", {mid: i.mid, online: 0});
                 });
@@ -744,11 +744,11 @@ $_("content/footer").imports({
         fun: function (sys, items, opts) {
             var sel = this.first();
             this.on(Click, "./*[@id]", function (e) {
-                sel.value().unselect();
-                (sel = this).value().select();
+                sel.val().unselect();
+                (sel = this).val().select();
                 this.trigger("switch", this.toString());
             });
-            if (sel) sel.value().select();
+            if (sel) sel.val().select();
         }
     },
     TabItem: {

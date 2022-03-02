@@ -57,7 +57,7 @@ $_("content").imports({
               </div>",
         fun: function (sys, items, opts) {
             function render(e, data) {
-                sys.body.children().call("remove");
+                sys.body.kids().call("remove");
                 data.forEach(i => sys.body.append("Item", i));
             }
             return {render: render};
