@@ -412,28 +412,26 @@ $_("content/index").imports({
         }
     },
     Areas: {
-        xml: "<List id='areas' xmlns='list'/>",
+        xml: "<i:List id='areas' xmlns:i='list'>\
+                <i:Item id='item' key='area'/>\
+              </i:List>",
         fun: function (sys, items, opts) {
             let table = {};
+            let areas = sys.item.bind([]);
             this.watch("/ui/areas", (e, p) => {
-                let prev, area,
-                    pid = localStorage.getItem("area");
-                sys.areas.kids().call("remove");
-                p.forEach(item => {
-                    area = sys.areas.append("list/Item", {key:"area"});
-                    area.val()(item);
-                    item.id == pid && (prev = area);
-                });
-                try {
-                    (area = prev || sys.areas.first()).trigger(Click);
-                } catch(e) {
-                    this.trigger("publish", {topic: "/ui/logout"});
-                    this.trigger("message", ["error", "该用户未获得任何应用的授权！"]);
-                } 
+                let pid = localStorage.getItem("area");
+                areas.model = p;
+                let i = p.findIndex(i=>{return i.id == pid});
+                let area = sys.areas.get(i == -1 ? 0 : i);
+                if (area) return area.trigger(Click);
+                this.trigger("publish", {topic: "/ui/logout"});
+                this.trigger("message", ["error", "该用户未获得任何应用的授权！"]);
             });
             sys.areas.on(Click, "*", function (e) {
-                this.trigger("checked", true);
-                items.areas.hide().notify("/open/area", this.data("data"));
+                let i = sys.areas.kids().indexOf(this);
+                let area = areas.export()[i];
+                this.val().checked = true;
+                items.areas.hide().notify("/open/area", area);
             });
             this.watch("/open/area", (e, area) => {
                 localStorage.setItem("area", area.id);
@@ -453,24 +451,23 @@ $_("content/index").imports({
         }
     },
     Links: {
-        xml: "<List id='links' xmlns='list'/>",
+        xml: "<i:List id='links' xmlns:i='list'>\
+                <i:Item id='item' key='link'/>\
+              </i:List>",
         fun: function (sys, items, opts) {
+            let links = sys.item.bind([]);
             this.watch("/ui/links", (e, p) => {
-                let prev, link,
-                    pid = localStorage.getItem("link");
-                sys.links.kids().call("remove");
-                p.links.forEach(item => {
-                    link = sys.links.append("list/Item", {key: "link"});
-                    link.val()(item);
-                    item.id == pid && (prev = link);
-                });
-                (prev || sys.links.first()).trigger(Click);
+                let pid = localStorage.getItem("link");
+                links.model = p.links;
+                let i = p.links.findIndex(i=>{return i.id == pid});
+                sys.links.get(i == -1 ? 0 : i).trigger(Click);
             });
-            sys.links.on(Click, "*", function (e) {
-                let link = this.data("data");
+            sys.links.on(Click, "*", function () {
+                let i = sys.links.kids().indexOf(this);
+                let link = links.export()[i];
                 localStorage.setItem("link", link.id);
-                //this.trigger("checked", true);
-                items.links.hide().notify("/open/link", this.data("data"));
+                this.val().checked = true;
+                items.links.hide().notify("/open/link", link);
             });
             this.watch("/show/links", items.links.show);
         }
@@ -641,24 +638,18 @@ $_("content/index/list").imports({
         css: "#item { cursor: pointer; height: 57px; line-height: 57px; font-size: 20px; color: #007aff; white-space: normal; text-overflow: ellipsis; }\
               #item { width: 100%; text-align: center; font-weight: 400; margin: 0; background: rgba(255,255,255,.95); box-sizing: border-box; display: block; position: relative; overflow: hidden; }\
               #item:after { content: ''; position: absolute; left: 0; bottom: 0; right: auto; top: auto; height: 1px; width: 100%; background-color: rgba(0,0,0,.2); display: block; z-index: 15; -webkit-transform-origin: 50% 100%; transform-origin: 50% 100%;}\
-              #label, #icon { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }\
-              #input { display: none; } #input:checked ~ div { background: no-repeat center; background-image: url(\"data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2013%2010'%3E%3Cpolygon%20fill%3D'%23007aff'%20points%3D'11.6%2C0%204.4%2C7.2%201.4%2C4.2%200%2C5.6%204.4%2C10%204.4%2C10%204.4%2C10%2013%2C1.4%20'%2F%3E%3C%2Fsvg%3E\"); -webkit-background-size: 13px 10px; background-size: 13px 10px; background-position: calc(100% - 15px) center; }",
+              #item label, #icon { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }\
+              #radio { display: none; } #radio:checked ~ div { background: no-repeat center; background-image: url(\"data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2013%2010'%3E%3Cpolygon%20fill%3D'%23007aff'%20points%3D'11.6%2C0%204.4%2C7.2%201.4%2C4.2%200%2C5.6%204.4%2C10%204.4%2C10%204.4%2C10%2013%2C1.4%20'%2F%3E%3C%2Fsvg%3E\"); -webkit-background-size: 13px 10px; background-size: 13px 10px; background-position: calc(100% - 15px) center; }",
         xml: "<div id='item'>\
-                <span id='span'/>\
-                <label id='label'>\
-                    <input id='input' type='radio'/>\
+                <span id='namex'/>\
+                <label>\
+                    <input id='radio' type='radio'/>\
                     <div id='icon'/>\
                 </label>\
               </div>",
+        map: { bind: {name: {skey: "namex"} } },
         fun: function (sys, items, opts) {
-            let that = this;
-            this.on("checked", (e, value) => sys.input.prop("checked", value));
-            return function (data) {
-                that.data("data", data);
-                sys.span.text(data.name);
-                sys.input.attr("name", opts.key);
-                sys.input.prop("value", data.name);
-            };
+            return sys.radio.attr("name", opts.key).elem();
         }
     },
     Group: {
