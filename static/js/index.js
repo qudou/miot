@@ -63,12 +63,12 @@ $_().imports({
                         this.notify("subscribed");
                     });
                     console.log("connected to " + Server);
-                    this.trigger("switch", "content").notify("$online");
+                    this.trigger("switch", "content").notify("/ui/online");
                 });
                 client.on("message", (topic, p) => {
                     this.notify("message", JSON.parse(p.toString()));
                 });
-                client.on("close", e => this.notify("$offline"));
+                client.on("close", e => this.notify("/ui/offline"));
                 client.on("error", e => {
                     this.trigger("message", ["error", e.message]);
                     e.message == "Bad username or password" && this.notify("/ui/logout");
@@ -375,7 +375,7 @@ $_("content").imports({
                 sys.client.removeClass("#modal-in");
                 sys.client.once("transitionend", sys.mask.prev().remove);
             }
-            this.watch("$offline", () => {
+            this.watch("/ui/offline", () => {
                 let client = sys.mask.prev();
                 client && client.notify("$status", [0]);
                 items.query.hc || this.trigger("close");
@@ -445,7 +445,7 @@ $_("content/index").imports({
                     link.id == p.mid && (link.online = p.online);
                 }); 
             });
-            this.watch("$offline", e => table = {});
+            this.watch("/ui/offline", e => table = {});
             this.watch("/show/areas", items.areas.show);
             this.watch("/ui/links", (e, p) => (table[p.area] = p));
         }
@@ -492,79 +492,77 @@ $_("content/index").imports({
     Apps: {
         css: "#apps { display: flex; overflow: hidden; flex-wrap: wrap; }\
               #apps > * { margin: 4px }",
-        xml: "<Query id='apps' xmlns='/'/>",
+        xml: "<i:Query id='apps' xmlns:i='/'>\
+                 <Thumbnail id='renderer'/>\
+              </i:Query>",
         fun: function (sys, items, opts) {
-            let link, table = {},
+            let link, _apps,
                 open = items.apps.open;
+            let apps = sys.renderer.bind([]);
             this.watch("/ui/apps", (e, p) => {
-                table = {},
                 link = p.link;
-                let i,list = sys.apps.kids();
-                for (i = 0; i < p.apps.length; i++) {
-                    let item = p.apps[i];
-                    list[i] || list.push(sys.apps.append("Thumbnail"));
-                    list[i].val()(item);
-                    table[item.mid] = list[i].show();
-                }
-                for (let k = i; k < list.length; k++)
-                    list[k].hide(); 
-                table[open] && table[open].trigger(Click);
+                apps.model = _apps = p.apps;
+                let i = _apps.findIndex(i=>{return i.mid == open});
+                i > -1 && sys.apps.get(i).trigger(Click);
             });
             this.watch("/ui/app", (e, p) => {
-                let o = table[p.mid];
-                o && typeof p.online == "number" && o.val()(p);
+                let i = _apps.findIndex(i=>{return i.mid == p.mid});
+                if (i > -1 && typeof p.online == "number")
+                    apps.model[i].online = p.online;
             });
             sys.apps.on(Click, "*", function (e) {
-                let data = this.data("data");
-                data.online && this.trigger("/open/app", data);
+                let i = sys.apps.kids().indexOf(this);
+                _apps[i].online && this.trigger("/open/app", _apps[i]);
             });
             this.watch("/ui/link", (e, p) => {
                 link == p.mid && p.online == 0 && offlineAll(1);
             });
             function offlineAll(type) {
-                sys.apps.kids().forEach(item => {
-                    let i = item.data("data");
-                    i.type > type && sys.apps.notify("/ui/app", {mid: i.mid, online: 0});
-                });
+                for (let i = 0; i < _apps.length; i++)
+                    _apps[i].type > type && (apps.model[i].online = 0);
             }
-            this.watch("$offline", () => offlineAll(-1));
+            this.watch("/ui/offline", () => offlineAll(-1));
         }
     },
     Thumbnail: {
         css: "a#thumbnail { -webkit-transition: transform 0.3s; padding-top: 4px; padding-bottom: 4px; height: 100%; -webkit-box-pack: justify; -ms-flex-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%; box-sizing: border-box; display: -webkit-box; display: -ms-flexbox; display: -webkit-flex; display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-box-align: center; -ms-flex-align: center; -webkit-align-items: center; align-items: center; overflow: visible; -webkit-box-flex: 1; -ms-flex: 1; -webkit-box-orient: vertical; -moz-box-orient: vertical; -ms-flex-direction: column; -webkit-flex-direction: column; flex-direction: column; color: #929292; -webkit-flex-shrink: 1; -ms-flex: 0 1 auto; flex-shrink: 1; position: relative; white-space: nowrap; text-overflow: ellipsis; text-decoration: none; outline: 0; color: #8C8185; }\
-              a#thumbnail { width: calc((100% - 32px) / 4); height: calc((100vw - 56px) / 4); border-radius: 10px; background:rgba(255,255,255,0.8) none repeat scroll; }\
+              a#thumbnail { width: calc((100% - 32px) / 4); height: calc((100vw - 56px) / 4); border-radius: 16px; background:rgba(255,255,255,0.8) none repeat scroll; }\
               a#thumbnail:active { transform: scale(1.1); }\
-              #label { margin: 3px 0 0; line-height: 1; display: block; letter-spacing: .01em; font-size: 10px; position: relative; text-overflow: ellipsis; white-space: nowrap; }\
-              a#active { color: #FF9501; }",
+              #label { margin: 4px 0 0; line-height: 1; display: block; letter-spacing: .01em; font-size: 11px; position: relative; text-overflow: ellipsis; white-space: nowrap; }\
+              a#active { color: #FF6A00; }",
         xml: "<a id='thumbnail'>\
-                <Icon id='icon'/>\
-                <span id='label'>标签</span>\
+                <Icon id='view'/>\
+                <span id='label'/>\
               </a>",
+        map: { bind: {name: {skey: "label"}, online: {skey: "thumbnail", get: "get", set: "set"}, view: {get: "get", set: "set"} } },
         fun: function (sys, items, opts) {
-            let that = this;
-            return function (p) {
-                let data = that.data("data") || {};
-                that.data("data",xp.extend(true, data, p));
-                items.icon(data["view"]);
-                sys.label.text(data.name);
-                sys.thumbnail[data.online ? "addClass" : "removeClass"]("#active");
-            };
+            let online = 0;
+            function set(e, value) {
+                online = value;
+                sys.thumbnail[online ? "addClass" : "removeClass"]("#active");
+            }
+            return { get: ()=>{return online}, set: set }
         }
     },
     Icon: {
-        css: "#icon { fill: currentColor; width: 30px; height: 30px; display: block; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
-        xml: "<span id='icon'/>",
+        css: "#view {width: 30px; height: 30px;}\
+              #view svg { fill: currentColor; width: 100%; height: 100%; display: block; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
+        xml: "<div id='view'>\
+                <span id='icon'/>\
+              </div>",
         fun: function (sys, items, opts) {
-            let icon = sys.icon;
-            return (view) => {
+            let view, icon = sys.icon;
+            function show(path) {
+                icon = icon.replace(path);
+            }
+            function set(e, value) {
+                view = value;
                 require([`/views/${view}/icon.js`], e => {
-                    let iconPath = `//${view}/Icon`;
-                    show(xp.hasComponent(iconPath) ? iconPath : "Unknow");
+                    let path = `//${view}/Icon`;
+                    show(xp.hasComponent(path) ? path : "Unknow");
                 }, ()=> show("Unknow"));
-                function show(iconPath) {
-                    icon = icon.replace(iconPath).addClass("#icon");
-                }
-            };
+            }
+            return { get: ()=>{return view}, set: set };
         }
     },
     Unknow: {
@@ -595,8 +593,8 @@ $_("content/index/header").imports({
     Stat: {
         xml: "<Text id='stat'>在线</Text>",
         fun: function (sys, items, opts) {
-            this.watch("$online", e => this.text("在线"));
-            this.watch("$offline", e => this.text("离线"));
+            this.watch("/ui/online", e => this.text("在线"));
+            this.watch("/ui/offline", e => this.text("离线"));
         }
     }
 });
@@ -641,13 +639,13 @@ $_("content/index/list").imports({
               #item label, #icon { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }\
               #radio { display: none; } #radio:checked ~ div { background: no-repeat center; background-image: url(\"data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2013%2010'%3E%3Cpolygon%20fill%3D'%23007aff'%20points%3D'11.6%2C0%204.4%2C7.2%201.4%2C4.2%200%2C5.6%204.4%2C10%204.4%2C10%204.4%2C10%2013%2C1.4%20'%2F%3E%3C%2Fsvg%3E\"); -webkit-background-size: 13px 10px; background-size: 13px 10px; background-position: calc(100% - 15px) center; }",
         xml: "<div id='item'>\
-                <span id='namex'/>\
+                <span id='label'/>\
                 <label>\
                     <input id='radio' type='radio'/>\
                     <div id='icon'/>\
                 </label>\
               </div>",
-        map: { bind: {name: {skey: "namex"} } },
+        map: { bind: {name: {skey: "label"} } },
         fun: function (sys, items, opts) {
             return sys.radio.attr("name", opts.key).elem();
         }
@@ -691,7 +689,7 @@ $_("content/about").imports({
                 <Logout id='logout'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.watch("$online", e => {
+            this.watch("/ui/online", e => {
                 let user = localStorage.getItem("username");
                 sys.user.text(`当前用户：${user}`);
             });
@@ -709,8 +707,8 @@ $_("content/about").imports({
               </div>",
         fun: function (sys, items, opts) {
             let online = 0;
-            this.watch("$online", e => online = 1);
-            this.watch("$offline", e => online = 0);
+            this.watch("/ui/online", e => online = 1);
+            this.watch("/ui/offline", e => online = 0);
             this.on(Click, e => {
                 if (online == 0)
                     this.trigger("message", ["msg", "当前系统离线，无法退出！"]);
