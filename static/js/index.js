@@ -460,13 +460,13 @@ $_("content/index").imports({
                 let pid = localStorage.getItem("link");
                 links.model = p.links;
                 let i = p.links.findIndex(i=>{return i.id == pid});
-                sys.links.get(i == -1 ? 0 : i).trigger(Click);
+                i = sys.links.get(i == -1 ? 0 : i);
+                i.trigger(Click).val().checked = true;
             });
             sys.links.on(Click, "*", function () {
                 let i = sys.links.kids().indexOf(this);
                 let link = links.export()[i];
                 localStorage.setItem("link", link.id);
-                this.val().checked = true;
                 items.links.hide().notify("/open/link", link);
             });
             this.watch("/show/links", items.links.show);
