@@ -1,5 +1,5 @@
 /*!
- * xmlplus.js v1.7.1
+ * xmlplus.js v1.7.2
  * https://xmlplus.cn
  * (c) 2017-2022 qudou
  * Released under the MIT license
@@ -31,7 +31,7 @@ var XPath, DOMParser_, XMLSerializer_, NodeElementAPI;
 var Manager = [HtmlManager(),CompManager(),,TextManager(),TextManager(),,,,TextManager(),,];
 var Formater = { "int": parseInt, "float": parseFloat, "bool": new Function("v","return v==true || v=='true';") };
 var Template = { css: "", cfg: {}, opt: {}, ali: {}, map: { share: "", defer: "", cfgs: {}, attrs: {}, format: {} }, fun: new Function };
-var isReady, Paths = {}, Binds = {};
+var isReady;
 
 // isHTML contains isSVG
 var isSVG = {}, isHTML = {};
@@ -43,18 +43,12 @@ var isSVG = {}, isHTML = {};
     while (s[++i]) isSVG[s[i]] = isHTML[s[i]] = 1;
 }());
 
-// The Original contains the set of components imported by the imports function.
-// It contains original, unprocessed components.
-// It contains two levels: the first is the component space and the second is the component name.
-// eg. Original["//xp"][Input] = {};
-var Original = {};
-
 // The Source is used to help implement the inheritance of components, and then it is no longer used.
 var Source = {};
 
 // The Library contains the set of components imported by the imports function.
-// Unlike original, the components are initialized by the system
-// Like original, it contains two levels.
+// The components are initialized by the system
+// It contains two levels: the first is the component space and the second is the component name.
 // eg. Library["//xp"][Input] = {};
 var Library = {};
 
@@ -181,13 +175,6 @@ var $ = {
         }
         return target;
     },
-    expand: function (obj) {
-        for ( var name in obj )
-            NodeElementAPI[name] && $.error("the api '" + name + "', already exists");
-        $.extend(NodeElementAPI, obj), $.extend(CopyElementAPI, obj);
-        $.extend(DeferElementAPI, obj), $.extend(ShareElementAPI, obj);
-        return this;
-    },
     parseXML: function (data) {
         var xml;
         if ( !data || typeof data !== "string" )
@@ -219,17 +206,6 @@ var $ = {
     messages: function (obj) {
         var item = Store[obj.guid()];
         return item && item.ctr.messages() || [];
-    },
-    clearLibrary: function (space) {
-        if ( typeof space != "string" )
-            $.error("invalid space, expected a string");
-        var patt = new RegExp("^" + space.substr(2));
-        for ( var k in Library )
-            if ( k.match(patt) ) {
-                delete Library[k];
-                delete Original[k];
-            }
-        return this;
     },
     getElementById: function (id, isGuid) {
         if ( isGuid )
@@ -472,6 +448,10 @@ var hp = {
     })()
 };
 
+// It is used to establish the mapping between the bound object and the data proxy.
+// Binds[guid] = {hook: hook, proxy: proxy, key: key}
+var Binds = {};
+
 var bd = {
     onbind: function (e) {
         let uid = e.target.guid()
@@ -481,7 +461,7 @@ var bd = {
                 n = i.nodeName;
             let get = Store[uid].env.value[bind.hook.get]
                     || bd.Getters[n] || bd.Getters[`${n}-${i.getAttribute("type")}`] || bd.Getters["OTHERS"];;
-            bind.data[bind.key] = get(i, [e.target]);
+            bind.proxy[bind.key] = get(i, [e.target]);
         }
     },
     export: (function () {
@@ -588,7 +568,7 @@ var bd = {
         let targets = getTargets(that);
         if (targets.length == 0)
             return bd.BindNormal();
-        targets.forEach(i => Binds[i.node.uid] = {hook: hook, data: proxy, key: key});
+        targets.forEach(i => Binds[i.node.uid] = {hook: hook, proxy: proxy, key: key});
         function getTargets(that) {
             if (!that.fdr) return [that];
             let targets = that.fdr.sys[hook.skey || key];
@@ -773,8 +753,7 @@ $.extend(hp, (function () {
         map.defer = map.defer ? map.defer.split(' ') : [];
         map.share = map.share ? map.share.split(' ') : [];
         var root = obj.dir.split('/')[0];
-        obj.css = obj.css.replace(/%@/g, Paths[root]);
-        obj.xml = $.parseXML(obj.xml && obj.xml.replace(/%@/g, Paths[root]) || "<void/>");
+        obj.xml = $.parseXML(obj.xml || "<void/>");
     }
     function imports(obj, name, space) {
         Source[space][name] = obj;
@@ -1122,16 +1101,6 @@ var CommonElementAPI = {
             elem = elem.parentNode;
         } while (elem);
         return false;
-    },
-    data: function (key, value) {
-        if ( value === undefined )
-            return this.data[key];
-        this.data[key] = value;
-        return this;
-    },
-    removeData: function (key) {
-        delete this.data[key];
-        return this;
     },
     notify: function (type, data) {
         return this.ctr.notify.call(this, type, data);
@@ -1606,7 +1575,7 @@ function HtmlManager() {
             resetAttrs(env, node, aliasMatch(env, node));
         o.ele = hp.createElement(node, parent);
         o.api = node.defer ? hp.build(o, DeferElementAPI) : o.back;
-        o.ctr = env.ctr, o.env = env, o.node = node, node.uid = o.uid, o.data = {}, o.ele.xmlTarget = o;
+        o.ctr = env.ctr, o.env = env, o.node = node, node.uid = o.uid, o.ele.xmlTarget = o;
         return Store[o.uid] = o;
     }
     function recycle(item) {
@@ -1661,7 +1630,7 @@ function CompManager() {
         o.cfg = $.extend(true, {}, w.cfg);
         o.ctr = o.map.msgscope ? Communication() : env.ctr;
         o.dir = w.dir, o.css = w.css, o.ali = w.ali, o.fun = w.fun, o.cid = w.cid;
-        o.smr = env.smr, o.env = env, o.node = node, o.aid = env.aid, node.uid = o.uid, o.data = {};
+        o.smr = env.smr, o.env = env, o.node = node, o.aid = env.aid, node.uid = o.uid;
         var exprs = aliasMatch(env, node);
         resetAttrs(env, node, exprs);
         resetConfigs(env, node, exprs);
@@ -1781,24 +1750,28 @@ function Finder(env) {
         return result;
     }
     function refresh() {
-        var i, k, id, item,
-            list = XPath.select("//*[@id]", env.xml);
-        for ( i in items ) {
+        for ( var i in items ) {
             delete sys[i];
             delete items[i];
         }
-        for ( i in env.ali ) {
+        for ( var i in env.ali ) {
             sys[i] = sys(env.ali[i]);
             items[i] = new Collection;
-            for ( k = 0; k < sys[i].length; k++ )
+            for ( var k = 0; k < sys[i].length; k++ )
                 items[i].push(sys[i][k].val());
             sys[i].call("addClass", env.aid + env.cid + i);
         }
-        for ( i = 0; i < list.length; i++ ) {
-            id = list[i].getAttribute("id");
-            item = hp.create(Store[list[i].uid]);
-            sys[id] = item.api, items[id] = item.value;
-        }
+        (function parse(node) {
+            var id = node.getAttribute("id");
+            if (id) {
+                var item = hp.create(Store[node.uid]);
+                sys[id] = item.api;
+                items[id] = item.value;
+            }
+            var i, kids = node.childNodes;
+            for ( i = 0; i < kids.length; i++  )
+                kids[i].nodeType == 1 && parse(kids[i]);
+        }(env.xml.lastChild));
     }
     return { sys: sys, items: items, refresh: refresh };
 }
@@ -1917,15 +1890,16 @@ function parseEnvXML(env, parent, node) {
 var Extends = [];
 
 function makePackage(root, space) {
-    if ( !Library[space] )
-        Source[space] = {}, Library[space] = {}, Original[space] = {};
-    function imports( components ) {
+    if ( !Library[space] ) {
+        Source[space] = {};
+        Library[space] = {};
+    }
+    function imports(components) {
         if ( !$.isPlainObject(components) )
             $.error("invalid components, expected a plainObject");
         for ( var name in components ) {
             var map = components[name].map,
                 iname = name.toLowerCase();
-            Original[space][iname] = components[name];
             if ( map && map.extend && $.type(map.extend.from) == "string" ) {
                 Extends.push({name: iname, space: space, src: components[name] });
             } else {
@@ -1949,7 +1923,6 @@ function xmlplus(root, callback) {
         $.error("invalid root, expected a string");
     if ( !$.isFunction(callback) )
         $.error("invalid callback, expected a function");
-    Paths[root] = ph.split([].slice.call($document.scripts || [{src:"./i"}]).pop().src).dir;
     function createPackage(space) {
         if ( $.type(space) != "string" && space != null )
             $.error("invalid namespace, expected a null value or a string");
