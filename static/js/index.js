@@ -328,11 +328,14 @@ $_("content").imports({
               </div>"
     },
     Footer: {
-        xml: "<i:Tabbar id='nav' xmlns:i='footer'>\
-                <i:TabItem id='home' label='首页'/>\
+        xml: "<i:Tabbar id='footer' xmlns:i='footer'>\
+                <i:TabItem id='home' label='首页' checked='true'/>\
                 <i:TabItem id='about' label='关于'/>\
               </i:Tabbar>",
         fun: function (sys, items, opts) {
+            sys.footer.on(Click, "*", function (e) {
+                this.trigger("switch", this.toString());
+            });
             this.watch("switch-page", (e, page) => sys[page].trigger(Click));
         }
     },
@@ -645,35 +648,23 @@ $_("content/footer").imports({
         xml: "<div id='tabbar'>\
                 <div id='inner'/>\
               </div>",
-        map: { appendTo: "inner" },
-        fun: function (sys, items, opts) {
-            var sel = this.first();
-            this.on(Click, "./*[@id]", function (e) {
-                sel.val().unselect();
-                (sel = this).val().select();
-                this.trigger("switch", this.toString());
-            });
-            if (sel) sel.val().select();
-        }
+        map: { appendTo: "inner" }
     },
     TabItem: {
-        css: "a#tabitem { padding-top: 4px; padding-bottom: 4px; height: 100%; -webkit-box-pack: justify; -ms-flex-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%; box-sizing: border-box; display: -webkit-box; display: -ms-flexbox; display: -webkit-flex; display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-box-align: center; -ms-flex-align: center; -webkit-align-items: center; align-items: center; overflow: visible; -webkit-box-flex: 1; -ms-flex: 1; -webkit-box-orient: vertical; -moz-box-orient: vertical; -ms-flex-direction: column; -webkit-flex-direction: column; flex-direction: column; color: #929292; -webkit-flex-shrink: 1; -ms-flex: 0 1 auto; flex-shrink: 1; position: relative; white-space: nowrap; text-overflow: ellipsis; text-decoration: none; outline: 0; color: #8C8185; }\
+        css: "#tabitem { display: block; width: 100%; height: 100%; }\
+              #tabitem > div { padding-top: 4px; padding-bottom: 4px; height: 100%; -webkit-box-pack: justify; -ms-flex-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%; box-sizing: border-box; display: -webkit-box; display: -ms-flexbox; display: -webkit-flex; display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-box-align: center; -ms-flex-align: center; -webkit-align-items: center; align-items: center; overflow: visible; -webkit-box-flex: 1; -ms-flex: 1; -webkit-box-orient: vertical; -moz-box-orient: vertical; -ms-flex-direction: column; -webkit-flex-direction: column; flex-direction: column; color: #929292; -webkit-flex-shrink: 1; -ms-flex: 0 1 auto; flex-shrink: 1; position: relative; white-space: nowrap; text-overflow: ellipsis; text-decoration: none; outline: 0; color: #8C8185; }\
               #label { margin: 0;line-height: 1; display: block; letter-spacing: .01em; font-size: 10px; position: relative; text-overflow: ellipsis; white-space: nowrap; }\
-              a#active { color: #FF9501; }",
-        xml: "<a id='tabitem'>\
-                <TabIcon id='icon'/>\
-                <span id='label'>首页</span>\
-              </a>",
-        map: { attrs: { icon: "id->icon" }},
+              #radio { display: none; } #radio:checked ~ div { color: #FF9501; }",
+        xml: "<label id='tabitem'>\
+                <input id='radio' type='radio' name='tabitem'/>\
+                <div>\
+                  <TabIcon id='icon'/>\
+                  <span id='label'/>\
+                </div>\
+              </label>",
+        map: { attrs: { icon: "id->icon", radio: "checked" }},
         fun: function (sys, items, opts) {
             sys.label.text(opts.label);
-            function select() {
-                sys.tabitem.addClass("#active");
-            }
-            function unselect() {
-                sys.tabitem.removeClass("#active");
-            }
-            return { select: select, unselect: unselect };
         }
     },
     TabIcon: {
