@@ -622,7 +622,7 @@ $_("content/about").imports({
     },
     Logout: {
         xml: "<div class='list inset'>\
-                <ul><li><a href='#' class='list-button item-link color-red'>退出</a></li></ul>\
+                <ul><li><a href='#' class='list-button item-link color-gray'>退出</a></li></ul>\
               </div>",
         fun: function (sys, items, opts) {
             let online = 0;
