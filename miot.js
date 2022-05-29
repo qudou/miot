@@ -31,7 +31,7 @@ $_().imports({
                 <Logger id='logger'/>\
               </main>",
         fun: async function (sys, items, opts) {
-            let server = new mosca.Server(config.mosca);
+            let server = new mosca.Server(config.gateway);
             server.on("ready", async () => {
                 await items.links.offlineAll();
                 await items.apps.offlineAll();
@@ -72,7 +72,7 @@ $_().imports({
                 <Logger id='logger'/>\
               </main>",
         fun: function (sys, items, opts) {
-            let server = new mosca.Server(config.proxy);
+            let server = new mosca.Server(config.view);
             server.on("ready", async () => {
                 await items.users.offlineAll();
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
@@ -307,16 +307,11 @@ $_("proxy").imports({
     Users: {
         xml: "<Sqlite id='sqlite' xmlns='/'/>",
         fun: function (sys, items, opts) {
+            // The registered subject must be consistent with the client ID
             function canSubscribe(client, topic) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM status
-                                WHERE client_id='${client.id}' AND client_id='${topic}'`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(!!data.length);
-                    });
-                });
+                return client.id == topic;
             }
+            // Here, topic need to be legal
             function canPublish(client, topic) {
                 return new Promise((resolve, reject) => {
                     let stmt = `SELECT status.* FROM status,auths

@@ -42,12 +42,12 @@ miot/
 
 ```js
 {
-    "proxy": {
+    "view": {
         "http": {"port": 8080, "static": "dir/static"}
         //"https": { "port": 443, bundle: true, "static": "dir/static" }, 
         //"secure": { "keyPath": "dir/secure/tls-key.pem", "certPath": "dir/secure/tls-cert.pem" } },
     },
-    "mosca": {
+    "gateway": {
         "port": 1883
         //"secure": { "port": 8443, "keyPath": "dir/secure/tls-key.pem",  "certPath": "dir/secure/tls-cert.pem" }
     },
@@ -58,7 +58,7 @@ miot/
 }
 ```
 
-上面配置中，`proxy` 是提供给视图连接的配置，你可以根据需要来决定是否提供 https 服务。`mosca` 是提供给内网网关连接的配置，你可以根据需要来决定是否启用 lts 安全连接。`logger` 是日志打印配置。
+上面配置中，`view` 是提供给视图连接的配置，你可以根据需要来决定是否提供 https 服务。`gateway` 是提供给内网网关连接的配置，你可以根据需要来决定是否启用 lts 安全连接。`logger` 是日志打印配置。
 
 ## 视图层与中间件
 
@@ -100,15 +100,15 @@ miot-local/
 
 ```js
 {
-    "proxy": {
+    "remote": {
         "port": 1883,                       // 若开启 tls，则使用 8443 端口
         "host": "localhost",                // 主机
         "clientId": "be1aa660-2b48-11ec-a191-4dbcbb23f97f", // 连接到外网网关的客户端标识符
-        "protocol": "mqtt",                 // 若开启 tls，则使用 mqtts
+        "protocol": "mqtt",                 // 若开启 tls，则使用 mqtts 并打开下面的注释
         //"rejectUnauthorized": true,       // 开启授权
         //"ca": "dir/secure/tls-cert.pem"   // 自签名证书
     },
-    "mosca": {
+    "gateway": {
         "port": 1883,
         //"secure": { "port": 8443, "keyPath": "dir/secure/tls-key.pem",  "certPath": "dir/secure/tls-cert.pem" }
     },
@@ -119,7 +119,7 @@ miot-local/
 }
 ```
 
-上面配置中，`proxy` 是连接到外网网关的配置，你可以根据需要来决定是否使用 lts 连接。`mosca` 是提供给内网配件连接的配置，你可以根据需要来决定是否开启 lts 安全连接。
+上面配置中，`remote` 是连接到外网网关的配置，你可以根据需要来决定是否使用 lts 连接。`gateway` 是提供给内网配件连接的配置，你可以根据需要来决定是否开启 lts 安全连接。
 
 另外，上述 `parts` 项是连接到内网网关的配件列表，`parts` 中的 `path` 参数用于唯一地命名配件，其描述方式类似于操作系统的文件定位。
 
