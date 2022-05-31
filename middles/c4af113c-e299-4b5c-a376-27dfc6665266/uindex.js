@@ -59,7 +59,7 @@ $_().imports({
                     if (err) throw err;
                     p.data = {link: p.body.link, apps: []};
                     data.forEach(i => {
-                        p.data.apps.push({'mid':i.id,'name':i.name,'view':i.view,'type':i.type,'online':i.online});
+                        p.data.apps.push({'mid':i.id,'name':i.name,'link':i.link,'view':i.view,'type':i.type,'online':i.online});
                     });
                     this.trigger("to-users", p);
                 });
@@ -70,7 +70,7 @@ $_().imports({
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     let i = data[0];
-                    p.data = i && {'mid':i.id,'name':i.name,'view':i.view,'type':i.type,'online':i.online};
+                    p.data = i && {'mid':i.id,'name':i.name,'link':i.link,'view':i.view,'type':i.type,'online':i.online};
                     this.trigger("to-users", p);
                 });
             });

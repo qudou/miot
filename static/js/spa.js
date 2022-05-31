@@ -81,7 +81,6 @@ $_().imports({
             this.on("show", (e, key, cfg) => {
                 client = mqtt.connect(Server, cfg);
                 client.on("connect", e => {
-                    localStorage.setItem("username", cfg.clientId.split('@')[1]);
                     client.subscribe(cfg.clientId, err => {
                         if (err) throw err;
                         this.notify("subscribed");
@@ -147,7 +146,7 @@ $_().imports({
                 });
             });
             this.watch("/ui/link", (e, p) => {
-                if (opts.link == p.mid)
+                if (opts.link == p.mid && p.online == 0)
                     sys.info.show().text("设备已离线-[02]");
             });
             this.watch("/ui/offline", () => {

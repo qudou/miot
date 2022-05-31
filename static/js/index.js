@@ -389,6 +389,12 @@ $_("content").imports({
                 sys.applet.removeClass("#modal-in");
                 sys.applet.once("transitionend", sys.mask.prev().remove);
             }
+            this.watch("/ui/link", (e, p) => {
+                if(opts.link == p.mid && p.online == 0){
+                    let applet = sys.mask.prev();
+                    applet && applet.trigger("close");
+                }
+            });
             this.watch("/ui/offline", () => {
                 let applet = sys.mask.prev();
                 applet && applet.trigger("close");
