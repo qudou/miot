@@ -485,7 +485,7 @@ $_("content/index").imports({
             this.watch("/ui/app", (e, p) => {
                 let i = _apps.findIndex(i=>{return i.mid == p.mid});
                 if (i > -1 && typeof p.online == "number")
-                    apps.model[i].online = p.online;
+                    apps.model[i].online = _apps[i].online = p.online;
             });
             sys.apps.on(Click, "*", function (e) {
                 let i = sys.apps.kids().indexOf(this);
@@ -496,7 +496,8 @@ $_("content/index").imports({
             });
             function offlineAll(type) {
                 for (let i = 0; i < _apps.length; i++)
-                    _apps[i].type > type && (apps.model[i].online = 0);
+                    if(_apps[i].type > type)
+                        apps.model[i].online = _apps[i].online = 0;
             }
             this.watch("/ui/offline", () => offlineAll(-1));
         }

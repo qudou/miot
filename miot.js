@@ -289,9 +289,9 @@ $_("proxy").imports({
               </main>",
         fun: function (sys, items, opts) {
             async function byAccount(user, pass) {
-                let item = await items.checkUser(user);
-                let rightPass = await items.checkPass(pass, item.pass, item.salt);
-                return item ? (rightPass && item) : false;
+                let u = await items.checkUser(user);
+                if (u && await items.checkPass(pass, u.pass, u.salt))
+                    return u;
             }
             async function bySession(clientId) {
                 let s = await items.session.detail(clientId);

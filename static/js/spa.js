@@ -20,6 +20,7 @@ $_().imports({
               #index > * { width: 100%; height: 100%; }\
               .toast-text { width:100%; text-align: center;}",
         xml: "<ViewStack id='index'>\
+                <Verify id='verify'/>\
                 <Login id='login'/>\
                 <Service id='service'/>\
                 <Content id='content'/>\
@@ -42,6 +43,16 @@ $_().imports({
             });
         }
     },
+    Verify: {
+        xml: "<Overlay id='verify' xmlns='loading'/>",
+        fun: function (sys, items, opts) {
+            let q = xp.create("//miot/Query");
+            if (q.user && q.pass)
+                setTimeout(e => this.notify("login", [q.user, q.pass]), 0);
+            else
+                setTimeout(e => this.trigger("switch", "login"), 0);
+        }
+    },
     Login: {
         css: "#logo { margin: 60px auto 25px; display: block; width: 50%; height: auto; }",
         xml: "<div class='page'><div class='page-content login-screen-content' xmlns:i='login'>\
@@ -59,12 +70,6 @@ $_().imports({
             sys.user.on("keypress", keypress);
             sys.pass.on("keypress", keypress);
             sys.submit.on(Click, items.login.start);
-            let q = xp.create("//miot/Query");
-            setTimeout(e => {
-                items.user.val(q.user);
-                items.pass.val(q.pass);
-                sys.submit.trigger(Click)
-            }, 0);
         }
     },
     Service: {
@@ -284,13 +289,14 @@ $_("login").imports({
                 <a href='#' class='button button-large button-raised button-fill' style='height:44px;border-radius:20px;font-size:16px; padding:6px;'>登录</a>\
               </li>",
         fun: function (sys, items, opts) {
-            this.on("start", (e, o) => {
-                let clientId = `${defaultId()}@${o.name}`;
-                this.trigger("switch", ["service", {username: o.name, password: o.pass, clientId: clientId}]);
-            });
             function defaultId() {
                 return Math.random().toString(16).substr(2, 8);
             }
+            this.watch("login", (e, user, pass) => {
+                let clientId = `${defaultId()}@${user}`;
+                this.trigger("switch", ["service", {username: user, password: pass, clientId: clientId}]);
+            });
+            this.on("start", (e, o) => this.notify("login", [o.name, o.pass]));
         }
     },
     Input: {
