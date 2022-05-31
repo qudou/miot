@@ -25,7 +25,6 @@ $_().imports({
                 <Login id='login'/>\
                 <Content id='content'/>\
               </ViewStack>",
-        map: { share: "Query" },
         fun: function(sys, items, opts) {
             let toast;
             this.on("message", (e, t, msg) => {
@@ -37,11 +36,9 @@ $_().imports({
         }
     },
     Verify: {
-        xml: "<Overlay id='verify' xmlns='verify'>\
-                <Query id='query' xmlns='/'/>\
-              </Overlay>",
+        xml: "<Overlay id='verify' xmlns='verify'/>",
         fun: function (sys, items, opts) {
-            let clientId = items.query["session"] || localStorage.getItem("session");
+            let clientId = localStorage.getItem("session");
             setTimeout(e => {
                 this.trigger("switch", clientId ? ["service", {clientId: clientId}] : "login");
             }, 0);
@@ -151,18 +148,6 @@ $_().imports({
                 ptr = table[to].trigger("show", [ptr+''].concat(args), false).show();
             });
             return {selected: ()=>{return ptr}};
-        }
-    },
-    Query: {
-        xml: "<div id='query'/>",
-        fun: function (sys, items, opts) {
-            let str = location.search.substr(1).split('&');
-            let query = {};
-            str.forEach(pair => {
-                let p = pair.split('=');
-                query[p[0]] = p[1]; 
-            });
-            return query;
         }
     }
 });
@@ -367,7 +352,6 @@ $_("content").imports({
               #applet > * { width: 100%; height: 100%; }",
         xml: "<div id='applet'>\
                 <Overlay id='mask' xmlns='/verify'/>\
-                <Query id='query' xmlns='/'/>\
               </div>",
         fun: function (sys, items, opts) {
             this.on("publish", (e, topic, body) => {
@@ -377,9 +361,8 @@ $_("content").imports({
             this.watch("/ui/app", (e, p) => {
                 let applet = sys.mask.prev();
                 if (applet && opts.mid == p.mid) {
-                    let topic = p.topic || "$status";
-                    applet.notify(topic, [p.data || p.online]);
-                    !items.query.hc && p.online == 0 && this.trigger("close");
+                    p.topic && applet.notify(p.topic, [p.data]);
+                    p.online == 0 && applet.trigger("close");
                 }
             });
             function load(app) {
@@ -408,8 +391,7 @@ $_("content").imports({
             }
             this.watch("/ui/offline", () => {
                 let applet = sys.mask.prev();
-                applet && applet.notify("$status", [0]);
-                items.query.hc || this.trigger("close");
+                applet && applet.trigger("close");
             });
         }
     }
@@ -490,18 +472,15 @@ $_("content/index").imports({
     Apps: {
         css: "#apps { display: flex; overflow: hidden; flex-wrap: wrap; }\
               #apps > * { margin: 4px }",
-        xml: "<i:Query id='apps' xmlns:i='/'>\
+        xml: "<div id='apps'>\
                  <Item id='renderer' xmlns='apps'/>\
-              </i:Query>",
+              </div>",
         fun: function (sys, items, opts) {
-            let link, _apps,
-                open = items.apps.open;
+            let link, _apps;
             let apps = sys.renderer.bind([]);
             this.watch("/ui/apps", (e, p) => {
                 link = p.link;
                 apps.model = _apps = p.apps;
-                let i = _apps.findIndex(i=>{return i.mid == open});
-                i > -1 && sys.apps.get(i).trigger(Click);
             });
             this.watch("/ui/app", (e, p) => {
                 let i = _apps.findIndex(i=>{return i.mid == p.mid});
