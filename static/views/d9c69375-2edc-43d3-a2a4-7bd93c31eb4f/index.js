@@ -317,8 +317,8 @@ $_("signup/form").imports({
                 o.livetime = items.livetime.val();
                 if (o.livetime === "") {
                     error("请输入登录时效");
-                } else if (o.livetime > 365 || o.livetime < 1) {
-                    error("登录时效在 1 至 365 之间");
+                } else if (o.livetime > 365 || o.livetime < 0) {
+                    error("登录时效在 0 至 365 之间");
                 } else {
                     sys.livetime.trigger("next", o);
                 }

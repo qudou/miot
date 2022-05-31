@@ -130,7 +130,7 @@ $_("signup").imports({
             }
             function checkLivetime(p) {
                 let livetime = p.body.livetime = parseInt(p.body.livetime);
-                if (livetime >= 1 && livetime <= 365)
+                if (livetime >= 0 && livetime <= 365)
                     return sys.db.trigger("next", p);
                 p.data = {code: -1, desc: "登录时效范围不对"};
                 sys.db.trigger("to-users", p);

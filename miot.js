@@ -71,6 +71,7 @@ $_().imports({
                 <Tools id='tools'/>\
                 <Logger id='logger'/>\
               </main>",
+        map: { share: "proxy/login/Session" },
         fun: function (sys, items, opts) {
             let server = new mosca.Server(config.view);
             server.on("ready", async () => {
@@ -78,7 +79,7 @@ $_().imports({
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
                 items.logger.info("Proxy server is up and running"); 
             });
-            server.on("clientDisconnected", client => items.users.disconnected(client));
+            server.on("clientDisconnected", async client => await items.users.disconnected(client));
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 let p = JSON.parse(packet.payload + '');
@@ -305,7 +306,10 @@ $_("proxy").imports({
         }
     },
     Users: {
-        xml: "<Sqlite id='sqlite' xmlns='/'/>",
+        xml: "<main id='users'>\
+                  <Session id='session' xmlns='login'/>\
+                  <Sqlite id='sqlite' xmlns='/'/>\
+              </main>",
         fun: function (sys, items, opts) {
             // The registered subject must be consistent with the client ID
             function canSubscribe(client, topic) {
@@ -342,13 +346,13 @@ $_("proxy").imports({
                     });
                 });
             }
-            function disconnected(client) {
-                return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE status SET online=0 WHERE client_id=?");
-                    stmt.run(client.id, err => {
-                        if (err) throw err;
-                        resolve(true);
-                    });
+            async function disconnected(client) {
+                let lt = await livetime(client.id);
+                if (lt == 0)
+                    return await items.session.clean(client.id);
+                let stmt = items.sqlite.prepare("UPDATE status SET online=0 WHERE client_id=?");
+                stmt.run(client.id, err => {
+                    if (err) throw err;
                 });
             }
             function offlineAll() {
@@ -357,6 +361,16 @@ $_("proxy").imports({
                     stmt.run(err => {
                         if (err) throw err;
                         resolve(true);
+                    });
+                });
+            }
+            function livetime(clientId) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT users.livetime FROM users,status
+                                WHERE users.id = status.user_id AND status.client_id = "${clientId}"`;
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if (err) throw err;
+                        resolve(rows[0].livetime);
                     });
                 });
             }
@@ -457,6 +471,7 @@ $_("proxy/login").imports({
                     });
                 });
             }
+            // clean once an hour
             schedule.scheduleJob(`0 1 * * *`, async e => {
                 let clients = await getClients();
                 clients.forEach(async s => {

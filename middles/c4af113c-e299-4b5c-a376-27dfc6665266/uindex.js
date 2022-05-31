@@ -64,6 +64,16 @@ $_().imports({
                     this.trigger("to-users", p);
                 });
             });
+            this.watch("/ui/spa", (e, p) => {
+                let stmt = `SELECT apps.* FROM apps,auths,status
+                            WHERE apps.id = auths.app AND auths.user=status.user_id AND status.client_id='${p.cid}' AND apps.id <> '${UID}' AND apps.id = '${p.body.id}'`;
+                items.sqlite.all(stmt, (err, data) => {
+                    if (err) throw err;
+                    let i = data[0];
+                    p.data = i && {'mid':i.id,'name':i.name,'view':i.view,'type':i.type,'online':i.online};
+                    this.trigger("to-users", p);
+                });
+            });
         }
     },
     Logout: {
