@@ -44,7 +44,7 @@ $_().imports({
         }
     },
     Verify: {
-        xml: "<Overlay id='verify' xmlns='loading'/>",
+        xml: "<Overlay id='verify' xmlns='mask'/>",
         fun: function (sys, items, opts) {
             let q = xp.create("//miot/Query");
             if (q.user && q.pass)
@@ -74,7 +74,7 @@ $_().imports({
     },
     Service: {
         css: "#service { visibility: visible; opacity: 1; }",
-        xml: "<Overlay id='service' xmlns='loading'/>",
+        xml: "<Overlay id='service' xmlns='mask'/>",
         fun: function (sys, items, opts) {
             let client = null;
             let Server = document.querySelector("meta[name='mqtt-server']").getAttribute("content");
@@ -110,9 +110,9 @@ $_().imports({
     Content: {
         css: "#content { width: 100%; height: 100%; box-sizing: border-box; -webkit-overflow-scrolling: touch; }\
               #content > * { width: 100%; height: 100%; }",
-        xml: "<div id='content'>\
-                <Overlay id='mask' xmlns='/loading'/>\
-                <span id='info' style='display:none'/>\
+        xml: "<div id='content' xmlns:i='mask'>\
+                <i:Overlay id='mask'/>\
+                <i:Message id='info'/>\
               </div>",
         fun: function (sys, items, opts) {
             this.on("publish", (e, topic, body) => {
@@ -123,8 +123,8 @@ $_().imports({
                 let applet = sys.mask.prev();
                 if (applet && opts.mid == p.mid) {
                     if (p.online == 0)
-                        return sys.info.show().text("设备已离线-[01]");
-                    sys.info.hide();
+                        return items.info.show("设备已离线-[01]");
+                    items.info.hide();
                     applet.notify(p.topic, [p.data]);
                 }
             });
@@ -135,10 +135,11 @@ $_().imports({
                 c.map.msgscope = true;
                 sys.mask.before(applet, app);
                 items.mask.hide();
+                app.online || items.info.show("设备已离线-[00]");
             }
             this.watch("/ui/spa", (e, data) => {
                 if (sys.mask.prev())
-                    return sys.info.hide();
+                    return items.info.hide();
                 opts = data;
                 require([`/views/${opts.view}/index.js`], () => load(opts), () => {
                     items.mask.hide();
@@ -147,10 +148,10 @@ $_().imports({
             });
             this.watch("/ui/link", (e, p) => {
                 if (opts.link == p.mid && p.online == 0)
-                    sys.info.show().text("设备已离线-[02]");
+                    items.info.show("设备已离线-[02]");
             });
             this.watch("/ui/offline", () => {
-                sys.info.show().text("设备已离线-[03]");
+                items.info.show("设备已离线-[03]");
             });
         }
     },
@@ -185,22 +186,31 @@ $_().imports({
     }
 });
 
-$_("loading").imports({ 
+$_("mask").imports({ 
     Overlay: {
         css: "#overlay { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,.4); z-index: 13000; visibility: hidden; opacity: 0; -webkit-transition-duration: .4s; transition-duration: .4s; }\
               #visible { visibility: visible; opacity: 1; }",
         xml: "<div id='overlay'>\
-                <Loader/>\
+                <Loader id='info'/>\
               </div>",
         fun: function (sys, items, opts) {
-            function show() {
+            function show(text) {
                 sys.overlay.addClass("#visible");
+                text && sys.info.text(text);
             }
             function hide() {
                 sys.overlay.removeClass("#visible");
             }
             return { show: show, hide: hide };
         }
+    },
+    Message: {
+        css: "#info { position: absolute; top: 50%; width: 100%; padding: 8px; box-sizing: border-box; color: white; text-align: center; background: rgba(0, 0, 0, 0.4); border-radius: 5px; }",
+        xml: "<div id='overlay'>\
+                <div id='info'/>\
+              </div>",
+        map: { extend: { from: "Overlay" } },
+
     },
     Loader: {
         css: "#preloader { position: absolute; left: 50%; top: 50%; padding: 8px; margin-left: -25px; margin-top: -25px; background: rgba(0, 0, 0, 0.8); z-index: 13500; border-radius: 5px; }\
