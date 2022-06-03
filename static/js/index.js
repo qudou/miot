@@ -359,11 +359,8 @@ $_("content").imports({
                 this.notify("publish", [opts.mid, {topic: topic, body: body}]);
             });
             this.watch("/ui/app", (e, p) => {
-                let applet = sys.mask.prev();
-                if (applet && opts.mid == p.mid) {
-                    p.topic && applet.notify(p.topic, [p.data]);
-                    p.online == 0 && applet.trigger("close");
-                }
+                let app = sys.mask.prev();
+                app && opts.mid == p.mid && app.notify(p.topic, [p.data]);
             });
             function load(app) {
                 let applet = `//${app.view}/Index`;
@@ -372,7 +369,8 @@ $_("content").imports({
                 c.map.msgscope = true;
                 sys.mask.before(applet, app);
                 items.mask.hide();
-                sys.applet.once("close", close)
+                sys.applet.once("close", close);
+                sys.mask.prev().notify(`//${opts.view}`);
             }
             this.watch("/open/applet", (e, app) => {
                 opts = app;
@@ -389,15 +387,20 @@ $_("content").imports({
                 sys.applet.removeClass("#modal-in");
                 sys.applet.once("transitionend", sys.mask.prev().remove);
             }
+            this.watch("/stat/app", (e, p) => {
+                let app = sys.mask.prev();
+                if (app && opts.mid == p.mid)
+                    p.online == 0 && app.trigger("close");
+            });
             this.watch("/stat/link", (e, p) => {
                 if(opts.link == p.mid && p.online == 0){
-                    let applet = sys.mask.prev();
-                    applet && applet.trigger("close");
+                    let app = sys.mask.prev();
+                    app && app.trigger("close");
                 }
             });
             this.watch("/stat/ui/0", () => {
-                let applet = sys.mask.prev();
-                applet && applet.trigger("close");
+                let app = sys.mask.prev();
+                app && app.trigger("close");
             });
         }
     }
@@ -488,10 +491,9 @@ $_("content/index").imports({
                 link = p.link;
                 apps.model = _apps = p.apps;
             });
-            this.watch("/ui/app", (e, p) => {
+            this.watch("/stat/app", (e, p) => {
                 let i = _apps.findIndex(i=>{return i.mid == p.mid});
-                if (i > -1 && typeof p.online == "number")
-                    apps.model[i].online = _apps[i].online = p.online;
+                i > -1 && (apps.model[i].online = _apps[i].online = p.online);
             });
             sys.apps.on(Click, "*", function (e) {
                 let i = sys.apps.kids().indexOf(this);

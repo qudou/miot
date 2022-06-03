@@ -89,7 +89,7 @@ $_().imports({
                 await items.middle.create(m.view, p);
             });
             this.watch("to-user", (e, topic, p) => {
-                p = (p.mid == uid) ? p : {mid: uid, topic: "/ui/app", data: p};
+                p = (p.mid == uid) ? p : {mid: uid, topic: p.topic ? "/ui/app" : "/stat/app", data: p};
                 p = JSON.stringify(p);
                 server.publish({topic: topic, payload: p, qos: 1, retain: false});
             });

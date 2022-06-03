@@ -120,13 +120,8 @@ $_().imports({
                 this.notify("publish", [opts.mid, {topic: topic, body: body}]);
             });
             this.watch("/ui/app", (e, p) => {
-                let applet = sys.mask.prev();
-                if (applet && opts.mid == p.mid) {
-                    if (p.online == 0)
-                        return items.info.show("设备已离线-[01]");
-                    items.info.hide();
-                    applet.notify(p.topic, [p.data]);
-                }
+                let app = sys.mask.prev();
+                app && opts.mid == p.mid && app.notify(p.topic, [p.data]);
             });
             function load(app) {
                 let applet = `//${app.view}/Index`;
@@ -135,16 +130,27 @@ $_().imports({
                 c.map.msgscope = true;
                 sys.mask.before(applet, app);
                 items.mask.hide();
-                app.online || items.info.show("设备已离线-[00]");
+                if (app.online)
+                    return sys.mask.prev().notify(`//${opts.view}`);
+                items.info.show("设备已离线-[00]");
             }
-            this.watch("/ui/spa", (e, data) => {
+            this.watch("/ui/spa", (e, app) => {
+                opts = app;
                 if (sys.mask.prev())
-                    return items.info.hide();
-                opts = data;
+                    return app.online ? items.info.hide() : items.info.show("设备已离线-[00]");
                 require([`/views/${opts.view}/index.js`], () => load(opts), () => {
                     items.mask.hide();
                     this.trigger("message", ["error", "应用打开失败，请稍后再试！"]);
                 });
+            });
+            this.watch("/stat/app", (e, p) => {
+                let app = sys.mask.prev();
+                if (app && opts.mid == p.mid) {
+                    if (p.online == 0)
+                        return items.info.show("设备已离线-[01]");
+                    items.info.hide();
+                    app.notify(`//${opts.view}`);
+                }
             });
             this.watch("/stat/link", (e, p) => {
                 if (opts.link == p.mid && p.online == 0)
