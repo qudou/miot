@@ -1,5 +1,5 @@
 /*!
- * miot.js v1.1.11
+ * miot.js v1.1.8
  * https://github.com/qudou/miot
  * (c) 2017-2022 qudou
  * Released under the MIT license
@@ -40,12 +40,12 @@ $_().imports({
             });
             server.on("subscribed", async (topic, client) => {
                 await items.links.update(topic, 1);
-                this.notify("to-users", {topic: "/ui/link", mid: uid, data: {mid: topic, online: 1}});
+                this.notify("to-users", {topic: "/stat/link", mid: uid, data: {mid: topic, online: 1}});
             });
             server.on("unsubscribed", async (topic, client) => {
                 await items.links.update(topic, 0);
                 await items.apps.update(topic, 0);
-                this.notify("to-users", {topic: "/ui/link", mid: uid, data: {mid: topic, online: 0}});
+                this.notify("to-users", {topic: "/stat/link", mid: uid, data: {mid: topic, online: 0}});
             });
             server.on("published", async (packet, client) => {
                 if (packet.topic !== uid) return;

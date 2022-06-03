@@ -60,12 +60,12 @@ $_().imports({
                         this.notify("subscribed");
                     });
                     console.log("connected to " + Server);
-                    this.trigger("switch", "content").notify("/ui/online");
+                    this.trigger("switch", "content").notify("/stat/ui/1");
                 });
                 client.on("message", (topic, p) => {
                     this.notify("message", JSON.parse(p.toString()));
                 });
-                client.on("close", e => this.notify("/ui/offline"));
+                client.on("close", e => this.notify("/stat/ui/0"));
                 client.on("error", e => {
                     this.trigger("message", ["error", e.message]);
                     e.message == "Bad username or password" && this.notify("/ui/logout");
@@ -389,13 +389,13 @@ $_("content").imports({
                 sys.applet.removeClass("#modal-in");
                 sys.applet.once("transitionend", sys.mask.prev().remove);
             }
-            this.watch("/ui/link", (e, p) => {
+            this.watch("/stat/link", (e, p) => {
                 if(opts.link == p.mid && p.online == 0){
                     let applet = sys.mask.prev();
                     applet && applet.trigger("close");
                 }
             });
-            this.watch("/ui/offline", () => {
+            this.watch("/stat/ui/0", () => {
                 let applet = sys.mask.prev();
                 applet && applet.trigger("close");
             });
@@ -439,13 +439,13 @@ $_("content/index").imports({
                     return this.notify("/ui/links", [table[area.id]]);
                 this.trigger("publish", {topic: "/ui/links", body: {area: area.id}});
             });
-            this.watch("/ui/link", (e, p) => {
+            this.watch("/stat/link", (e, p) => {
                 for (let k in table)
                 table[k].links.forEach(link => {
                     link.id == p.mid && (link.online = p.online);
                 }); 
             });
-            this.watch("/ui/offline", e => table = {});
+            this.watch("/stat/ui/0", e => table = {});
             this.watch("/ui/links", (e, p) => (table[p.area] = p));
         }
     },
@@ -470,7 +470,7 @@ $_("content/index").imports({
             function text(p) { 
                 sys.title.text(p.online ? opts.name : opts.name + "*")
             }
-            this.watch("/ui/link", (e, p) => {
+            this.watch("/stat/link", (e, p) => {
                 opts.id == p.mid && text(p)
             });
         }
@@ -497,7 +497,7 @@ $_("content/index").imports({
                 let i = sys.apps.kids().indexOf(this);
                 _apps[i].online && this.trigger("/open/applet", _apps[i]);
             });
-            this.watch("/ui/link", (e, p) => {
+            this.watch("/stat/link", (e, p) => {
                 link == p.mid && p.online == 0 && offlineAll(1);
             });
             function offlineAll(type) {
@@ -505,7 +505,7 @@ $_("content/index").imports({
                     if(_apps[i].type > type)
                         apps.model[i].online = _apps[i].online = 0;
             }
-            this.watch("/ui/offline", () => offlineAll(-1));
+            this.watch("/stat/ui/0", () => offlineAll(-1));
         }
     }
 });
@@ -529,8 +529,8 @@ $_("content/index/head").imports({
             this.watch("/open/popup", () => {
                 if (this.text() == "离线") return false;
             });
-            this.watch("/ui/online", e => this.text("在线"));
-            this.watch("/ui/offline", e => this.text("离线"));
+            this.watch("/stat/ui/1", e => this.text("在线"));
+            this.watch("/stat/ui/0", e => this.text("离线"));
         }
     }
 });
@@ -594,7 +594,7 @@ $_("content/about").imports({
                 <Logout id='logout'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.watch("/ui/online", e => {
+            this.watch("/stat/ui/1", e => {
                 let user = localStorage.getItem("username");
                 sys.user.text(`当前用户：${user}`);
             });
@@ -612,8 +612,8 @@ $_("content/about").imports({
               </div>",
         fun: function (sys, items, opts) {
             let online = 0;
-            this.watch("/ui/online", e => online = 1);
-            this.watch("/ui/offline", e => online = 0);
+            this.watch("/stat/ui/1", e => online = 1);
+            this.watch("/stat/ui/0", e => online = 0);
             this.on(Click, e => {
                 if (online == 0)
                     this.trigger("message", ["msg", "当前系统离线，无法退出！"]);

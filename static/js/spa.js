@@ -86,12 +86,12 @@ $_().imports({
                         this.notify("subscribed");
                     });
                     console.log("connected to " + Server);
-                    this.trigger("switch", "content").notify("/ui/online");
+                    this.trigger("switch", "content").notify("/stat/ui/1");
                 });
                 client.on("message", (topic, p) => {
                     this.notify("message", JSON.parse(p.toString()));
                 });
-                client.on("close", e => this.notify("/ui/offline"));
+                client.on("close", e => this.notify("/stat/ui/0"));
                 client.on("error", e => {
                     this.trigger("message", ["error", e.message]);
                     e.message == "Bad username or password" && this.notify("/ui/logout");
@@ -146,11 +146,11 @@ $_().imports({
                     this.trigger("message", ["error", "应用打开失败，请稍后再试！"]);
                 });
             });
-            this.watch("/ui/link", (e, p) => {
+            this.watch("/stat/link", (e, p) => {
                 if (opts.link == p.mid && p.online == 0)
                     items.info.show("设备已离线-[02]");
             });
-            this.watch("/ui/offline", () => {
+            this.watch("/stat/ui/0", () => {
                 items.info.show("设备已离线-[03]");
             });
         }
