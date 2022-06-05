@@ -461,7 +461,6 @@ $_("proxy").imports({
             }
             function insert(sid, user_id) {
                 return new Promise((resolve, reject) => {
-                    console.log(sid, user_id)
                     let stmt = items.sqlite.prepare("INSERT INTO sessions (id,user_id) VALUES(?,?)");
                     stmt.run(sid, user_id, () => {
                         resolve(true);
