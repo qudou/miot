@@ -365,16 +365,13 @@ $_("proxy").imports({
                     if (err) throw err;
                 });
             }
+            // Note that we do not clear the sessions here.
             function offlineAll() {
                 return new Promise((resolve, reject) => {
-                    let statements = [
-                        ["DELETE FROM status"],
-                        ["DELETE FROM sessions"]
-                    ];
-                    items.sqlite.runBatchAsync(statements).then(results => {
+                    let stmt = items.sqlite.prepare("DELETE FROM status");
+                    stmt.run(client.id, err => {
+                        if (err) throw err;
                         resolve(true);
-                    }).catch(err => {
-                        throw err;
                     });
                 });
             }
