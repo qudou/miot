@@ -48,7 +48,7 @@ $_().imports({
         fun: function (sys, items, opts) {
             let q = xp.create("//miot/Query");
             setTimeout(e => {
-                this.trigger("switch", q.session ? ["service", {username: q.session}] : "login");
+                this.trigger("switch", q.sid ? ["service", {username: q.sid}] : "login");
             }, 0);
         }
     },

@@ -422,7 +422,7 @@ $_("content/index").imports({
             });
             this.watch("/ui/areas", (e, _areas) => {
                 if (_areas.length == 0) {
-                    this.trigger("publish", {topic: "/ui/logout"});
+                    this.notify("/ui/logout");
                     this.trigger("message", ["error", "该用户未获得任何应用的授权！"]);
                     return false;
                 }
@@ -618,7 +618,7 @@ $_("content/about").imports({
                 if (online == 0)
                     this.trigger("message", ["msg", "当前系统离线，无法退出！"]);
                 else app.dialog.confirm("确定退出系统吗？", "温馨提示", e => {
-                    this.trigger("publish", {topic: "/ui/logout"});
+                    this.notify("/ui/logout");
                 });
             });
         }

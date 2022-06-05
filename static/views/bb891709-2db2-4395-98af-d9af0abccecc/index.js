@@ -67,19 +67,19 @@ $_("content").imports({
         xml: "<thead id='header'><tr>\
                 <th class='label-cell'>客户端</th>\
                 <th class='label-cell'>登录时间</th>\
-                <th class='label-cell'>登录状态</th>\
+                <th class='label-cell'>会话标识</th>\
               </tr></thead>"
     },
     Item: {
         xml: "<tr id='item'>\
-                <td id='session' class='label-cell'/>\
+                <td id='client_id' class='label-cell'/>\
                 <td id='login_time' class='label-cell'/>\
-                <td id='online' class='label-cell'/>\
+                <td id='session' class='label-cell'/>\
               </tr>",
         fun: function (sys, items, opts) {
-            sys.session.text(opts.session);
+            sys.client_id.text(opts.client_id);
             sys.login_time.text(opts.login_time);
-            sys.online.text(opts.online ? "在线" : "离线");
+            sys.session.text(opts.session);
         }
     }
 });
