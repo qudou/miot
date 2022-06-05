@@ -68,16 +68,23 @@ $_().imports({
                 <i:Authorize id='auth'/>\
                 <i:Users id='users'/>\
                 <i:Middle id='middle'/>\
+                <i:Session id='session'/>\
                 <Tools id='tools'/>\
                 <Logger id='logger'/>\
               </main>",
-        map: { share: "proxy/login/Session" },
+        map: { share: "proxy/Session" },
         fun: function (sys, items, opts) {
             let server = new mosca.Server(config.view);
             server.on("ready", async () => {
                 await items.users.offlineAll();
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
                 items.logger.info("Proxy server is up and running"); 
+            });
+            server.on("subscribed", async (topic, client) => {
+                let s = await items.session.detail(client.id);
+                let p = {mid: uid, topic: "/session", data: {session: s.session}};
+                p = JSON.stringify(p);
+                server.publish({topic: client.id, payload: p, qos: 1, retain: false});
             });
             server.on("clientDisconnected", async client => await items.users.disconnected(client));
             server.on("published", async (packet, client) => {
@@ -267,8 +274,9 @@ $_("proxy").imports({
               </main>",
         fun: function (sys, items, opts) {
             async function authenticate(client, user, pass, callback) {
-                let result = await items.login(client, user, pass + '');
+                let result = await items.login(client, user, pass);
                 if (!result) return callback(true, false);
+                result.session ||= Math.random().toString(16).substr(2, 8) + `@${result.name}`;
                 result = await items.users.connected(client, result);
                 callback(null, result);
             }
@@ -283,9 +291,9 @@ $_("proxy").imports({
     },
     Login: {
         xml: "<main id='login' xmlns:i='login'>\
+                <Session id='session'/>\
                 <i:CheckUser id='checkUser'/>\
                 <i:CheckPass id='checkPass'/>\
-                <i:Session id='session'/>\
               </main>",
         fun: function (sys, items, opts) {
             async function byAccount(user, pass) {
@@ -293,21 +301,21 @@ $_("proxy").imports({
                 if (u && await items.checkPass(pass, u.pass, u.salt))
                     return u;
             }
-            async function bySession(clientId) {
-                let s = await items.session.detail(clientId);
+            async function bySession(session) {
+                let s = await items.session.detail(session, 'session');
                 if (s == false)
                     return false;
                 let timeout = new Date() - new Date(s.login_time) > s.livetime * 24000 * 3600;
                 return timeout ? await items.session.clean(s.client_id) : s;
             }
             return async function (client, user, pass) {
-                return user ? await byAccount(user, pass) : await bySession(client.id);
+                return pass ? await byAccount(user, pass+'') : await bySession(user);
             };
         }
     },
     Users: {
         xml: "<main id='users'>\
-                  <Session id='session' xmlns='login'/>\
+                  <Session id='session'/>\
                   <Sqlite id='sqlite' xmlns='/'/>\
               </main>",
         fun: function (sys, items, opts) {
@@ -338,20 +346,20 @@ $_("proxy").imports({
             }
             function connected(client, stat) {
                 return new Promise((resolve, reject) => {
-                    let insert = `REPLACE INTO status VALUES(?,?,1,(datetime('now','localtime')))`;
+                    let insert = `REPLACE INTO status VALUES(?,?,1,(datetime('now','localtime')),?)`;
                     let stmt = items.sqlite.prepare(insert);
-                    stmt.run(client.id, stat.id, err => {
+                    stmt.run(client.id, stat.id, stat.session, err => {
                         if (err) throw err;
                         resolve(true)
                     });
                 });
             }
             async function disconnected(client) {
-                let lt = await livetime(client.id);
-                if (lt == 0)
-                    return await items.session.clean(client.id);
-                let stmt = items.sqlite.prepare("UPDATE status SET online=0 WHERE client_id=?");
-                stmt.run(client.id, err => {
+                let s = await items.session.detail(client.id);
+                if (s.livetime == 0)
+                    return await items.session.clean(s.client_id);
+                let stmt = items.sqlite.prepare("UPDATE status SET online=0 WHERE session=?");
+                stmt.run(s.session, err => {
                     if (err) throw err;
                 });
             }
@@ -361,16 +369,6 @@ $_("proxy").imports({
                     stmt.run(err => {
                         if (err) throw err;
                         resolve(true);
-                    });
-                });
-            }
-            function livetime(clientId) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT users.livetime FROM users,status
-                                WHERE users.id = status.user_id AND status.client_id = "${clientId}"`;
-                    items.sqlite.all(stmt, (err, rows) => {
-                        if (err) throw err;
-                        resolve(rows[0].livetime);
                     });
                 });
             }
@@ -411,6 +409,51 @@ $_("proxy").imports({
                 this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });
             return { create: create };
+        }
+    },
+    Session: {
+        xml: "<Sqlite id='sqlite' xmlns='/'/>",
+        fun: function (sys, items, opts) {
+            function getClients() {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT status.*,users.livetime FROM users,status
+                                WHERE users.id = status.user_id AND status.online = 0`;
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if (err) throw err;
+                        resolve(rows);
+                    });
+                });
+            }
+            // clean once an hour
+            let schedule = require("node-schedule");
+            schedule.scheduleJob(`0 1 * * *`, async e => {
+                let clients = await getClients();
+                clients.forEach(async s => {
+                    let timeout = new Date() - new Date(s.login_time) > s.livetime * 24000 * 3600;
+                    timeout && await clean(s.client_id)
+                });
+            });
+            function detail(value, by = 'client_id') {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT status.*,id,livetime FROM users,status
+                                WHERE users.id = status.user_id AND status.${by}='${value}'`;
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if (err) throw err;
+                        resolve(!!rows.length && rows[0]);
+                    });
+                });
+            }
+            function clean(clientId) {
+                return new Promise((resolve, reject) => {
+                    let remove = `DELETE FROM status WHERE client_id=?`;
+                    let stmt = items.sqlite.prepare(remove);
+                    stmt.run(clientId, err => {
+                        if (err) throw err;
+                        resolve(false);
+                    });
+                });
+            }
+            return { detail: detail, clean: clean };
         }
     }
 });
@@ -455,51 +498,6 @@ $_("proxy/login").imports({
                 let inputPass = await items.crypto.encrypt(pass, salt);
                 return strOk && (inputPass == realPass);
             };
-        }
-    },
-    Session: {
-        xml: "<Sqlite id='sqlite' xmlns='/'/>",
-        fun: function (sys, items, opts) {
-            let schedule = require("node-schedule");
-            function getClients() {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT status.*,users.livetime FROM users,status
-                                WHERE users.id = status.user_id AND status.online = 0`;
-                    items.sqlite.all(stmt, (err, rows) => {
-                        if (err) throw err;
-                        resolve(rows);
-                    });
-                });
-            }
-            // clean once an hour
-            schedule.scheduleJob(`0 1 * * *`, async e => {
-                let clients = await getClients();
-                clients.forEach(async s => {
-                    let timeout = new Date() - new Date(s.login_time) > s.livetime * 24000 * 3600;
-                    timeout && await clean(s.client_id)
-                });
-            });
-            function detail(clientId) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT status.*,id,livetime FROM users,status
-                                WHERE users.id = status.user_id AND status.client_id='${clientId}'`;
-                    items.sqlite.all(stmt, (err, rows) => {
-                        if (err) throw err;
-                        resolve(!!rows.length && rows[0]);
-                    });
-                });
-            }
-            function clean(clientId) {
-                return new Promise((resolve, reject) => {
-                    let remove = `DELETE FROM status WHERE client_id=?`;
-                    let stmt = items.sqlite.prepare(remove);
-                    stmt.run(clientId, err => {
-                        if (err) throw err;
-                        resolve(false);
-                    });
-                });
-            }
-            return { detail: detail, clean: clean };
         }
     }
 });

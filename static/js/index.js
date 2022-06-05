@@ -33,14 +33,18 @@ $_().imports({
                 toast = window.app.toast.create({ text: msg, position: 'top', closeTimeout: 3000});
                 toast.open();
             });
+            this.watch("/session", (e, p) => {
+                localStorage.setItem("session", p.session);
+                localStorage.setItem("username", p.session.split('@')[1]);
+            });
         }
     },
     Verify: {
         xml: "<Overlay id='verify' xmlns='verify'/>",
         fun: function (sys, items, opts) {
-            let clientId = localStorage.getItem("session");
+            let session = localStorage.getItem("session");
             setTimeout(e => {
-                this.trigger("switch", clientId ? ["service", {clientId: clientId}] : "login");
+                this.trigger("switch", session ? ["service", {username: session}] : "login");
             }, 0);
         }
     },
@@ -53,9 +57,7 @@ $_().imports({
             this.on("show", (e, key, cfg) => {
                 client = mqtt.connect(Server, cfg);
                 client.on("connect", e => {
-                    localStorage.setItem("session", cfg.clientId);
-                    localStorage.setItem("username", cfg.clientId.split('@')[1]);
-                    client.subscribe(cfg.clientId, err => {
+                    client.subscribe(client.options.clientId, err => {
                         if (err) throw err;
                         this.notify("subscribed");
                     });
@@ -256,12 +258,8 @@ $_("login").imports({
               </li>",
         fun: function (sys, items, opts) {
             this.on("start", (e, o) => {
-                let clientId = `${defaultId()}@${o.name}`;
-                this.trigger("switch", ["service", {username: o.name, password: o.pass, clientId: clientId}]);
+                this.trigger("switch", ["service", {username: o.name, password: o.pass}]);
             });
-            function defaultId() {
-                return Math.random().toString(16).substr(2, 8);
-            }
         }
     },
     Input: {
@@ -596,10 +594,10 @@ $_("content/about").imports({
                 <Logout id='logout'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.watch("/stat/ui/1", e => {
+            this.watch("/session", e => {
                 let user = localStorage.getItem("username");
                 sys.user.text(`当前用户：${user}`);
-            });
+            }, -1);
         }
     },
     Icon: {

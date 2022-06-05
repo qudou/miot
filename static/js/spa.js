@@ -47,10 +47,9 @@ $_().imports({
         xml: "<Overlay id='verify' xmlns='mask'/>",
         fun: function (sys, items, opts) {
             let q = xp.create("//miot/Query");
-            if (q.user && q.pass)
-                setTimeout(e => this.notify("login", [q.user, q.pass]), 0);
-            else
-                setTimeout(e => this.trigger("switch", "login"), 0);
+            setTimeout(e => {
+                this.trigger("switch", q.session ? ["service", {username: q.session}] : "login");
+            }, 0);
         }
     },
     Login: {
@@ -81,7 +80,7 @@ $_().imports({
             this.on("show", (e, key, cfg) => {
                 client = mqtt.connect(Server, cfg);
                 client.on("connect", e => {
-                    client.subscribe(cfg.clientId, err => {
+                    client.subscribe(client.options.clientId, err => {
                         if (err) throw err;
                         this.notify("subscribed");
                     });
@@ -128,17 +127,19 @@ $_().imports({
                 let c = xp.hasComponent(applet);
                 if (!c) return setTimeout(i=>load(app), 10);
                 c.map.msgscope = true;
-                sys.mask.before(applet, app);
                 items.mask.hide();
-                if (app.online)
-                    return sys.mask.prev().notify(`//${opts.view}`);
-                items.info.show("设备已离线-[00]");
+                loaded(sys.mask.before(applet, app));
+            }
+            function loaded(page) {
+                if (opts.online == 0)
+                    return items.info.show("设备已离线-[00]");
+                items.info.hide();
+                page.notify(`//${opts.view}`);          
             }
             this.watch("/ui/spa", (e, app) => {
                 opts = app;
-                if (sys.mask.prev())
-                    return app.online ? items.info.hide() : items.info.show("设备已离线-[00]");
-                require([`/views/${opts.view}/index.js`], () => load(opts), () => {
+                let page = sys.mask.prev();
+                page ? loaded(page) : require([`/views/${opts.view}/index.js`], () => load(opts), () => {
                     items.mask.hide();
                     this.trigger("message", ["error", "应用打开失败，请稍后再试！"]);
                 });
@@ -304,13 +305,6 @@ $_("login").imports({
                 <a href='#' class='button button-large button-raised button-fill' style='height:44px;border-radius:20px;font-size:16px; padding:6px;'>登录</a>\
               </li>",
         fun: function (sys, items, opts) {
-            function defaultId() {
-                return Math.random().toString(16).substr(2, 8);
-            }
-            this.watch("login", (e, user, pass) => {
-                let clientId = `${defaultId()}@${user}`;
-                this.trigger("switch", ["service", {username: user, password: pass, clientId: clientId}]);
-            });
             this.on("start", (e, o) => this.notify("login", [o.name, o.pass]));
         }
     },

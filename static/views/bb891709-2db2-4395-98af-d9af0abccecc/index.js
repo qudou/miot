@@ -72,12 +72,12 @@ $_("content").imports({
     },
     Item: {
         xml: "<tr id='item'>\
-                <td id='client_id' class='label-cell'/>\
+                <td id='session' class='label-cell'/>\
                 <td id='login_time' class='label-cell'/>\
                 <td id='online' class='label-cell'/>\
               </tr>",
         fun: function (sys, items, opts) {
-            sys.client_id.text(opts.client_id);
+            sys.session.text(opts.session);
             sys.login_time.text(opts.login_time);
             sys.online.text(opts.online ? "在线" : "离线");
         }
