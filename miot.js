@@ -276,8 +276,7 @@ $_("proxy").imports({
             async function authenticate(client, user, pass, callback) {
                 let user_ = await items.login(client, user, pass);
                 if (!user_) return callback(true, false);
-                await items.users.connected(client, user_);
-                callback(null, true);
+                callback(null, await items.users.connected(client, user_));
             }
             async function authorizeSubscribe(client, topic, callback) {
                 callback(null, await items.users.canSubscribe(client, topic));
@@ -312,6 +311,7 @@ $_("proxy").imports({
         xml: "<main id='users'>\
                   <Session id='session'/>\
                   <Sqlite id='sqlite' xmlns='/'/>\
+                  <Logger id='logger' xmlns='/'/>\
               </main>",
         fun: function (sys, items, opts) {
             // The registered subject must be consistent with the client ID
@@ -346,9 +346,10 @@ $_("proxy").imports({
                         [`UPDATE users SET last_login=datetime('now', 'localtime') WHERE id=?`, user.id]
                     ];
                     items.sqlite.runBatchAsync(statements).then(results => {
-                        resolve(true)
+                        resolve(true);
                     }).catch(err => {
-                        throw err;
+                        items.logger.error(err.toString());
+                        resolve(false);
                     });
                 });
             }
