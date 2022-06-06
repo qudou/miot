@@ -130,7 +130,7 @@ $_("signup").imports({
             }
             function checkLivetime(p) {
                 let livetime = p.body.livetime = parseInt(p.body.livetime);
-                if (livetime >= 0 && livetime <= 365)
+                if (livetime > 0 && livetime <= 365)
                     return sys.db.trigger("next", p);
                 p.data = {code: -1, desc: "登录时效范围不对"};
                 sys.db.trigger("to-users", p);
@@ -147,8 +147,9 @@ $_("signup").imports({
                 let salt = items.crypto.salt();
                 let pass = await items.crypto.encrypt(p.body.pass, salt);
                 let appid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
+                let session = Math.random().toString(16).substr(2, 8);
                 let statements = [
-                    ["INSERT INTO users (email,name,pass,salt,livetime,relogin) VALUES(?,?,?,?,?,?)",p.body.email, p.body.name, pass, salt, p.body.livetime, p.body.relogin],
+                    ["INSERT INTO users (email,name,pass,salt,session,livetime,relogin) VALUES(?,?,?,?,?,?,?)",p.body.email, p.body.name, pass, salt, session, p.body.livetime, p.body.relogin],
                     ["INSERT INTO auths (user,app) VALUES(last_insert_rowid(),?)", appid]
                 ];
                 items.db.runBatchAsync(statements).then(results => {

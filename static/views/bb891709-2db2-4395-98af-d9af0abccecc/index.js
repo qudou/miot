@@ -30,56 +30,62 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             sys.close.on(Click, e => this.trigger("close"));
-            sys.refresh.on(Click, ()=>this.trigger("publish", "/status"));
+            sys.refresh.on(Click, ()=>{
+                this.trigger("publish", "/status");
+                this.trigger("publish", "/sessions")
+            });
             sys.refresh.trigger(Click);
         }
     },
     Content: {
-        xml: "<div id='content' class='page'>\
+        xml: "<div id='content' class='page' xmlns:i='content'>\
                 <div id='detail' class='page-content'>\
                     <div class='block-title'>当前用户</div>\
-                    <Table id='table' xmlns='content'/>\
+                    <i:Status id='status'/>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            this.watch("/status", items.table.render);
+            this.watch("/status", items.status.render);
         }
     }
 });
 
 $_("content").imports({
-    Table: {
+    Status: {
         xml: "<div id='table' class='data-table card'>\
-                <table>\
-                   <Header id='header'/>\
+                <table xmlns:i='status'>\
+                   <i:Header id='header'/>\
                    <tbody id='body'/>\
                 </table>\
               </div>",
         fun: function (sys, items, opts) {
             function render(e, data) {
                 sys.body.kids().call("remove");
-                data.forEach(i => sys.body.append("Item", i));
+                data.forEach(i => sys.body.append("status/Item", i));
             }
             return {render: render};
         }
-    },
+    }
+});
+
+$_("content/status").imports({
     Header: {
         xml: "<thead id='header'><tr>\
+                <th class='label-cell'>用户名</th>\
                 <th class='label-cell'>客户端</th>\
                 <th class='label-cell'>登录时间</th>\
-                <th class='label-cell'>会话标识</th>\
               </tr></thead>"
     },
     Item: {
         xml: "<tr id='item'>\
+                <td id='username' class='label-cell'/>\
                 <td id='client_id' class='label-cell'/>\
                 <td id='login_time' class='label-cell'/>\
-                <td id='session' class='label-cell'/>\
               </tr>",
         fun: function (sys, items, opts) {
+            sys.username.text(opts.username);
             sys.client_id.text(opts.client_id);
             sys.login_time.text(opts.login_time);
-            sys.session.text(opts.session);
         }
     }
 });

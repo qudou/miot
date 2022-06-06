@@ -81,12 +81,12 @@ $_().imports({
                 items.logger.info("Proxy server is up and running"); 
             });
             server.on("subscribed", async (topic, client) => {
-                let s = await items.session.byClientId(client.id);
-                let p = {mid: uid, topic: "/session", data: {session: s.session}};
+                let s = await items.session.detail_(client.id);
+                let p = {mid: uid, topic: "/session", data: {session: s.session, user: s.name}};
                 p = JSON.stringify(p);
                 server.publish({topic: client.id, payload: p, qos: 1, retain: false});
             });
-            server.on("clientDisconnected", async client => await items.users.disconnected(client));
+            server.on("clientDisconnected", async client => items.users.disconnected(client));
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 let p = JSON.parse(packet.payload + '');
@@ -106,7 +106,7 @@ $_().imports({
             });
         }
     },
-    Logger: {
+    Logger: {//自定义日志模块
         opt: { level: "info", appender: "default" },
         fun: function (sys, items, opts) {
             let results = {};
@@ -274,9 +274,9 @@ $_("proxy").imports({
               </main>",
         fun: function (sys, items, opts) {
             async function authenticate(client, user, pass, callback) {
-                let result = await items.login(client, user, pass);
-                if (!result) return callback(true, false);
-                await items.users.connected(client, result);
+                let user_ = await items.login(client, user, pass);
+                if (!user_) return callback(true, false);
+                await items.users.connected(client, user_);
                 callback(null, true);
             }
             async function authorizeSubscribe(client, topic, callback) {
@@ -296,21 +296,12 @@ $_("proxy").imports({
               </main>",
         fun: function (sys, items, opts) {
             async function byAccount(user, pass) {
-                let u = await items.checkUser(user);
-                if (u && await items.checkPass(pass, u.pass, u.salt)) {
-                    u.session = Math.random().toString(16).substr(2, 8) + `@${u.name}`;
-                    items.session.insert(u.session, u.id);
-                    return u;
-                }
+                let user_ = await items.checkUser(user);
+                if (!user_) return;
+                return await items.checkPass(pass, user_.pass, user_.salt) && user_;
             }
             async function bySession(session) {
-                let s = await items.session.detail(session);
-                if (s == false)
-                    return false;
-                let timeout = new Date() - new Date(s.update_time) > s.livetime * 24000 * 3600;
-                if (timeout)
-                    return await items.session.remove(session);
-                return await items.session.update(session), s;
+                return await items.session.detail(session);
             }
             return async function (client, user, pass) {
                 return pass ? await byAccount(user, pass+'') : await bySession(user);
@@ -330,8 +321,8 @@ $_("proxy").imports({
             // Here, topic need to be legal
             function canPublish(client, topic) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT status.* FROM status,auths,sessions
-                                WHERE sessions.id = status.session AND sessions.user_id = auths.user AND auths.app = '${topic}' AND status.client_id='${client.id}'`;
+                    let stmt = `SELECT status.* FROM status,auths
+                                WHERE status.user_id = auths.user AND auths.app = '${topic}' AND status.client_id='${client.id}'`;
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
                         resolve(!!data.length);
@@ -340,36 +331,37 @@ $_("proxy").imports({
             }
             function getUsersByMiddle(mid) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT distinct status.* FROM auths,status,sessions
-                                WHERE sessions.id = status.session AND sessions.user_id = auths.user AND auths.app = '${mid}'`;
-                    items.sqlite.all(stmt, (err, data) => {
+                    let stmt = `SELECT distinct status.* FROM auths,status
+                                WHERE status.user_id = auths.user AND auths.app = '${mid}'`;
+                    items.sqlite.all(stmt, (err, rows) => {
                         if (err) throw err;
-                        resolve(data);
+                        resolve(rows);
                     });
                 });
             }
-            function connected(client, data) {
+            function connected(client, user) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("INSERT INTO status(client_id,session) VALUES(?,?)");
-                    stmt.run(client.id, data.session, () => {
-                        resolve(true);
+                    let statements = [
+                        [`INSERT INTO status(client_id,user_id) VALUES(?,?)`, client.id, user.id],
+                        [`UPDATE users SET last_login=datetime('now', 'localtime') WHERE id=?`, user.id]
+                    ];
+                    items.sqlite.runBatchAsync(statements).then(results => {
+                        resolve(true)
+                    }).catch(err => {
+                        throw err;
                     });
                 });
             }
-            async function disconnected(client) {
-                let s = await items.session.byClientId(client.id);
-                if (s.livetime == 0)
-                    return await items.session.remove(s.session);
+            function disconnected(client) {
                 let stmt = items.sqlite.prepare("DELETE FROM status WHERE client_id=?");
                 stmt.run(client.id, err => {
                     if (err) throw err;
                 });
             }
-            // Note that we do not clear the sessions here.
             function offlineAll() {
                 return new Promise((resolve, reject) => {
                     let stmt = items.sqlite.prepare("DELETE FROM status");
-                    stmt.run(client.id, err => {
+                    stmt.run(err => {
                         if (err) throw err;
                         resolve(true);
                     });
@@ -417,73 +409,53 @@ $_("proxy").imports({
     Session: {
         xml: "<Sqlite id='sqlite' xmlns='/'/>",
         fun: function (sys, items, opts) {
-            function getSessions() {
+            function getUsers() {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT users.*,sessions.id AS session FROM users,sessions
-                                WHERE users.id = sessions.user_id`;
+                    let stmt = `SELECT * FROM users`;
                     items.sqlite.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(rows);
                     });
                 });
             }
-            // clean once an hour
+            // check sessions once an hour
             let schedule = require("node-schedule");
             schedule.scheduleJob(`0 1 * * *`, async e => {
-                let sessions = await getSessions();
-                sessions.forEach(async s => {
-                    let timeout = new Date() - new Date(s.update_time) > s.livetime * 24000 * 3600;
-                    timeout && await clean(s.session)
+                let users = await getUsers();
+                users.forEach(user => {
+                    if (user.last_login) {
+                        if (new Date() - new Date(user.last_login) > user.livetime * 24000 * 3600) {
+                            replace(user.id, Math.random().toString(16).substr(2, 8));
+                        }
+                    }
                 });
             });
-            function detail(value) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT users.*,sessions.id as session FROM users,sessions
-                                WHERE sessions.id='${value}' AND sessions.user_id=users.id`;
-                    items.sqlite.all(stmt, (err, rows) => {
-                        if (err) throw err;
-                        resolve(!!rows.length && rows[0]);
-                    });
+            function replace(user_id, session) {
+                let stmt = items.sqlite.prepare("UPDATE users SET session=? WHERE id=?");
+                stmt.run(session, user_id, err => {
+                    if (err) throw err;
                 });
             }
-            function byClientId(clientId) {
+            function detail(session) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT users.*,sessions.id as session, sessions.update_time FROM users,sessions,status
-                                WHERE status.client_id='${clientId}' AND sessions.id=status.session AND sessions.user_id=users.id`;
+                    let stmt = `SELECT * FROM users WHERE session='${session}'`;
                     items.sqlite.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(rows[0]);
                     });
                 });
             }
-            function insert(sid, user_id) {
+            function detail_(client_id) {
                 return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("INSERT INTO sessions (id,user_id) VALUES(?,?)");
-                    stmt.run(sid, user_id, () => {
-                        resolve(true);
-                    });
-                });
-            }
-            function update(sid) {
-                return new Promise((resolve, reject) => {
-                    let stmt = items.sqlite.prepare("UPDATE sessions SET update_time=(datetime('now', 'localtime')) WHERE id=?");
-                    stmt.run(sid, err => {
+                    let stmt = `SELECT users.* FROM users,status
+                                WHERE status.client_id='${client_id}' AND users.id=status.user_id`;
+                    items.sqlite.all(stmt, (err, rows) => {
                         if (err) throw err;
-                        resolve(true);
+                        resolve(rows[0]);
                     });
                 });
             }
-            function remove(session) {
-                return new Promise((resolve, reject) => {
-                    let remove = `DELETE FROM sessions WHERE id=?`;
-                    let stmt = items.sqlite.prepare(remove);
-                    stmt.run(session, err => {
-                        if (err) throw err;
-                        resolve(false);
-                    });
-                });
-            }
-            return { detail: detail, byClientId: byClientId, insert: insert, update: update, remove: remove };
+            return { detail: detail, detail_: detail_ };
         }
     }
 });
@@ -506,8 +478,8 @@ $_("proxy/login").imports({
             }
             function loginTimes(user) {
                 return new Promise((resolve, reject) => {
-                    let stmt = `SELECT count(*) as count FROM users,sessions,status
-                                WHERE users.id = sessions.user_id AND users.name = '${user}' AND status.session = sessions.id`;
+                    let stmt = `SELECT count(*) as count FROM users,status
+                                WHERE users.id = status.user_id AND users.name = '${user}'`;
                     items.sqlite.all(stmt, (err, rows) => {
                         if (err) throw err;
                         resolve(rows[0].count);

@@ -35,7 +35,7 @@ $_().imports({
             });
             this.watch("/session", (e, p) => {
                 localStorage.setItem("session", p.session);
-                localStorage.setItem("username", p.session.split('@')[1]);
+                localStorage.setItem("username", p.user);
             });
         }
     },
