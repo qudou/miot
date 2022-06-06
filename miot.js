@@ -409,25 +409,16 @@ $_("proxy").imports({
     Session: {
         xml: "<Sqlite id='sqlite' xmlns='/'/>",
         fun: function (sys, items, opts) {
-            function getUsers() {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM users`;
-                    items.sqlite.all(stmt, (err, rows) => {
-                        if (err) throw err;
-                        resolve(rows);
-                    });
-                });
-            }
             // check sessions once an hour
             let schedule = require("node-schedule");
             schedule.scheduleJob(`0 1 * * *`, async e => {
-                let users = await getUsers();
-                users.forEach(user => {
-                    if (user.last_login) {
-                        if (new Date() - new Date(user.last_login) > user.livetime * 24000 * 3600) {
+                let stmt = `SELECT * FROM users`;
+                items.sqlite.all(stmt, (err, users) => {
+                    if (err) throw err;
+                    users.forEach(user => {
+                        if (new Date() - new Date(user.last_login) > user.livetime * 24000 * 3600)
                             replace(user.id, Math.random().toString(16).substr(2, 8));
-                        }
-                    }
+                    });
                 });
             });
             function replace(user_id, session) {
