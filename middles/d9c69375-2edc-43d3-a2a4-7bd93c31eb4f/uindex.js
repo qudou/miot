@@ -24,12 +24,12 @@ $_().imports({
         xml: "<Sqlite id='select' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/users/select", (e, p) => {
-                let stmt = `SELECT id,name,email,livetime,relogin FROM users`;
+                let stmt = `SELECT id,name,email,remarks,livetime,relogin FROM users`;
                 items.select.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = [];
                     data.forEach(i => {
-                        p.data.push({'id':i.id,'name':i.name,'email':i.email,'livetime':i.livetime,'relogin':i.relogin});
+                        p.data.push({'id':i.id,'name':i.name,'email':i.email,'remarks':i.remarks, 'livetime':i.livetime,'relogin':i.relogin});
                     });
                     this.trigger("to-users", p);
                 });
@@ -146,10 +146,11 @@ $_("signup").imports({
             this.on("exec", async (e, p) => {
                 let salt = items.crypto.salt();
                 let pass = await items.crypto.encrypt(p.body.pass, salt);
+                let remarks = p.body.remarks + '';
                 let appid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
                 let session = Math.random().toString(16).substr(2, 8);
                 let statements = [
-                    ["INSERT INTO users (email,name,pass,salt,session,livetime,relogin) VALUES(?,?,?,?,?,?,?)",p.body.email, p.body.name, pass, salt, session, p.body.livetime, p.body.relogin],
+                    ["INSERT INTO users (email,name,pass,salt,remarks,session,livetime,relogin) VALUES(?,?,?,?,?,?,?,?)",p.body.email, p.body.name, pass, salt, remarks, session, p.body.livetime, p.body.relogin],
                     ["INSERT INTO auths (user,app) VALUES(last_insert_rowid(),?)", appid]
                 ];
                 items.db.runBatchAsync(statements).then(results => {
@@ -227,9 +228,9 @@ $_("update").imports({
               </main>",
         fun: function (sys, items, opts) {
             this.on("exec", (e, p) => {
-                let update = "UPDATE users SET name=?,email=?,livetime=?,relogin=? WHERE id=?";
+                let update = "UPDATE users SET name=?,email=?,remarks=?,livetime=?,relogin=? WHERE id=?";
                 let stmt = items.db.prepare(update);
-                stmt.run(p.body.name,p.body.email,p.body.livetime,p.body.relogin,p.body.id, err => {
+                stmt.run(p.body.name,p.body.email,p.body.remarks + '',p.body.livetime,p.body.relogin,p.body.id, err => {
                     if (err) throw err;
                     p.data = {code: 0, desc: "更新成功"};
                     this.trigger("to-users", p);

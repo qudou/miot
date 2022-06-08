@@ -185,6 +185,7 @@ $_("signup").imports({
                       <i:User id='user'/>\
                       <i:Email id='email'/>\
                       <i:Pass id='pass'/>\
+                      <i:Remarks id='remarks'/>\
                       <i:Livetime id='livetime'/>\
                       <i:Relogin id='relogin'/>\
                     </i:Form>\
@@ -209,6 +210,7 @@ $_("signup").imports({
                 items.email.val("");
                 items.pass.val("");
                 items.livetime.val("");
+                items.remarks.val("");
                 items.user.val("").focus();
             }
             return {clear: clear};
@@ -306,6 +308,16 @@ $_("signup/form").imports({
             return items.pass;
         }
     },
+	Remarks: {
+		xml: "<Input id='remarks' label='备注' placeholder='备注不是必需的' maxlength='32'/>",
+		fun: function (sys, items, opts) {
+			this.on("start", (e, o) => {
+				o.remarks = items.remarks.val();
+				sys.remarks.trigger("next", o);
+			});
+			return items.remarks;
+		}
+	},
     Livetime: {
         xml: "<Input id='livetime' type='number' label='登录时效/天' placeholder='请输入登录时效' value='30'/>",
         fun: function (sys, items, opts) {
@@ -400,6 +412,7 @@ $_("update").imports({
                     <i:Form id='update'>\
                       <i:User id='user'/>\
                       <i:Email id='email'/>\
+                      <i:Remarks id='remarks'/>\
                       <i:Livetime id='livetime'/>\
                       <Relogin id='relogin' xmlns='/signup/form'/>\
                     </i:Form>\
@@ -413,6 +426,7 @@ $_("update").imports({
                 opts = value;
                 items.user.val(value.name);
                 items.email.val(value.email);
+                items.remarks.val(value.remarks || "");
                 items.livetime.val(value.livetime);
                 items.relogin.val(value.relogin);
             }
