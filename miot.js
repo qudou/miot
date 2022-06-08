@@ -1,5 +1,5 @@
 /*!
- * miot.js v1.1.12
+ * miot.js v1.1.13
  * https://github.com/qudou/miot
  * (c) 2017-2022 qudou
  * Released under the MIT license
@@ -20,7 +20,7 @@ $_().imports({
                 <Proxy id='proxy'/>\
               </main>",
         cfg: { logger: config.logger },
-        map: { share: "Tools Crypto Sqlite Logger" }
+        map: { share: "OpenAPI Crypto Sqlite Logger" }
     },
     Mosca: { // 连接内网网关
         xml: "<main id='mosca' xmlns:i='mosca'>\
@@ -69,8 +69,8 @@ $_().imports({
                 <i:Users id='users'/>\
                 <i:Middle id='middle'/>\
                 <i:Session id='session'/>\
-                <Tools id='tools'/>\
                 <Logger id='logger'/>\
+                <OpenAPI id='openAPI'/>\
               </main>",
         map: { share: "proxy/Session" },
         fun: function (sys, items, opts) {
@@ -81,7 +81,7 @@ $_().imports({
                 items.logger.info("Proxy server is up and running"); 
             });
             server.on("subscribed", async (topic, client) => {
-                let s = await items.session.detail_(client.id);
+                let s = await items.openAPI.getUserByClient(client.id);
                 let p = {mid: uid, topic: "/session", data: {session: s.session, user: s.name}};
                 p = JSON.stringify(p);
                 server.publish({topic: client.id, payload: p, qos: 1, retain: false});
@@ -90,7 +90,7 @@ $_().imports({
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 let p = JSON.parse(packet.payload + '');
-                let m = await items.tools.getAppById(packet.topic);
+                let m = await items.openAPI.getAppById(packet.topic);
                 p.cid = client.id;
                 p.mid = packet.topic;
                 await items.middle.create(m.view, p);
@@ -228,26 +228,26 @@ $_("mosca").imports({
         }
     },
     Middle: {
-        xml: "<Tools id='tools' xmlns='/'/>",
+        xml: "<OpenAPI id='middle' xmlns='/'/>",
         fun: function (sys, items, opts) {
             let table = {};
             async function create(klass, p) {
                 if (!table[klass]) {
                     let path = `${__dirname}/middles/${klass}/pindex.js`;
-                    if (!await items.tools.exists(path))
-                        return sys.tools.trigger("to-users", p);
+                    if (!await items.middle.exists(path))
+                        return sys.middle.trigger("to-users", p);
                     table[klass] = middle(klass, path);
                 }
                 let msgs = xp.messages(table[klass]);
                 if(msgs.indexOf(p.topic) == -1)
-                    return sys.tools.trigger("to-users", p);
+                    return sys.middle.trigger("to-users", p);
                 table[klass].notify(p.topic, p);
             }
             function middle(klass, path) {
                 require(path);
                 let c = xp.hasComponent(`//${klass}/Index`);
                 c.map.msgscope = true;
-                return sys.tools.append(`//${klass}/Index`);
+                return sys.middle.append(`//${klass}/Index`);
             }
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
@@ -372,26 +372,26 @@ $_("proxy").imports({
         }
     },
     Middle: {
-        xml: "<Tools id='tools' xmlns='/'/>",
+        xml: "<OpenAPI id='middle' xmlns='/'/>",
         fun: function (sys, items, opts) {
             let table = {};
             async function create(klass, p) {
                 if (!table[klass]) {
                     let path = `${__dirname}/middles/${klass}/uindex.js`;
-                    if (!await items.tools.exists(path))
-                        return sys.tools.trigger("to-local", p);
+                    if (!await items.middle.exists(path))
+                        return sys.middle.trigger("to-local", p);
                     table[klass] = middle(klass, path);
                 }
                 let msgs = xp.messages(table[klass]);
                 if(msgs.indexOf(p.topic) == -1)
-                    return sys.tools.trigger("to-local", p);
+                    return sys.middle.trigger("to-local", p);
                 table[klass].notify(p.topic, p);
             }
             function middle(klass, path) {
                 require(path);
                 let c = xp.hasComponent(`//${klass}/Index`);
                 c.map.msgscope = true;
-                return sys.tools.append(`//${klass}/Index`);
+                return sys.middle.append(`//${klass}/Index`);
             }
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
@@ -400,7 +400,7 @@ $_("proxy").imports({
             });
             this.on("to-local", async (e, p) => {
                 e.stopPropagation();
-                let m = await items.tools.getAppById(p.mid);
+                let m = await items.middle.getAppById(p.mid);
                 let body = { topic: p.topic, body: p.body };
                 this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });
@@ -437,17 +437,7 @@ $_("proxy").imports({
                     });
                 });
             }
-            function detail_(client_id) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT users.* FROM users,status
-                                WHERE status.client_id='${client_id}' AND users.id=status.user_id`;
-                    items.sqlite.all(stmt, (err, rows) => {
-                        if (err) throw err;
-                        resolve(rows[0]);
-                    });
-                });
-            }
-            return { detail: detail, detail_: detail_ };
+            return { detail: detail };
         }
     }
 });
@@ -497,14 +487,12 @@ $_("proxy/login").imports({
 });
 
 $_().imports({
-    Tools: {
+    OpenAPI: {
         xml: "<Sqlite id='sqlite'/>",
         fun: function (sys, items, opts) {
             let fs= require("fs");
             function exists(path) {
-                return new Promise((resolve, reject) => {
-                    fs.exists(path, e => resolve(e));
-                });
+                return new Promise((resolve, reject) => fs.exists(path, e => resolve(e)));
             }
             function getAppById(appid) {
                 return new Promise((resolve, reject) => {
@@ -515,7 +503,17 @@ $_().imports({
                     });
                 });
             }
-            return { getAppById: getAppById, exists: exists };
+            function getUserByClient(client_id) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT users.* FROM users,status
+                                WHERE status.client_id='${client_id}' AND users.id=status.user_id`;
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if (err) throw err;
+                        resolve(rows[0]);
+                    });
+                });
+            }
+            return { getAppById: getAppById, exists: exists, getUserByClient: getUserByClient };
         }
     },
     Crypto: {
