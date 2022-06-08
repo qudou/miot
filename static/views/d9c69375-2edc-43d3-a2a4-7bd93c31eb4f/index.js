@@ -185,16 +185,16 @@ $_("signup").imports({
                       <i:User id='user'/>\
                       <i:Email id='email'/>\
                       <i:Pass id='pass'/>\
-                      <i:Remarks id='remarks'/>\
                       <i:Livetime id='livetime'/>\
                       <i:Relogin id='relogin'/>\
+                      <i:Remarks id='remarks'/>\
                     </i:Form>\
                     <i:Button id='submit'>注册</i:Button>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
             sys.submit.on(Click, items.signup.start);
-            sys.relogin.on("next", (e, p) => {
+            sys.remarks.on("next", (e, p) => {
                 e.stopPropagation();
                 this.trigger("switch", "service");
                 this.trigger("publish", ["/users/signup", p]);
@@ -412,9 +412,9 @@ $_("update").imports({
                     <i:Form id='update'>\
                       <i:User id='user'/>\
                       <i:Email id='email'/>\
-                      <i:Remarks id='remarks'/>\
                       <i:Livetime id='livetime'/>\
                       <Relogin id='relogin' xmlns='/signup/form'/>\
+                      <i:Remarks id='remarks'/>\
                     </i:Form>\
                     <i:Button id='submit'>确定更新</i:Button>\
                     <i:Button id='chpasswd'>密码修改</i:Button>\
@@ -430,7 +430,7 @@ $_("update").imports({
                 items.livetime.val(value.livetime);
                 items.relogin.val(value.relogin);
             }
-            sys.relogin.on("next", (e, p) => {
+            sys.remarks.on("next", (e, p) => {
                 e.stopPropagation();
                 p.id = opts.id;
                 this.trigger("switch", "service");
