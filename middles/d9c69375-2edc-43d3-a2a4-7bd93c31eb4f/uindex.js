@@ -131,8 +131,15 @@ $_("signup").imports({
             function checkLivetime(p) {
                 let livetime = p.body.livetime = parseInt(p.body.livetime);
                 if (livetime > 0 && livetime <= 365)
-                    return sys.db.trigger("next", p);
+                    return checkRemarks(p);
                 p.data = {code: -1, desc: "登录时效范围不对"};
+                sys.db.trigger("to-users", p);
+            }
+            function checkRemarks(p) {
+                p.body.remarks = p.body.remarks + "";
+                if (p.body.remarks.length <= 256)
+                    return sys.db.trigger("next", p);
+                p.data = {code: -1, desc: "备注长度不对"};
                 sys.db.trigger("to-users", p);
             }
         }
@@ -146,11 +153,10 @@ $_("signup").imports({
             this.on("exec", async (e, p) => {
                 let salt = items.crypto.salt();
                 let pass = await items.crypto.encrypt(p.body.pass, salt);
-                let remarks = p.body.remarks + '';
                 let appid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
                 let session = Math.random().toString(16).substr(2, 8);
                 let statements = [
-                    ["INSERT INTO users (email,name,pass,salt,remarks,session,livetime,relogin) VALUES(?,?,?,?,?,?,?,?)",p.body.email, p.body.name, pass, salt, remarks, session, p.body.livetime, p.body.relogin],
+                    ["INSERT INTO users (email,name,pass,salt,remarks,session,livetime,relogin) VALUES(?,?,?,?,?,?,?,?)",p.body.email, p.body.name, pass, salt, p.body.remarks, session, p.body.livetime, p.body.relogin],
                     ["INSERT INTO auths (user,app) VALUES(last_insert_rowid(),?)", appid]
                 ];
                 items.db.runBatchAsync(statements).then(results => {
@@ -214,10 +220,17 @@ $_("update").imports({
                 items.db.all(stmt, (err, rows) => {
                     if (err) throw err;
                     if (!rows.length)
-                        return sys.validate.trigger("next", p);
+                        return checkRemarks(p);
                     p.data = {code: -1, desc: "邮箱已存在"};
                     sys.validate.trigger("to-users", p);
                 });
+            }
+            function checkRemarks(p) {
+                p.body.remarks = p.body.remarks + "";
+                if (p.body.remarks.length <= 256)
+                    return sys.db.trigger("next", p);
+                p.data = {code: -1, desc: "备注长度不对"};
+                sys.validate.trigger("to-users", p);
             }
         }
     },
@@ -230,7 +243,7 @@ $_("update").imports({
             this.on("exec", (e, p) => {
                 let update = "UPDATE users SET name=?,email=?,remarks=?,livetime=?,relogin=? WHERE id=?";
                 let stmt = items.db.prepare(update);
-                stmt.run(p.body.name,p.body.email,p.body.remarks + '',p.body.livetime,p.body.relogin,p.body.id, err => {
+                stmt.run(p.body.name,p.body.email,p.body.remarks,p.body.livetime,p.body.relogin,p.body.id, err => {
                     if (err) throw err;
                     p.data = {code: 0, desc: "更新成功"};
                     this.trigger("to-users", p);

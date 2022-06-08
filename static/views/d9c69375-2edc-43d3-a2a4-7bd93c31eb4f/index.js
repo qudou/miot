@@ -309,11 +309,15 @@ $_("signup/form").imports({
         }
     },
 	Remarks: {
-		xml: "<Input id='remarks' label='备注' placeholder='备注不是必需的' maxlength='32'/>",
+		xml: "<Input id='remarks' label='备注' placeholder='备注不是必需的' maxlength='256'/>",
 		fun: function (sys, items, opts) {
 			this.on("start", (e, o) => {
 				o.remarks = items.remarks.val();
-				sys.remarks.trigger("next", o);
+                if (o.remarks.length > 256) {
+                    error("备注长度不得大于 256 位");
+                } else {
+                    sys.remarks.trigger("next", o);
+                }
 			});
 			return items.remarks;
 		}
