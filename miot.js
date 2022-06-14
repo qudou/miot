@@ -40,19 +40,19 @@ $_().imports({
             });
             server.on("subscribed", async (topic, client) => {
                 await items.links.update(topic, 1);
-                this.notify("to-users", {topic: "/stat/link", mid: uid, data: {mid: topic, online: 1}});
+                this.notify("to-users", {topic: "/stat/link", mid: uid, data: {mid: topic, data: 1}});
             });
             server.on("unsubscribed", async (topic, client) => {
                 await items.links.update(topic, 0);
                 await items.apps.update(topic, 0);
-                this.notify("to-users", {topic: "/stat/link", mid: uid, data: {mid: topic, online: 0}});
+                this.notify("to-users", {topic: "/stat/link", mid: uid, data: {mid: topic, data: 0}});
             });
             server.on("published", async (packet, client) => {
                 if (packet.topic !== uid) return;
                 let p = JSON.parse(packet.payload + '');
                 let m = await items.apps.getAppByLink(client.id, p.pid);
                 if (!m) return;
-                if (typeof p.online == "number") 
+                if (!p.topic) 
                     await items.apps.cache(m.id, p);
                 p.mid = m.id;
                 await items.middle.create(m.view, p);
@@ -183,7 +183,7 @@ $_("mosca").imports({
         fun: function (sys, items, opts) {
             async function cache(mid, payload) {
                 let str = "UPDATE apps SET online=% WHERE id=?";
-                let stmt = items.sqlite.prepare(str.replace('%', payload.online == undefined ? 1 : payload.online));
+                let stmt = items.sqlite.prepare(str.replace('%', payload.topic ? 1 : payload.data));
                 stmt.run(mid, err => {
                     if (err) throw err;
                 });
@@ -252,7 +252,6 @@ $_("mosca").imports({
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
                 let payload = {mid: p.mid, topic: p.topic, data: p.data};
-                typeof p.online == "number" && (payload.online = p.online);
                 this.notify("to-users", payload);
             });
             this.on("to-local", (e, p) => {

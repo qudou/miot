@@ -388,10 +388,10 @@ $_("content").imports({
             this.watch("/stat/app", (e, p) => {
                 let app = sys.mask.prev();
                 if (app && opts.mid == p.mid)
-                    p.online == 0 && app.trigger("close");
+                    p.data == 0 && app.trigger("close");
             });
             this.watch("/stat/link", (e, p) => {
-                if(opts.link == p.mid && p.online == 0){
+                if(opts.link == p.mid && p.data == 0){
                     let app = sys.mask.prev();
                     app && app.trigger("close");
                 }
@@ -443,7 +443,7 @@ $_("content/index").imports({
             this.watch("/stat/link", (e, p) => {
                 for (let k in table)
                 table[k].links.forEach(link => {
-                    link.id == p.mid && (link.online = p.online);
+                    link.id == p.mid && (link.online = p.data);
                 }); 
             });
             this.watch("/stat/ui/0", e => table = {});
@@ -491,14 +491,14 @@ $_("content/index").imports({
             });
             this.watch("/stat/app", (e, p) => {
                 let i = _apps.findIndex(i=>{return i.mid == p.mid});
-                i > -1 && (apps.model[i].online = _apps[i].online = p.online);
+                i > -1 && (apps.model[i].online = _apps[i].online = p.data);
             });
             sys.apps.on(Click, "*", function (e) {
                 let i = sys.apps.kids().indexOf(this);
                 _apps[i].online && this.trigger("/open/applet", _apps[i]);
             });
             this.watch("/stat/link", (e, p) => {
-                link == p.mid && p.online == 0 && offlineAll(1);
+                link == p.mid && p.data == 0 && offlineAll(1);
             });
             function offlineAll(type) {
                 for (let i = 0; i < _apps.length; i++)

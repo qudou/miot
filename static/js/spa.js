@@ -147,14 +147,14 @@ $_().imports({
             this.watch("/stat/app", (e, p) => {
                 let app = sys.mask.prev();
                 if (app && opts.mid == p.mid) {
-                    if (p.online == 0)
+                    if (p.data == 0)
                         return items.info.show("设备已离线-[01]");
                     items.info.hide();
                     app.notify(`//${opts.view}`);
                 }
             });
             this.watch("/stat/link", (e, p) => {
-                if (opts.link == p.mid && p.online == 0)
+                if (opts.link == p.mid && p.data == 0)
                     items.info.show("设备已离线-[02]");
             });
             this.watch("/stat/ui/0", () => {
