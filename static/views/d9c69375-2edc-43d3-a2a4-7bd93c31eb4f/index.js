@@ -133,7 +133,7 @@ $_("overview").imports({
                    <div class='item-title'>\
                      <div id='type' class='item-header'>普通用户</div>\
                      <div id='label'/>\
-                     <div id='email' class='item-footer'/>\
+                     <div id='last_login' class='item-footer'/>\
                    </div>\
                  </div>\
                </div>\
@@ -147,7 +147,7 @@ $_("overview").imports({
             function setValue(user) {
                 opts = user;
                 sys.label.text(user.name);
-                sys.email.text(user.email);
+                sys.last_login.text(`最后登录：${user.last_login}`);
                 user.id && sys.type.text("普通用户") || sys.type.text("管理员") && sys.remove.remove();
             }
             sys.remove.on(Click, () => this.notify("remove", opts));

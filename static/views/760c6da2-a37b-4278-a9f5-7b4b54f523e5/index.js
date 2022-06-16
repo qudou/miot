@@ -86,7 +86,7 @@ $_("overview").imports({
               </div>",
         fun: function (sys, items, opts) {
             sys.close.on(Click, e => this.trigger("close"));
-            sys.signup.on(Click, () => this.trigger("switch", "signup"));
+            sys.signup.on(Click, e => this.trigger("switch", "signup"));
             return { title: sys.title.text };
         }
     },
@@ -131,7 +131,7 @@ $_("overview").imports({
                </div>\
               </li>",
         fun: function (sys, items, opts) {
-            sys.edit.on(Click, () => this.trigger("switch", ["update", opts]));
+            sys.edit.on(Click, e => this.trigger("switch", ["update", opts]));
             function setValue(area) {
                 opts = area;
                 sys.label.text(area.name);

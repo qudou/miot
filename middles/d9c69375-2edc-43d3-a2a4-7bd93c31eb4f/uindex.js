@@ -24,12 +24,12 @@ $_().imports({
         xml: "<Sqlite id='select' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/users/select", (e, p) => {
-                let stmt = `SELECT id,name,email,remarks,livetime,relogin FROM users`;
+                let stmt = `SELECT id,name,email,remarks,last_login,livetime,relogin FROM users`;
                 items.select.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = [];
                     data.forEach(i => {
-                        p.data.push({'id':i.id,'name':i.name,'email':i.email,'remarks':i.remarks, 'livetime':i.livetime,'relogin':i.relogin});
+                        p.data.push({'id':i.id,'name':i.name,'email':i.email,'remarks':i.remarks, 'last_login':i.last_login, 'livetime':i.livetime,'relogin':i.relogin});
                     });
                     this.trigger("to-users", p);
                 });
