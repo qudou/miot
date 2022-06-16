@@ -40,12 +40,12 @@ $_().imports({
             });
             server.on("subscribed", async (topic, client) => {
                 await items.links.update(topic, 1);
-                this.notify("to-users", {topic: "/stat/link", mid: uid, data: {mid: topic, data: 1}});
+                this.notify("to-users", {topic: "/stat/link", data: {mid: topic, data: 1}});
             });
             server.on("unsubscribed", async (topic, client) => {
                 await items.links.update(topic, 0);
                 await items.apps.update(topic, 0);
-                this.notify("to-users", {topic: "/stat/link", mid: uid, data: {mid: topic, data: 0}});
+                this.notify("to-users", {topic: "/stat/link", data: {mid: topic, data: 0}});
             });
             server.on("published", async (packet, client) => {
                 if (packet.topic !== uid) return;
@@ -82,7 +82,7 @@ $_().imports({
             });
             server.on("subscribed", async (topic, client) => {
                 let s = await items.openAPI.getUserByClient(client.id);
-                let p = {mid: uid, topic: "/session", data: {session: s.session, user: s.name}};
+                let p = {topic: "/ui/session", data: {session: s.session, username: s.name}};
                 p = JSON.stringify(p);
                 server.publish({topic: client.id, payload: p, qos: 1, retain: false});
             });
@@ -96,7 +96,7 @@ $_().imports({
                 await items.middle.create(m.view, p);
             });
             this.watch("to-user", (e, topic, p) => {
-                p = (p.mid == uid) ? p : {mid: uid, topic: p.topic ? "/ui/app" : "/stat/app", data: p};
+                p = (p.mid == uid) ? p : {topic: p.topic ? "/ui/app" : "/stat/app", data: p};
                 p = JSON.stringify(p);
                 server.publish({topic: topic, payload: p, qos: 1, retain: false});
             });

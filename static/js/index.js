@@ -33,9 +33,9 @@ $_().imports({
                 toast = window.app.toast.create({ text: msg, position: 'top', closeTimeout: 3000});
                 toast.open();
             });
-            this.watch("/session", (e, p) => {
+            this.watch("/ui/session", (e, p) => {
                 localStorage.setItem("session", p.session);
-                localStorage.setItem("username", p.user);
+                localStorage.setItem("username", p.username);
             });
         }
     },
@@ -129,7 +129,7 @@ $_().imports({
                 this.notify("/open/applet", p);
             });
             this.watch("message", (e, p) => {
-                p.mid == uid && this.notify(p.topic, [p.data]);
+                this.notify(p.topic, [p.data]);
             });
             this.watch("subscribed", () => this.trigger("publish", {topic: "/ui/areas"}));
         }
@@ -594,9 +594,8 @@ $_("content/about").imports({
                 <Logout id='logout'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.watch("/session", e => {
-                let user = localStorage.getItem("username");
-                sys.user.text(`当前用户：${user}`);
+            this.watch("/ui/session", (e, p) => {
+                sys.user.text(`当前用户：${p.username}`);
             }, -1);
         }
     },

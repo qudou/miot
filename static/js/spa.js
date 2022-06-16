@@ -35,7 +35,7 @@ $_().imports({
             });
             const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
             this.watch("message", (e, p) => {
-                p.mid == uid && this.notify(p.topic, [p.data]);
+                this.notify(p.topic, [p.data]);
             });
             let q = xp.create("//miot/Query");
             this.watch("subscribed", () => {
