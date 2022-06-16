@@ -40,12 +40,12 @@ $_().imports({
             });
             server.on("subscribed", async (topic, client) => {
                 await items.links.update(topic, 1);
-                this.notify("to-users", {topic: "/stat/link", data: {mid: topic, data: 1}});
+                this.notify("to-users", {mid: uid, topic: "/stat/link", data: {mid: topic, data: 1}});
             });
             server.on("unsubscribed", async (topic, client) => {
                 await items.links.update(topic, 0);
                 await items.apps.update(topic, 0);
-                this.notify("to-users", {topic: "/stat/link", data: {mid: topic, data: 0}});
+                this.notify("to-users", {mid: uid, topic: "/stat/link", data: {mid: topic, data: 0}});
             });
             server.on("published", async (packet, client) => {
                 if (packet.topic !== uid) return;
