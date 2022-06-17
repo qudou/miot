@@ -41,14 +41,19 @@ $_().imports({
             this.watch("subscribed", () => {
                 this.notify("publish", [uid, {topic: "/ui/spa", body: {id: q.app}}])
             });
+            this.watch("/ui/session", (e, p) => {
+                localStorage.setItem("session", p.session);
+                localStorage.setItem("username", p.username);
+            });
         }
     },
     Verify: {
         xml: "<Overlay id='verify' xmlns='mask'/>",
         fun: function (sys, items, opts) {
             let q = xp.create("//miot/Query");
+            let sid = q.sid || localStorage.getItem("session");
             setTimeout(e => {
-                this.trigger("switch", q.sid ? ["service", {username: q.sid}] : "login");
+                this.trigger("switch", sid ? ["service", {username: sid}] : "login");
             }, 0);
         }
     },
