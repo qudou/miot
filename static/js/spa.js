@@ -1,7 +1,7 @@
 /*!
- * miot.js v1.0.8
+ * spa.js v1.0.9
  * https://github.com/qudou/miot
- * (c) 2009-2017 qudou
+ * (c) 2017-2022 qudou
  * Released under the MIT license
  */
 
@@ -310,7 +310,9 @@ $_("login").imports({
                 <a href='#' class='button button-large button-raised button-fill' style='height:44px;border-radius:20px;font-size:16px; padding:6px;'>登录</a>\
               </li>",
         fun: function (sys, items, opts) {
-            this.on("start", (e, o) => this.notify("login", [o.name, o.pass]));
+            this.on("start", (e, o) => {
+                this.trigger("switch", ["service", {username: o.name, password: o.pass}])
+            });
         }
     },
     Input: {

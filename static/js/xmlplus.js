@@ -1,5 +1,5 @@
 /*!
- * xmlplus.js v1.7.2
+ * xmlplus.js v1.7.5
  * https://xmlplus.cn
  * (c) 2017-2022 qudou
  * Released under the MIT license
@@ -24,13 +24,13 @@ var svgns = "http://www.w3.org/2000/svg";
 var htmlns = "http://www.w3.org/1999/xhtml";
 var xlinkns = "http://www.w3.org/1999/xlink";
 
-// xdocument is for virtual DOM, and $document is for real DOM.
-var xdocument, $document;
+// vdoc is for virtual DOM, and rdoc is for real DOM.
+var vdoc, rdoc;
 
 var XPath, DOMParser_, XMLSerializer_, NodeElementAPI;
 var Manager = [HtmlManager(),CompManager(),,TextManager(),TextManager(),,,,TextManager(),,];
 var Formater = { "int": parseInt, "float": parseFloat, "bool": new Function("v","return v==true || v=='true';") };
-var Template = { css: "", cfg: {}, opt: {}, ali: {}, map: { share: "", defer: "", cfgs: {}, attrs: {}, format: {} }, fun: new Function };
+var Template = { css: "", cfg: {}, opt: {}, ali: {}, map: { share: "", defer: "", cfgs: {}, attrs: {}, format: {}, class: {} }, fun: new Function };
 var isReady;
 
 // isHTML contains isSVG
@@ -204,13 +204,15 @@ var $ = {
         return Library[s.dir] && Library[s.dir][s.basename] || false;
     },
     messages: function (obj) {
+        if (!$.isSystemObject(obj))
+            $.error("invalid input, expected a SystemObject");
         var item = Store[obj.guid()];
         return item && item.ctr.messages() || [];
     },
     getElementById: function (id, isGuid) {
         if ( isGuid )
             return Store[id] && Store[id].api;
-        return inBrowser ? (Global[id] || $document.getElementById(id)) : null;
+        return inBrowser ? (Global[id] || rdoc.getElementById(id)) : null;
     }
 };
 
@@ -259,7 +261,7 @@ var ph = (function () {
         var i = path.lastIndexOf('/');
         return { dir: path.substring(0, i), basename: path.substr(i+1).toLowerCase() };
     }
-    // [/dir/foo, ..] => dir, [/dir, ./bar] => dir/bar
+    // (dir/foo, ..) => dir, (dir, ./bar) => dir/bar
     function fullPath(dir, patt) {
         var key = dir + patt;
         if ( table[key] )
@@ -288,26 +290,26 @@ var hp = {
         if ( typeof input != "string" )
             $.error("invalid input, expected a string or a xml node");
         if ( isHTML[input] )
-            return xdocument.createElement(input);
+            return vdoc.createElement(input);
         if ( input.charAt(0) == '<' ) try {
             return $.parseXML(input).lastChild;
         } catch (e) {
-            return xdocument.createTextNode(input);
+            return vdoc.createTextNode(input);
         }
         var i = input.lastIndexOf('/'),
             dir = ph.fullPath(dir || "", input.substring(0, i) || "."),
             basename = input.substr(i+1);
         if ( Library[dir] && Library[dir][basename.toLowerCase()] )
-            return xdocument.createElementNS("//" + dir, 'i:' + basename);
-        return xdocument.createTextNode(input);
+            return vdoc.createElementNS("//" + dir, 'i:' + basename);
+        return vdoc.createTextNode(input);
     },
     defDisplay: (function () {
         var elemDisplay = {};
         return function ( nodeName ) {
             var elem, display;
             if (!elemDisplay[nodeName]) {
-                elem = $document.createElement(nodeName);
-                $document.body.appendChild(elem);
+                elem = rdoc.createElement(nodeName);
+                rdoc.body.appendChild(elem);
                 display = getComputedStyle(elem, "").getPropertyValue("display");
                 elem.parentNode.removeChild(elem);
                 display == "none" && (display = "block");
@@ -320,7 +322,7 @@ var hp = {
         var parent = elem.offsetParent;
         while ( parent && hp.css(parent, "position") == "static" )
             parent = parent.offsetParent;
-        return parent || $document.documentElement; 
+        return parent || rdoc.documentElement; 
     },
     offset: function (elem) {
         var obj = elem.getBoundingClientRect();
@@ -331,6 +333,15 @@ var hp = {
     },
     css: function (elem, name) { 
         return elem.style[name] || getComputedStyle(elem, "").getPropertyValue(name);
+    },
+    addClass: function (elem, value) {
+        var klass = elem.getAttribute("class"),
+            input = value.split(/\s+/),
+            result = klass ? klass.split(/\s+/) : [];
+        for ( var i = 0; i < input.length; i++ )
+            if ( result.indexOf(input[i]) < 0 )
+                result.push(input[i]);
+        elem.setAttribute("class", result.join(" "));
     },
     callback: function () {
         var ret = this.fn.apply(this.data, [].slice.call(arguments));
@@ -379,7 +390,7 @@ var hp = {
         var buffer = {};
         return function ( node, parent ) {
             var nodeName = node.nodeName;
-            buffer[nodeName] || (buffer[nodeName] = $document.createElementNS(isSVG[nodeName] ? svgns : (isHTML[nodeName] ? htmlns : node.namespaceURI), nodeName));
+            buffer[nodeName] || (buffer[nodeName] = rdoc.createElementNS(isSVG[nodeName] ? svgns : (isHTML[nodeName] ? htmlns : node.namespaceURI), nodeName));
             var elem = buffer[nodeName].cloneNode();
             parent.appendChild(elem);
             for ( var i = 0; i < node.attributes.length; i++ ) {
@@ -587,7 +598,8 @@ var bd = {
         }
         function getter() {
             let e = targets[0].elem();
-            let get = targets[0].env.value[hook.get] || getOperator("Getters", e);
+            let v = targets[0].env.value;
+            let get = v && v[hook.get] || getOperator("Getters", e);
             return get(e, targets);
         }
         function setter(value) {
@@ -909,33 +921,51 @@ var Communication = function () {
 
 var EventModuleAPI = (function () {
     var eventTable = {},
+        listeners = {},
         ignoreProps = /^([A-Z]|returnValue$|layer[XY]$|keyLocation$)/,
-        eventMethods = "preventDefault stopImmediatePropagation stopPropagation".split(" "),
         specialEvents={ click: "MouseEvents", mousedown: "MouseEvents", mouseup: "MouseEvents", mousemove: "MouseEvents" };
     function assert(type, selector, fn) {
         typeof type == "string" || $.error("invalid type, expected a string");
         typeof fn == "function" || $.error("invalid handler, expected a function");
         selector == undefined || typeof selector == "string" || $.error("invalid selector, expected a string");
     }
+    function eventHandler(event) {
+        let target = event.target.xmlTarget;
+        if (!target) return;
+        let node = target.node;
+        let cancelBubble = false;
+        while (node.uid) {
+            let items =(eventTable[node.uid] || {})[event.type] || [];
+            for (let i = 0; i < items.length; i++) {
+                let e = items[i].handler(event);
+                e.cancelBubble && (cancelBubble = true);
+                if (e.cancelImmediateBubble) break;
+            }
+            if (cancelBubble) break;
+            let tnode = node.parentNode;
+            node = tnode.uid ? tnode : (Store[node.uid].env.node || {});
+        }
+    }
     function on(type, selector, fn) {
-        if ( typeof selector == "function" )
+        if (typeof selector == "function")
             fn = selector, selector = undefined;
         assert(type, selector, fn);
         var uid = this.uid, listener = this.api;
-        function handler( event ) {
-            if ( !event.target.xmlTarget ) return;
+        function handler(event) {
             var e = createProxy(event, listener);
-            if ( !selector )
-                return fn.apply(listener, [e].concat(event.data));
+            event.bubble === false && e.stopPropagation();
+            if (!selector)
+                return fn.apply(listener, [e].concat(event.data)), e;
             listener.find(selector).forEach(function(item) {
-                if ( item.contains(e.target) )
+                if (item.contains(e.target))
                     fn.apply(item, [e].concat(event.data));
             });
+            return e;
         }
-        this.elem().addEventListener(type, handler);
         eventTable[uid] = eventTable[uid] || {};
-        eventTable[uid][type] = eventTable[uid][type] || []
-        eventTable[uid][type].push({ selector: selector, fn: fn, handler: handler})
+        eventTable[uid][type] = eventTable[uid][type] || [];
+        eventTable[uid][type].push({ selector: selector, fn: fn, handler: handler});
+        listeners[type] || rdoc.addEventListener(listeners[type] = type, eventHandler);
         return this;
     }
     function once(type, selector, fn) {
@@ -953,8 +983,7 @@ var EventModuleAPI = (function () {
         return this.api.on(type, selector, fn);
     }
     function off(type, selector, fn) {
-        var k, elem = this.elem(),
-            item = eventTable[this.uid] || {};
+        var k, item = eventTable[this.uid] || {};
         if ( type == undefined ) {
             for ( type in item )
                 off.call(this, type);
@@ -964,31 +993,24 @@ var EventModuleAPI = (function () {
         var buf = [].slice.call(item[type]);
         if ( typeof selector == "function" ) {
             for ( k in buf )
-                if ( selector == buf[k].fn ) {
+                if ( selector == buf[k].fn )
                     item[type].splice(item[type].indexOf(buf[k]), 1);
-                    elem.removeEventListener(type, buf[k].handler);
-                }
         } else if ( selector == undefined ) {
-            for ( k in buf )
-                 elem.removeEventListener(type, buf[k].handler);
             item[type].splice(0);
         } else if ( typeof fn == "function" ) {
             for ( k in buf )
-                if ( fn == buf[k].fn && selector == buf[k].selector ) {
+                if ( fn == buf[k].fn && selector == buf[k].selector )
                     item[type].splice(item[type].indexOf(buf[k]), 1);
-                    elem.removeEventListener(type, buf[k].handler);
-                }
         } else { // typeof selector == "string" only
             for ( k in buf )
-                if ( selector == buf[k].selector ) {
+                if ( selector == buf[k].selector )
                     item[type].splice(item[type].indexOf(buf[k]), 1);
-                    elem.removeEventListener(type, buf[k].handler);
-                }
         }
         return this;
     }
     function trigger(type, data, bubble) {
-        var event = Event(type, bubble);
+        var event = Event(type, true);
+        event.bubble = bubble;
         event.xmlTarget = Store[this.uid];
         event.data = data == null ? [] : ($.isArray(data) ? data : [data]);
         this.elem().dispatchEvent(event);
@@ -999,7 +1021,7 @@ var EventModuleAPI = (function () {
     }
     function Event(type, bubble) {
         var canBubble = !(bubble === false),
-            event = $document.createEvent(specialEvents[type] || "Events");
+            event = rdoc.createEvent(specialEvents[type] || "Events");
         event.initEvent(type, canBubble, true);
         return event;
     }
@@ -1010,16 +1032,10 @@ var EventModuleAPI = (function () {
                 proxy[key] = event[key];
         proxy.currentTarget = listener;
         proxy.target = (event.xmlTarget || hp.create(event.target.xmlTarget)).api;
-        return compatible(proxy, event);
-    }
-    function compatible(event, source) {
-        eventMethods.forEach(function( name ) {
-            var method = source[name];
-            event[name] = function () {
-                return method && method.apply(source, arguments);
-            };
-        });
-        return event;
+        proxy.preventDefault = ()=> event.preventDefault();
+        proxy.stopImmediatePropagation = ()=> proxy.cancelImmediateBubble = true;
+        proxy.stopPropagation = ()=> proxy.cancelBubble = true;
+        return proxy;
     }
     return { on: on, once: once, off: off, trigger: trigger, remove: remove };
 }());
@@ -1036,7 +1052,7 @@ var CommonElementAPI = {
             this.node.data = elem.lastChild.data = value + "";
         } else {
             this.api.kids(0).call("remove");
-            this.api.append(xdocument.createTextNode(value + ""));
+            this.api.append(vdoc.createTextNode(value + ""));
         }
         return this;
     },
@@ -1132,7 +1148,7 @@ var CommonElementAPI = {
             this.node.appendChild(src.node);
             Manager[src.typ].chenv(this.env, src);
             if ( isTop ) {
-                srcEnv.xml.appendChild(xdocument.createElement("void"));
+                srcEnv.xml.appendChild(vdoc.createElement("void"));
                 parseEnvXML(srcEnv, srcParent, srcEnv.xml.lastChild);
             }
             srcEnv.fdr.refresh();
@@ -1164,7 +1180,7 @@ var CommonElementAPI = {
             elem.parentNode.insertBefore(src.elem(), elem);
             Manager[src.typ].chenv(this.env, src);
             if ( isTop ) {
-                srcEnv.xml.appendChild(xdocument.createElement("void"));
+                srcEnv.xml.appendChild(vdoc.createElement("void"));
                 parseEnvXML(srcEnv, srcParent, srcEnv.xml.lastChild);
             }
             srcEnv.fdr.refresh();
@@ -1191,13 +1207,12 @@ var CommonElementAPI = {
                 srcEnv = src.env,
                 srcParent = src.elem().parentNode,
                 isTop = srcEnv.xml.lastChild == src.node;
-            this.api.trigger("willRemoved");
             elem.parentNode.replaceChild(src.elem(), elem);
             this.node.parentNode.replaceChild(src.node, this.node);
             this.node = src.node;
             Manager[src.typ].chenv(this.env, src);
             if ( isTop ) {
-                srcEnv.xml.appendChild(xdocument.createElement("void"));
+                srcEnv.xml.appendChild(vdoc.createElement("void"));
                 parseEnvXML(srcEnv, srcParent, srcEnv.xml.lastChild);
             }
             srcEnv.fdr.refresh();
@@ -1205,7 +1220,6 @@ var CommonElementAPI = {
             Manager[this.typ].recycle(this);
             return target;
         }
-        this.api.trigger("willRemoved");
         target = hp.parseToXML(target, this.env.dir);
         if ( target.nodeType == ELEMENT_NODE && $.isPlainObject(options) ) {
             target.getAttribute("id") || target.setAttribute("id", $.guid());
@@ -1224,7 +1238,6 @@ var CommonElementAPI = {
             this.api.replace("void");
         } else {
             var elem = this.elem();
-            this.api.trigger("willRemoved");
             elem.parentNode.removeChild(elem);
             this.node.parentNode.removeChild(this.node);
             this.node.nodeType == ELEMENT_NODE && this.node.hasAttribute("id") && this.env.fdr.refresh();
@@ -1529,7 +1542,7 @@ var TextElement = (function() {
     return function ( node, parent ) {
         var o = { uid: $.guid() };
         o.typ = node.nodeType;
-        o.ele = $document["create" + types[o.typ]](node.nodeValue);
+        o.ele = rdoc["create" + types[o.typ]](node.nodeValue);
         return o;
     };
 }());
@@ -1609,7 +1622,7 @@ function setComponent(env, ins) {
     if ( !share ) {
         ins.api = ins.back;
     } else if ( share.ins ) {
-        ins.xml.replaceChild(xdocument.createElement("void"), ins.xml.lastChild);
+        ins.xml.replaceChild(vdoc.createElement("void"), ins.xml.lastChild);
         ins.api = hp.build(ins, CopyElementAPI);
         share.copys.push(ins);
         ins.fun = function () {return share.ins.value;};
@@ -1630,6 +1643,7 @@ function CompManager() {
         o.opt = $.extend(true, {}, w.opt);
         o.cfg = $.extend(true, {}, w.cfg);
         o.ctr = o.map.msgscope ? Communication() : env.ctr;
+        // aid: appid, cid: classid
         o.dir = w.dir, o.css = w.css, o.ali = w.ali, o.fun = w.fun, o.cid = w.cid;
         o.smr = env.smr, o.env = env, o.node = node, o.aid = env.aid, node.uid = o.uid;
         var exprs = aliasMatch(env, node);
@@ -1674,25 +1688,33 @@ function CompManager() {
 
 function StyleManager() {
     var table = {},
-        parent = $document.body ? $document.getElementsByTagName("head")[0] : $document.createElement("void");
+        parent = rdoc.body ? rdoc.getElementsByTagName("head")[0] : rdoc.createElement("void");
     function cssText(ins) {
         var klass = ins.aid + ins.cid,
             text = ins.css.replace(WELL, "." + klass).replace(/\$/ig, klass);
-        return $document.createTextNode(text);
+        return rdoc.createTextNode(text);
     }
     function newStyle(ins) {
-        var style = $document.createElement("style");
+        var style = rdoc.createElement("style");
         style.appendChild(cssText(ins));
         return parent.appendChild(style);
     }
-    function addClass(elem, value) {
-        var klass = elem.getAttribute("class"),
-            input = value.split(/\s+/),
-            result = klass ? klass.split(/\s+/) : [];
-        for ( var i = 0; i < input.length; i++ )
-            if ( result.indexOf(input[i]) < 0 )
-                result.push(input[i]);
-        elem.setAttribute("class", result.join(" "));
+    function mapClasses(env, node, elem) {
+        var klass = [],
+            id = node.getAttribute("id");
+        if ( id && env.map.class[id] )
+            klass = env.map.class[id].split(' ');
+        klass.forEach(function (item) {
+            var path = ph.fullPath(env.dir, item);
+            var re = ph.split(path);
+            var basename = re.basename;
+            var s = ph.split(re.dir);
+            re = Library[s.dir] && Library[s.dir][s.basename];
+            if (re) {
+                 basename = basename.replace('#', env.aid + re.cid);
+                 hp.addClass(elem, basename);
+            }
+        });
     }
     function create(ins) {
         var key = ins.env.aid + ins.cid;
@@ -1701,9 +1723,10 @@ function StyleManager() {
         } else if ( ins.css ) {
             table[key] = { count: 1, style: newStyle(ins), ins: ins };
         }
+        mapClasses(ins.env, ins.node, ins.elem());
         var id = ins.node.getAttribute("id");
         if ( id && ins.env.css.indexOf("#" + id) != -1 ) {
-            addClass(ins.elem(), ins.env.aid + ins.env.cid + id);
+            hp.addClass(ins.elem(), ins.env.aid + ins.env.cid + id);
         }
     }
     function remove(ins) {
@@ -1788,7 +1811,7 @@ function setDeferNode(env, node) {
     }
     var id = newNode.getAttribute("id");
     if ( index != -1 || (id && env.map.defer.indexOf(id) != -1) ) {
-        newNode = xdocument.createElement("void");
+        newNode = vdoc.createElement("void");
         id && newNode.setAttribute("id", id);
         node.parentNode.replaceChild(newNode, node);
         newNode.defer = node;
@@ -1929,8 +1952,13 @@ function xmlplus(root, callback) {
             $.error("invalid namespace, expected a null value or a string");
         return makePackage(root, space ? (root + "/" + space) : root);
     }
+    function createTheme(space) {
+        if ( $.type(space) != "string" && space != null )
+            $.error("invalid namespace, expected a null value or a string");
+        return makeTheme(root, space ? (root + "/" + space) : root);
+    }
     try {
-        callback.call(xmlplus, xmlplus, createPackage);
+        callback.call(xmlplus, xmlplus, createPackage, createTheme);
     } catch(error) {
         isReady = -1;
         throw error;
@@ -1946,11 +1974,11 @@ function startup(xml, parent, param) {
         $.error("target type must be ELEMENT_NODE");
     if ( $.isPlainObject(parent) ) {
         param = parent;
-        parent = $document.body || $document.cloneNode();
+        parent = rdoc.body || rdoc.cloneNode();
     } else if ( parent === undefined ) {
-        parent = $document.body || $document.cloneNode();
+        parent = rdoc.body || rdoc.cloneNode();
     } else if ( typeof parent == "string" ) {
-        parent =  $document.getElementById(parent);
+        parent =  rdoc.getElementById(parent);
         if (!parent)
             $.error("parent element " + parent + " not found");
     }
@@ -1963,8 +1991,8 @@ function startup(xml, parent, param) {
         env.xml.getAttribute("id") || env.xml.setAttribute("id", $.guid());
         env.cfg[env.xml.getAttribute("id")] = param;
     }
-    env.xml = env.xml.parentNode || xdocument.cloneNode().appendChild(env.xml).parentNode;
-    fragment = inBrowser ? $document.createDocumentFragment() : parent;
+    env.xml = env.xml.parentNode || vdoc.cloneNode().appendChild(env.xml).parentNode;
+    fragment = inBrowser ? rdoc.createDocumentFragment() : parent;
     instance = parseEnvXML(env, fragment, env.xml.lastChild);
     inBrowser && parent.appendChild(fragment);
     instance = $.extend(hp.create(instance).api, {style: env.smr.style});
@@ -1976,15 +2004,15 @@ function startup(xml, parent, param) {
         XPath = window.xpath || { select: hp.xpathQuery };
         DOMParser_ = DOMParser;
         XMLSerializer_ = XMLSerializer;
-        $document = document;
-        xdocument = $.parseXML("<void/>");
+        rdoc = document;
+        vdoc = $.parseXML("<void/>");
         NodeElementAPI = $.extend(ClientElementAPI, EventModuleAPI, CommonElementAPI);
         window.xmlplus = window.xp = $.extend(xmlplus, $);
         if ( typeof define === "function" && define.amd )
             define( "xmlplus", [], new Function("return xmlplus;"));
         hp.ready(function () {
             if ( isReady !== -1 ) {
-                $document.body.hasAttribute("noparse") || hp.parseHTML($document.body);
+                rdoc.body.getAttribute("init") == "false" || hp.parseHTML(rdoc.body);
                 isReady = true;
             }
         });
@@ -1993,7 +2021,7 @@ function startup(xml, parent, param) {
         XPath = require("xpath");
         DOMParser_ = require("exmldom").DOMParser;
         XMLSerializer_ = require("exmldom").XMLSerializer;
-        xdocument = $document = $.parseXML("<void/>");
+        vdoc = rdoc = $.parseXML("<void/>");
         NodeElementAPI = $.extend(ServerElementAPI, EventModuleAPI, CommonElementAPI);
         module.exports = $.extend(xmlplus, $);
     }
