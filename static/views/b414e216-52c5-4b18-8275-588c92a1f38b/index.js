@@ -346,12 +346,13 @@ $_("signup/form").imports({
             this.on("next", (e, r) => {
                 e.stopPropagation();
                 ptr = ptr.next();
-                ptr.trigger("start", r, false);
+                ptr.trigger("start", r);
             });
             function start() {
                 ptr = first;
-                ptr.trigger("start", {}, false);
+                ptr.trigger("start", {});
             }
+            this.on("start", e => e.stopPropagation());
             return { start: start };
         }
     },
@@ -382,7 +383,7 @@ $_("signup/form").imports({
                 data.length ? sys.area.show().val().init(data) : sys.area.hide();
             });
             this.on("value-change", (e, value) => {
-                this.next().trigger("area-change", value, false);
+                this.next().trigger("area-change", value);
             });
             this.on("start", (e, p) => this.trigger("next", p));
             return { setValue: items.area.setValue };
@@ -397,7 +398,10 @@ $_("signup/form").imports({
                     links[i.area] = links[i.area] || [];
                     links[i.area].push(i);
                 });
-                this.on("area-change", (e, area) => items.link.init(links[area.id]));
+                this.on("area-change", (e, area) => {
+                    e.stopPropagation();
+                    items.link.init(links[area.id]);
+                });
             });
             this.on("start", (e, p) => {
                 p.link = items.link.getValue().id;

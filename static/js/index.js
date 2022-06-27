@@ -117,7 +117,7 @@ $_().imports({
             const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
             sys.footer.on("switch", (e, page) => {
                 e.stopPropagation();
-                sys.stack.trigger("switch", page, false);
+                sys.stack.trigger("switch", page);
             });
             this.on("show", () => this.notify("switch-page", "home"));
             this.on("publish", (e, p) => {
@@ -140,16 +140,17 @@ $_().imports({
             var args, kids = this.kids(),
                 table = kids.call("hide").hash(),
                 ptr = table[opts.index] || kids[0];
-            if (ptr) ptr = ptr.trigger("show", null, false).show();
+            if (ptr) ptr = ptr.trigger("show").show();
             this.on("switch", function (e, to) {
+                e.stopPropagation();
                 table = this.kids().hash();
                 if (!table[to] || table[to] == ptr) return;
-                e.stopPropagation();
                 args = [].slice.call(arguments).slice(2);
                 ptr.trigger("hide", [to+''].concat(args)).hide();
-                ptr = table[to].trigger("show", [ptr+''].concat(args), false).show();
+                ptr = table[to].trigger("show", [ptr+''].concat(args)).show();
             });
-            return {selected: ()=>{return ptr}};
+            this.on("show", e => e.stopPropagation());
+            this.on("hide", e => e.stopPropagation());
         }
     }
 });
@@ -193,12 +194,13 @@ $_("login").imports({
             this.on("next", (e, r) => {
                 e.stopPropagation();
                 ptr = ptr.next();
-                ptr.trigger("start", r, false);
+                ptr.trigger("start", r);
             });
             function start() {
                 ptr = first;
-                ptr.trigger("start", {}, false);
+                ptr.trigger("start", {});
             }
+            this.on("start", e => e.stopPropagation());
             return {start: start};
         }
     },

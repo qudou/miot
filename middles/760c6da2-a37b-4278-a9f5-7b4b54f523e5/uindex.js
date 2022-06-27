@@ -72,12 +72,13 @@ $_().imports({
             this.on("next", (e, p) => {
                 e.stopPropagation();
                 ptr = ptr.next();
-                ptr.trigger("exec", p, false);
+                ptr.trigger("exec", p);
             });
             function start(e, p) {
                 ptr = first;
-                ptr.trigger("exec", p, false);
+                ptr.trigger("exec", p);
             }
+            this.on("exec", e => e.stopPropagation());
             return {start: start};
         }
     }

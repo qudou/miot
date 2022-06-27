@@ -231,12 +231,13 @@ $_("signup/form").imports({
             this.on("next", (e, r) => {
                 e.stopPropagation();
                 ptr = ptr.next();
-                ptr.trigger("start", r, false);
+                ptr.trigger("start", r);
             });
             function start() {
                 ptr = first;
-                ptr.trigger("start", {}, false);
+                ptr.trigger("start", {});
             }
+            this.on("start", e => e.stopPropagation());
             return { start: start };
         }
     },

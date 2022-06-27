@@ -173,15 +173,17 @@ $_().imports({
             var args, kids = this.kids(),
                 table = kids.call("hide").hash(),
                 ptr = table[opts.index] || kids[0];
-            if (ptr) ptr = ptr.trigger("show", null, false).show();
+            if (ptr) ptr = ptr.trigger("show").show();
             this.on("switch", function (e, to) {
+                e.stopPropagation();
                 table = this.kids().hash();
                 if (!table[to] || table[to] == ptr) return;
-                e.stopPropagation();
                 args = [].slice.call(arguments).slice(2);
                 ptr.trigger("hide", [to+''].concat(args)).hide();
-                ptr = table[to].trigger("show", [ptr+''].concat(args), false).show();
+                ptr = table[to].trigger("show", [ptr+''].concat(args)).show();
             });
+            this.on("show", e => e.stopPropagation());
+            this.on("hide", e => e.stopPropagation());
         }
     },
     Query: {
@@ -246,12 +248,13 @@ $_("login").imports({
             this.on("next", (e, r) => {
                 e.stopPropagation();
                 ptr = ptr.next();
-                ptr.trigger("start", r, false);
+                ptr.trigger("start", r);
             });
             function start() {
                 ptr = first;
-                ptr.trigger("start", {}, false);
+                ptr.trigger("start", {});
             }
+            this.on("start", e => e.stopPropagation());
             return {start: start};
         }
     },
