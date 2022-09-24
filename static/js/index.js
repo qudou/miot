@@ -18,7 +18,8 @@ $_().imports({
               #index { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
               #login { background: #FFF; }\
               #index > * { width: 100%; height: 100%; }\
-              .toast-text { width:100%; text-align: center;}",
+              .toast-text { width:100%; text-align: center;}\
+			  .dialog { border: 1px solid #CACDD1; }",
         xml: "<ViewStack id='index'>\
                 <Verify id='verify'/>\
                 <Service id='service'/>\
