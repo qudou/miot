@@ -254,9 +254,9 @@ $_("mosca").imports({
                 let payload = {mid: p.mid, topic: p.topic, data: p.data};
                 this.notify("to-users", payload);
             });
-            this.on("to-local", (e, p) => {
+            this.on("to-local", async (e, p) => {
                 e.stopPropagation();
-                let m = items.uitl.getAppById(p.mid);
+                let m = await items.uitl.getAppById(p.mid);
                 let body = { topic: p.topic, body: p.body };
                 this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });
