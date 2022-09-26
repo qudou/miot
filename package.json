@@ -5,7 +5,8 @@
     "xmlplus": "^1.5.12",
     "mosca": "^2.7.0",
     "sqlite3": "^3.1.13",
-    "uuid": "^8.3.2"
+    "uuid": "^8.3.2",
+	"node-schedule": "^2.1.0"
   },
   "description": "An IOT platform based on MQTT.",
   "main": "miot.js",

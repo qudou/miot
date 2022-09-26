@@ -4,7 +4,6 @@
  * (c) 2009-2017 qudou
  * Released under the MIT license
  */
-
 const xmlplus = require("xmlplus");
 
 xmlplus("9cd179c0-7231-4d08-b015-0fccf2086302", (xp, $_) => { // 网关管理

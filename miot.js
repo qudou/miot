@@ -7,9 +7,10 @@
 
 const mosca = require("mosca");
 const xmlplus = require("xmlplus");
+const { Worker } = require('worker_threads');
 const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
-const config = JSON.parse(require("fs").readFileSync(`${__dirname}/config.json`)
-                                       .toString().replace(/dir/g, __dirname));
+const fs = require("fs");
+const config = JSON.parse(fs.readFileSync(`${__dirname}/config.json`).toString().replace(/dir/g, __dirname));
 xmlplus("miot", (xp, $_) => {
 
 $_().imports({
@@ -20,7 +21,7 @@ $_().imports({
                 <Proxy id='proxy'/>\
               </main>",
         cfg: { logger: config.logger },
-        map: { share: "OpenAPI Crypto Sqlite Logger" }
+        map: { share: "Logger Crypto Sqlite Common" }
     },
     Mosca: { // 连接内网网关
         xml: "<main id='mosca' xmlns:i='mosca'>\
@@ -55,7 +56,7 @@ $_().imports({
                 if (!p.topic) 
                     await items.apps.cache(m.id, p);
                 p.mid = m.id;
-                await items.middle.create(m.view, p);
+                await items.middle.notify(m.view, p);
             });
             this.watch("to-local", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
@@ -70,7 +71,7 @@ $_().imports({
                 <i:Middle id='middle'/>\
                 <i:Session id='session'/>\
                 <Logger id='logger'/>\
-                <OpenAPI id='openAPI'/>\
+                <Common id='common'/>\
               </main>",
         map: { share: "proxy/Session" },
         fun: function (sys, items, opts) {
@@ -81,7 +82,7 @@ $_().imports({
                 items.logger.info("Proxy server is up and running"); 
             });
             server.on("subscribed", async (topic, client) => {
-                let s = await items.openAPI.getUserByClient(client.id);
+                let s = await items.common.getUserByClient(client.id);
                 let p = {topic: "/ui/session", data: {session: s.session, username: s.name}};
                 p = JSON.stringify(p);
                 server.publish({topic: client.id, payload: p, qos: 1, retain: false});
@@ -90,10 +91,12 @@ $_().imports({
             server.on("published", async (packet, client) => {
                 if (client == undefined) return;
                 let p = JSON.parse(packet.payload + '');
-                let m = await items.openAPI.getAppById(packet.topic);
+                let m = await items.common.getAppById(packet.topic);
+				let u = await items.common.getUserByClient(client.id);
                 p.cid = client.id;
                 p.mid = packet.topic;
-                await items.middle.create(m.view, p);
+				p.user = u.name;
+                await items.middle.notify(m.view, p);
             });
             this.watch("to-user", (e, topic, p) => {
                 p = (p.mid == uid) ? p : {topic: p.topic ? "/ui/app" : "/stat/app", data: p};
@@ -104,30 +107,6 @@ $_().imports({
                 let users = await items.users.getUsersByMiddle(payload.mid);
                 users.forEach(item => this.notify("to-user", [item.client_id, payload]));
             });
-        }
-    },
-    Logger: {//自定义日志模块
-        opt: { level: "info", appender: "default" },
-        fun: function (sys, items, opts) {
-            let results = {};
-            let levels = {"trace":0,"debug":1,"info":2,"warn":3,"error":4,"fatal":5};
-            let min = levels[opts.level];
-            function format(date, fmt) {
-                var o = { "y+" : date.getFullYear(), "M+" : date.getMonth() + 1, "d+" : date.getDate(), "h+" : date.getHours(), "m+" : date.getMinutes(), "s+" : date.getSeconds(), "S+" : date.getMilliseconds() };
-                var z = { "y+" : '0000', 'M+': '00', 'd+': '00', 'h+': '00', 'm+': '00', 's+': '00', 'S+': '000' };
-                for (var k in o)
-                    if (new RegExp("(" + k + ")").test(fmt))
-                        fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : ((z[k] + o[k]).substr(("" + o[k]).length)));
-                return fmt;
-            }
-            function printf(level, appender, text) {
-                // [2010-01-17 11:43:37.987] [DEBUG] [default] - Some debug messages
-                let date = format(new Date, "yyyy-MM-dd hh:mm:ss.SSS")
-                console.log(`[${date}] [${level}] [${appender}] - ${text}`);
-            }
-            for (let l in levels )
-                results[l] = text => (levels[l] >= min && printf(l, opts.appender, text));
-            return results;
         }
     }
 });
@@ -228,27 +207,19 @@ $_("mosca").imports({
         }
     },
     Middle: {
-        xml: "<OpenAPI id='middle' xmlns='/'/>",
+        xml: "<Common id='middle' xmlns='/'/>",
         fun: function (sys, items, opts) {
             let table = {};
-            async function create(klass, p) {
-                if (!table[klass]) {
-                    let path = `${__dirname}/middles/${klass}/pindex.js`;
-                    if (!await items.middle.exists(path))
-                        return sys.middle.trigger("to-users", p);
-                    table[klass] = middle(klass, path);
-                }
-                let msgs = xp.messages(table[klass]);
-                if(msgs.indexOf(p.topic) == -1)
-                    return sys.middle.trigger("to-users", p);
-                table[klass].notify(p.topic, p);
+            function notify(mid, p) {
+				table[mid] ? table[mid].notify(p) : sys.middle.trigger("to-users", p);
             }
-            function middle(klass, path) {
-                require(path);
-                let c = xp.hasComponent(`//${klass}/Index`);
-                c.map.msgscope = true;
-                return sys.middle.append(`//${klass}/Index`);
-            }
+			(async function initMiddles() {
+				let cdir = `${__dirname}/middles/user`;
+				let mids = fs.readdirSync(cdir);
+				for (let mid of mids)
+				    if (await items.middle.exists(`${cdir}/${mid}/pindex.js`))
+					    table[mid] = sys.middle.append("Worder", {mid: mid, type: "pindex"}).val();
+			}());
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
                 let payload = {mid: p.mid, topic: p.topic, data: p.data};
@@ -256,13 +227,43 @@ $_("mosca").imports({
             });
             this.on("to-local", async (e, p) => {
                 e.stopPropagation();
-                let m = await items.uitl.getAppById(p.mid);
+                let m = await items.middle.getAppById(p.mid);
                 let body = { topic: p.topic, body: p.body };
                 this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });
-            return { create: create };
+            return { notify: notify };
         }
-    }
+    },
+	Worker: {
+		xml: "<main id='common'>\
+		        <Logger id='logger' xmlns='/'/>\
+		      </main>",
+		fun: function (sys, items, opts) {
+			console.log(opts.mid);
+			let worker = null;
+			let file = `${__dirname}/middles/relay.js`;
+			let middle = `${__dirname}/middles/user/${opts.mid}/${opts.type}.js`;
+			(function makeWorker() {
+				worker = new Worker(file, {workerData: middle});
+				worker.on('message', msg => {
+					sys.common.trigger(msg.topic, msg.payload);
+				});
+				worker.on('error', (error) => {
+					worker = null;
+					items.logger.error(error);
+				});
+				worker.on('exit', (code) => {
+					worker = null;
+					items.logger.info(`middle ${opts.mid}/${opts.type} finished with exit code ${code}`);
+					//makeWorker();
+				});
+			}())
+			function notify(payload) {
+				worker && worker.postMessage(payload);
+			}
+			return { notify: notify };
+		}
+	}
 });
 
 $_("proxy").imports({
@@ -371,27 +372,24 @@ $_("proxy").imports({
         }
     },
     Middle: {
-        xml: "<OpenAPI id='middle' xmlns='/'/>",
+        xml: "<Common id='middle' xmlns='/'/>",
         fun: function (sys, items, opts) {
             let table = {};
-            async function create(klass, p) {
-                if (!table[klass]) {
-                    let path = `${__dirname}/middles/${klass}/uindex.js`;
-                    if (!await items.middle.exists(path))
-                        return sys.middle.trigger("to-local", p);
-                    table[klass] = middle(klass, path);
-                }
-                let msgs = xp.messages(table[klass]);
-                if(msgs.indexOf(p.topic) == -1)
-                    return sys.middle.trigger("to-local", p);
-                table[klass].notify(p.topic, p);
+            function notify(mid, p) {
+				table[mid] ? table[mid].notify(p) : sys.middle.trigger("to-local", p);
             }
-            function middle(klass, path) {
-                require(path);
-                let c = xp.hasComponent(`//${klass}/Index`);
-                c.map.msgscope = true;
-                return sys.middle.append(`//${klass}/Index`);
-            }
+			(async function initMiddles() {
+				let sdir = `${__dirname}/middles/sys`;
+				let mids = fs.readdirSync(sdir);
+				for (let mid of mids)
+					if (await items.middle.exists(`${sdir}/${mid}/uindex.js`))
+					    table[mid] = sys.middle.append("System", { mid: mid }).val();
+				let cdir = `${__dirname}/middles/user`;
+				mids = fs.readdirSync(cdir);
+				for (let mid of mids)
+					if (await items.middle.exists(`${cdir}/${mid}/uindex.js`))
+					    table[mid] = sys.middle.append("../mosca/Worker", {mid: mid, type: "uindex"}).val();
+			}());
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
                 let payload = {mid: p.mid, topic: p.topic, data: p.data};
@@ -403,7 +401,22 @@ $_("proxy").imports({
                 let body = { topic: p.topic, body: p.body };
                 this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });
-            return { create: create };
+            return { notify: notify };
+        }
+    },
+    System: {
+        xml: "<main id='system'/>",
+		map: { msgscope: true },
+        fun: function (sys, items, opts) {
+			require(`${__dirname}/middles/sys/${opts.mid}/uindex.js`);
+			sys.system.append(`//${opts.mid}/Index`);
+            function notify(p) {
+                let msgs = xp.messages(sys.system);
+                if(msgs.indexOf(p.topic) == -1)
+                    return sys.system.trigger("to-users", p);
+                sys.system.notify(p.topic, p);
+            }
+			return { notify: notify };
         }
     },
     Session: {
@@ -486,33 +499,28 @@ $_("proxy/login").imports({
 });
 
 $_().imports({
-    OpenAPI: {
-        xml: "<Sqlite id='sqlite'/>",
+    Logger: {//自定义日志模块
+        opt: { level: "info", appender: "default" },
         fun: function (sys, items, opts) {
-            let fs= require("fs");
-            function exists(path) {
-                return new Promise((resolve, reject) => fs.exists(path, e => resolve(e)));
+            let results = {};
+            let levels = {"trace":0,"debug":1,"info":2,"warn":3,"error":4,"fatal":5};
+            let min = levels[opts.level];
+            function format(date, fmt) {
+                var o = { "y+" : date.getFullYear(), "M+" : date.getMonth() + 1, "d+" : date.getDate(), "h+" : date.getHours(), "m+" : date.getMinutes(), "s+" : date.getSeconds(), "S+" : date.getMilliseconds() };
+                var z = { "y+" : '0000', 'M+': '00', 'd+': '00', 'h+': '00', 'm+': '00', 's+': '00', 'S+': '000' };
+                for (var k in o)
+                    if (new RegExp("(" + k + ")").test(fmt))
+                        fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : ((z[k] + o[k]).substr(("" + o[k]).length)));
+                return fmt;
             }
-            function getAppById(appid) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT * FROM apps WHERE id = '${appid}'`;
-                    items.sqlite.all(stmt, (err, data) => {
-                        if (err) throw err;
-                        resolve(data[0]);
-                    });
-                });
+            function printf(level, appender, text) {
+                // [2010-01-17 11:43:37.987] [DEBUG] [default] - Some debug messages
+                let date = format(new Date, "yyyy-MM-dd hh:mm:ss.SSS")
+                console.log(`[${date}] [${level}] [${appender}] - ${text}`);
             }
-            function getUserByClient(client_id) {
-                return new Promise((resolve, reject) => {
-                    let stmt = `SELECT users.* FROM users,status
-                                WHERE status.client_id='${client_id}' AND users.id=status.user_id`;
-                    items.sqlite.all(stmt, (err, rows) => {
-                        if (err) throw err;
-                        resolve(rows[0]);
-                    });
-                });
-            }
-            return { getAppById: getAppById, exists: exists, getUserByClient: getUserByClient };
+            for (let l in levels )
+                results[l] = text => (levels[l] >= min && printf(l, opts.appender, text));
+            return results;
         }
     },
     Crypto: {
@@ -559,6 +567,35 @@ $_().imports({
             db.exec("VACUUM");
             db.exec("PRAGMA foreign_keys = ON");
             return db;
+        }
+    },
+    Common: {
+        xml: "<Sqlite id='sqlite'/>",
+        fun: function (sys, items, opts) {
+            let fs= require("fs");
+            function exists(path) {
+                return new Promise((resolve, reject) => fs.exists(path, e => resolve(e)));
+            }
+            function getAppById(appid) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT * FROM apps WHERE id = '${appid}'`;
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data[0]);
+                    });
+                });
+            }
+            function getUserByClient(client_id) {
+                return new Promise((resolve, reject) => {
+                    let stmt = `SELECT users.* FROM users,status
+                                WHERE status.client_id='${client_id}' AND users.id=status.user_id`;
+                    items.sqlite.all(stmt, (err, rows) => {
+                        if (err) throw err;
+                        resolve(rows[0]);
+                    });
+                });
+            }
+            return { getAppById: getAppById, exists: exists, getUserByClient: getUserByClient };
         }
     }
 });

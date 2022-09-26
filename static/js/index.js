@@ -71,7 +71,7 @@ $_().imports({
                 client.on("close", e => this.notify("/stat/ui/0"));
                 client.on("error", e => {
                     this.trigger("message", ["error", e.message]);
-                    e.message == "Bad username or password" && this.notify("/ui/logout");
+                    e.message == "Connection refused: Bad username or password" && this.notify("/ui/logout");
                 });
             });
             this.watch("/ui/logout", (e, p) => {

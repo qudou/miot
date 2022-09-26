@@ -1,8 +1,8 @@
 {
-    "proxy": {
+    "view": {
         "http": {"port": 8080, "static": "dir/static"}
     },
-    "mosca": {
+    "gateway": {
         "port": 1883
     },
     "logger": {
