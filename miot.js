@@ -7,7 +7,6 @@
 
 const mosca = require("mosca");
 const xmlplus = require("xmlplus");
-const { Worker } = require('worker_threads');
 const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
 const fs = require("fs");
 const config = JSON.parse(fs.readFileSync(`${__dirname}/config.json`).toString().replace(/dir/g, __dirname));
@@ -21,7 +20,7 @@ $_().imports({
                 <Proxy id='proxy'/>\
               </main>",
         cfg: { logger: config.logger },
-        map: { share: "Logger Crypto Sqlite Common" }
+        map: { share: "Logger Crypto Sqlite Common mosca/Middle" }
     },
     Mosca: { // 连接内网网关
         xml: "<main id='mosca' xmlns:i='mosca'>\
@@ -31,7 +30,7 @@ $_().imports({
                 <i:Middle id='middle'/>\
                 <Logger id='logger'/>\
               </main>",
-        fun: async function (sys, items, opts) {
+        fun: function (sys, items, opts) {
             let server = new mosca.Server(config.gateway);
             server.on("ready", async () => {
                 await items.links.offlineAll();
@@ -56,7 +55,7 @@ $_().imports({
                 if (!p.topic) 
                     await items.apps.cache(m.id, p);
                 p.mid = m.id;
-                await items.middle.notify(m.view, p);
+                await items.middle.notify(m.view, "pindex", p);
             });
             this.watch("to-local", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
@@ -68,7 +67,7 @@ $_().imports({
         xml: "<main id='proxy' xmlns:i='proxy'>\
                 <i:Authorize id='auth'/>\
                 <i:Users id='users'/>\
-                <i:Middle id='middle'/>\
+                <Middle id='middle' xmlns='mosca'/>\
                 <i:Session id='session'/>\
                 <Logger id='logger'/>\
                 <Common id='common'/>\
@@ -96,7 +95,7 @@ $_().imports({
                 p.cid = client.id;
                 p.mid = packet.topic;
 				p.user = u.name;
-                await items.middle.notify(m.view, p);
+                await items.middle.notify(m.view, "uindex", p);
             });
             this.watch("to-user", (e, topic, p) => {
                 p = (p.mid == uid) ? p : {topic: p.topic ? "/ui/app" : "/stat/app", data: p};
@@ -208,22 +207,18 @@ $_("mosca").imports({
     },
     Middle: {
         xml: "<Common id='middle' xmlns='/'/>",
-        fun: function (sys, items, opts) {
+        fun: async function (sys, items, opts) {
             let table = {};
-            function notify(mid, p) {
-				table[mid] ? table[mid].notify(p) : sys.middle.trigger("to-users", p);
-            }
-			(async function initMiddles() {
-				let cdir = `${__dirname}/middles/user`;
-				let mids = fs.readdirSync(cdir);
-				for (let mid of mids)
-				    if (await items.middle.exists(`${cdir}/${mid}/pindex.js`))
-					    table[mid] = sys.middle.append("Worder", {mid: mid, type: "pindex"}).val();
-			}());
+			let viewId = "c258080a-d635-4e1b-a61f-48ff552c146a";
+			let sdir = `${__dirname}/middles/sys`;
+			let mids = fs.readdirSync(sdir);
+			for (let mid of mids)
+				if (await items.middle.exists(`${sdir}/${mid}/uindex.js`))
+					table[mid] = sys.middle.append("System", { mid: mid }).val();
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
                 let payload = {mid: p.mid, topic: p.topic, data: p.data};
-                this.notify("to-users", payload);
+                p.cid ? this.notify("to-user", [p.cid, payload]) : this.notify("to-users", payload);
             });
             this.on("to-local", async (e, p) => {
                 e.stopPropagation();
@@ -231,39 +226,27 @@ $_("mosca").imports({
                 let body = { topic: p.topic, body: p.body };
                 this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });
+			function notify(mid, type, p) {
+				table[mid] ? table[mid].notify(p) : table[viewId].notify(type, [mid, p]);
+            }
             return { notify: notify };
         }
     },
-	Worker: {
-		xml: "<main id='common'>\
-		        <Logger id='logger' xmlns='/'/>\
-		      </main>",
-		fun: function (sys, items, opts) {
-			console.log(opts.mid);
-			let worker = null;
-			let file = `${__dirname}/middles/relay.js`;
-			let middle = `${__dirname}/middles/user/${opts.mid}/${opts.type}.js`;
-			(function makeWorker() {
-				worker = new Worker(file, {workerData: middle});
-				worker.on('message', msg => {
-					sys.common.trigger(msg.topic, msg.payload);
-				});
-				worker.on('error', (error) => {
-					worker = null;
-					items.logger.error(error);
-				});
-				worker.on('exit', (code) => {
-					worker = null;
-					items.logger.info(`middle ${opts.mid}/${opts.type} finished with exit code ${code}`);
-					//makeWorker();
-				});
-			}())
-			function notify(payload) {
-				worker && worker.postMessage(payload);
-			}
+    System: {
+        xml: "<main id='system'/>",
+		map: { msgscope: true },
+        fun: function (sys, items, opts) {
+			require(`${__dirname}/middles/sys/${opts.mid}/uindex.js`);
+			sys.system.append(`//${opts.mid}/Index`);
+            function notify(p) {
+                let msgs = xp.messages(sys.system);
+                if(msgs.indexOf(p.topic) == -1)
+                    return sys.system.trigger("to-users", p);
+                sys.system.notify(p.topic, p);
+            }
 			return { notify: notify };
-		}
-	}
+        }
+    }
 });
 
 $_("proxy").imports({
@@ -369,54 +352,6 @@ $_("proxy").imports({
                 });
             }
             return { canSubscribe: canSubscribe, canPublish: canPublish, getUsersByMiddle: getUsersByMiddle, connected: connected, disconnected: disconnected, offlineAll: offlineAll };
-        }
-    },
-    Middle: {
-        xml: "<Common id='middle' xmlns='/'/>",
-        fun: function (sys, items, opts) {
-            let table = {};
-            function notify(mid, p) {
-				table[mid] ? table[mid].notify(p) : sys.middle.trigger("to-local", p);
-            }
-			(async function initMiddles() {
-				let sdir = `${__dirname}/middles/sys`;
-				let mids = fs.readdirSync(sdir);
-				for (let mid of mids)
-					if (await items.middle.exists(`${sdir}/${mid}/uindex.js`))
-					    table[mid] = sys.middle.append("System", { mid: mid }).val();
-				let cdir = `${__dirname}/middles/user`;
-				mids = fs.readdirSync(cdir);
-				for (let mid of mids)
-					if (await items.middle.exists(`${cdir}/${mid}/uindex.js`))
-					    table[mid] = sys.middle.append("../mosca/Worker", {mid: mid, type: "uindex"}).val();
-			}());
-            this.on("to-users", (e, p) => {
-                e.stopPropagation();
-                let payload = {mid: p.mid, topic: p.topic, data: p.data};
-                p.cid ? this.notify("to-user", [p.cid, payload]) : this.notify("to-users", payload);
-            });
-            this.on("to-local", async (e, p) => {
-                e.stopPropagation();
-                let m = await items.middle.getAppById(p.mid);
-                let body = { topic: p.topic, body: p.body };
-                this.notify("to-local", [m.link, {pid: m.part, body: body}]);
-            });
-            return { notify: notify };
-        }
-    },
-    System: {
-        xml: "<main id='system'/>",
-		map: { msgscope: true },
-        fun: function (sys, items, opts) {
-			require(`${__dirname}/middles/sys/${opts.mid}/uindex.js`);
-			sys.system.append(`//${opts.mid}/Index`);
-            function notify(p) {
-                let msgs = xp.messages(sys.system);
-                if(msgs.indexOf(p.topic) == -1)
-                    return sys.system.trigger("to-users", p);
-                sys.system.notify(p.topic, p);
-            }
-			return { notify: notify };
         }
     },
     Session: {

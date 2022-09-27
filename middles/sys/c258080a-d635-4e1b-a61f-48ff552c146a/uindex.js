@@ -5,7 +5,9 @@
  * Released under the MIT license
  */
 
+const fs = require("fs");
 const xmlplus = require("xmlplus");
+const { Worker } = require('worker_threads');
 
 xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => { // 视图管理
 
@@ -16,6 +18,8 @@ $_().imports({
                 <Signup id='signup'/>\
                 <Remove id='remove'/>\
                 <Update id='update'/>\
+				<ViewMiddle id='viewMiddle'/>\
+				<PartMiddle id='partMiddle'/>\
               </main>"
     },
     Select: {
@@ -79,6 +83,65 @@ $_().imports({
             return { start: start };
         }
     }
+});
+
+$_().imports({
+	ViewMiddle: {
+		xml: "<Common id='middle' xmlns='//miot'/>",
+		fun: async function (sys, items, opts) {
+			let table = {};
+			let cdir = `${__dirname}/../../user`;
+			let mids = fs.readdirSync(cdir);
+			for (let mid of mids)
+				if (await items.middle.exists(`${cdir}/${mid}/uindex.js`))
+					table[mid] = sys.middle.append("Worker", {mid: mid, type: "uindex"}).val();
+			this.watch("uindex", (e, mid, p) => {
+				table[mid] ? table[mid].notify(p) : this.trigger("to-local", p);
+			});
+		}
+	},
+	PartMiddle: {
+		xml: "<Common id='middle' xmlns='//miot'/>",
+		fun: async function (sys, items, opts) {
+			let table = {};
+			let cdir = `${__dirname}/../../user`;
+			let mids = fs.readdirSync(cdir);
+			for (let mid of mids)
+				if (await items.middle.exists(`${cdir}/${mid}/pindex.js`))
+					table[mid] = sys.middle.append("Worder", {mid: mid, type: "pindex"}).val();
+			this.watch("pindex", (e, mid, p) => {
+				table[mid] ? table[mid].notify(p) : this.trigger("to-users", p);
+			});
+		}
+	},
+	Worker: {
+		xml: "<main id='common'>\
+		        <Logger id='logger' xmlns='//miot'/>\
+		      </main>",
+		fun: function (sys, items, opts) {
+			let worker = null;
+			let file = `${__dirname}/../../relay.js`;
+			let middle = `${__dirname}/../../user/${opts.mid}/${opts.type}.js`;
+			(function makeWorker() {
+				worker = new Worker(file, {workerData: middle});
+				worker.on('message', msg => {
+					sys.common.trigger(msg.topic, msg.payload);
+				});
+				worker.on('error', (error) => {
+					worker = null;
+					items.logger.error(error);
+				});
+				worker.on('exit', (code) => {
+					worker = null;
+					items.logger.info(`middle ${opts.mid}/${opts.type} finished with exit code ${code}`);
+				});
+			}())
+			function notify(payload) {
+				worker && worker.postMessage(payload);
+			}
+			return { notify: notify };
+		}
+	}
 });
 
 $_("signup").imports({
