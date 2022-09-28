@@ -1,5 +1,5 @@
 /*!
- * miot.js v1.1.14
+ * miot.js v1.1.18
  * https://github.com/qudou/miot
  * (c) 2017-2022 qudou
  * Released under the MIT license
@@ -55,7 +55,9 @@ $_().imports({
                 if (!p.topic) 
                     await items.apps.cache(m.id, p);
                 p.mid = m.id;
-                await items.middle.notify(m.view, "pindex", p);
+				items.middle.then((middle) => {
+					middle.notify(m.view, "pindex", p)
+				});
             });
             this.watch("to-local", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
@@ -67,7 +69,7 @@ $_().imports({
         xml: "<main id='proxy' xmlns:i='proxy'>\
                 <i:Authorize id='auth'/>\
                 <i:Users id='users'/>\
-                <Middle id='middle' xmlns='mosca'/>\
+                <i:Middle id='middle' xmlns:i='mosca'/>\
                 <i:Session id='session'/>\
                 <Logger id='logger'/>\
                 <Common id='common'/>\
@@ -95,7 +97,9 @@ $_().imports({
                 p.cid = client.id;
                 p.mid = packet.topic;
 				p.user = u.name;
-                await items.middle.notify(m.view, "uindex", p);
+				items.middle.then((middle) => {
+					middle.notify(m.view, "uindex", p)
+				});
             });
             this.watch("to-user", (e, topic, p) => {
                 p = (p.mid == uid) ? p : {topic: p.topic ? "/ui/app" : "/stat/app", data: p};
@@ -214,7 +218,7 @@ $_("mosca").imports({
 			let mids = fs.readdirSync(sdir);
 			for (let mid of mids)
 				if (await items.middle.exists(`${sdir}/${mid}/uindex.js`))
-					table[mid] = sys.middle.append("System", { mid: mid }).val();
+					table[mid] = sys.middle.append("System", { mid: mid });
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
                 let payload = {mid: p.mid, topic: p.topic, data: p.data};
@@ -227,7 +231,7 @@ $_("mosca").imports({
                 this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });
 			function notify(mid, type, p) {
-				table[mid] ? table[mid].notify(p) : table[viewId].notify(type, [mid, p]);
+				table[mid] ? table[mid].val().notify(p) : table[viewId].notify(type, [mid, p]);
             }
             return { notify: notify };
         }
@@ -434,7 +438,7 @@ $_("proxy/login").imports({
 });
 
 $_().imports({
-    Logger: {//自定义日志模块
+    Logger: {
         opt: { level: "info", appender: "default" },
         fun: function (sys, items, opts) {
             let results = {};
