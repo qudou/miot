@@ -120,7 +120,7 @@ $_().imports({
 		      </main>",
 		fun: function (sys, items, opts) {
 			let worker = null;
-			let file = `${__dirname}/../../relay.js`;
+			let file = `${__dirname}/relay.js`;
 			let middle = `${__dirname}/../../user/${opts.mid}/${opts.type}.js`;
 			(function makeWorker() {
 				worker = new Worker(file, {workerData: middle});
