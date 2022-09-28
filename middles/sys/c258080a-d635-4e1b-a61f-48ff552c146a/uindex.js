@@ -134,6 +134,7 @@ $_().imports({
 				worker.on('exit', (code) => {
 					worker = null;
 					items.logger.info(`middle ${opts.mid}/${opts.type} finished with exit code ${code}`);
+					setTimeout(()=> makeWorker(), 10*1000);
 				});
 			}())
 			function notify(payload) {
