@@ -18,8 +18,8 @@ $_().imports({
                 <Signup id='signup'/>\
                 <Remove id='remove'/>\
                 <Update id='update'/>\
-				<ViewMiddle id='viewMiddle'/>\
-				<PartMiddle id='partMiddle'/>\
+                <ViewMiddle id='viewMiddle'/>\
+                <PartMiddle id='partMiddle'/>\
               </main>"
     },
     Select: {
@@ -36,12 +36,12 @@ $_().imports({
         }
     },
     Signup: {
-        xml: "<Flow id='signup' xmlns:i='signup'>\
-                <i:Validate/>\
-                <i:Signup/>\
-              </Flow>",
+        xml: "<Falls id='signup' xmlns:i='signup'>\
+                <i:Validate id='validate'/>\
+                <i:Signup id='signup'/>\
+              </Falls>",
         fun: function (sys, items, opts) {
-            this.watch("/views/signup", items.signup.start);
+            this.watch("/views/signup", (e, p) => sys.validate.trigger("validate", p));
         }
     },
     Remove: {
@@ -59,96 +59,87 @@ $_().imports({
         }
     },
     Update: {
-        xml: "<Flow id='update' xmlns:i='update'>\
-                <i:Validate/>\
-                <i:Update/>\
-              </Flow>",
+        xml: "<Falls id='update' xmlns:i='update'>\
+                <i:Validate id='validate'/>\
+                <i:Update id='update'/>\
+              </Falls>",
         fun: function (sys, items, opts) {
-            this.watch("/views/update", items.update.start);
+            this.watch("/views/update", (e, p) => sys.validate.trigger("validate", p));
         }
     },
-    Flow: {
+    Falls: {
         fun: function (sys, items, opts) {
-            var ptr, first = this.first();
-            this.on("next", (e, p) => {
-                e.stopPropagation();
-                ptr = ptr.next();
-                ptr.trigger("exec", p);
-            });
-            function start(e, p) {
-                ptr = first;
-                ptr.trigger("exec", p);
-            }
-            this.on("exec", e => e.stopPropagation());
-            return { start: start };
+            let kids = this.kids();
+            for (i = kids.length-2; i >= 0; i--)
+                kids[i+1].append(kids[i]);
         }
     }
 });
 
 $_().imports({
-	ViewMiddle: {
-		xml: "<Common id='middle' xmlns='//miot'/>",
-		fun: async function (sys, items, opts) {
-			let table = {};
-			let cdir = `${__dirname}/../../user`;
-			let mids = fs.readdirSync(cdir);
-			for (let mid of mids)
-				if (await items.middle.exists(`${cdir}/${mid}/uindex.js`))
-					table[mid] = sys.middle.append("Worker", {mid: mid, type: "uindex"}).val();
-			this.watch("uindex", (e, mid, p) => {
-				table[mid] ? table[mid].notify(p) : this.trigger("to-local", p);
-			});
-		}
-	},
-	PartMiddle: {
-		xml: "<Common id='middle' xmlns='//miot'/>",
-		fun: async function (sys, items, opts) {
-			let table = {};
-			let cdir = `${__dirname}/../../user`;
-			let mids = fs.readdirSync(cdir);
-			for (let mid of mids)
-				if (await items.middle.exists(`${cdir}/${mid}/pindex.js`))
-					table[mid] = sys.middle.append("Worder", {mid: mid, type: "pindex"}).val();
-			this.watch("pindex", (e, mid, p) => {
-				table[mid] ? table[mid].notify(p) : this.trigger("to-users", p);
-			});
-		}
-	},
-	Worker: {
-		xml: "<main id='common'>\
-		        <Logger id='logger' xmlns='//miot'/>\
-		      </main>",
-		fun: function (sys, items, opts) {
-			let worker = null;
-			let file = `${__dirname}/relay.js`;
-			let middle = `${__dirname}/../../user/${opts.mid}/${opts.type}.js`;
-			(function makeWorker() {
-				worker = new Worker(file, {workerData: middle});
-				worker.on('message', msg => {
-					sys.common.trigger(msg.topic, msg.payload);
-				});
-				worker.on('error', (error) => {
-					worker = null;
-					items.logger.error(error);
-				});
-				worker.on('exit', (code) => {
-					worker = null;
-					items.logger.info(`middle ${opts.mid}/${opts.type} finished with exit code ${code}`);
-					setTimeout(()=> makeWorker(), 10*1000);
-				});
-			}())
-			function notify(payload) {
-				worker && worker.postMessage(payload);
-			}
-			return { notify: notify };
-		}
-	}
+    ViewMiddle: {
+        xml: "<Common id='middle' xmlns='//miot'/>",
+        fun: async function (sys, items, opts) {
+            let table = {};
+            let cdir = `${__dirname}/../../user`;
+            let mids = fs.readdirSync(cdir);
+            for (let mid of mids)
+                if (await items.middle.exists(`${cdir}/${mid}/uindex.js`))
+                    table[mid] = sys.middle.append("Worker", {mid: mid, type: "uindex"}).val();
+            this.watch("uindex", (e, mid, p) => {
+                table[mid] ? table[mid].notify(p) : this.trigger("to-local", p);
+            });
+        }
+    },
+    PartMiddle: {
+        xml: "<Common id='middle' xmlns='//miot'/>",
+        fun: async function (sys, items, opts) {
+            let table = {};
+            let cdir = `${__dirname}/../../user`;
+            let mids = fs.readdirSync(cdir);
+            for (let mid of mids)
+                if (await items.middle.exists(`${cdir}/${mid}/pindex.js`))
+                    table[mid] = sys.middle.append("Worder", {mid: mid, type: "pindex"}).val();
+            this.watch("pindex", (e, mid, p) => {
+                table[mid] ? table[mid].notify(p) : this.trigger("to-users", p);
+            });
+        }
+    },
+    Worker: {
+        xml: "<main id='common'>\
+                <Logger id='logger' xmlns='//miot'/>\
+              </main>",
+        fun: function (sys, items, opts) {
+            let worker = null;
+            let file = `${__dirname}/relay.js`;
+            let middle = `${__dirname}/../../user/${opts.mid}/${opts.type}.js`;
+            (function makeWorker() {
+                worker = new Worker(file, {workerData: middle});
+                worker.on('message', msg => {
+                    sys.common.trigger(msg.topic, msg.payload);
+                });
+                worker.on('error', (error) => {
+                    worker = null;
+                    items.logger.error(error);
+                });
+                worker.on('exit', (code) => {
+                    worker = null;
+                    items.logger.info(`middle ${opts.mid}/${opts.type} finished with exit code ${code}`);
+                    setTimeout(()=> makeWorker(), 10*1000);
+                });
+            }())
+            function notify(payload) {
+                worker && worker.postMessage(payload);
+            }
+            return { notify: notify };
+        }
+    }
 });
 
 $_("signup").imports({
     Validate: {
         fun: function ( sys, items, opts ) {
-            this.on("exec", (e, p) => {
+            this.on("validate", (e, p) => {
                 e.stopPropagation();
                 if (p.body.name.length > 1)
                     return this.trigger("next", p);
@@ -160,7 +151,8 @@ $_("signup").imports({
     Signup: {
        xml: "<Sqlite id='signup' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
-            this.on("exec", (e, p) => {
+            this.on("next", (e, p) => {
+                e.stopPropagation();
                 let stmt = items.signup.prepare("INSERT INTO views (id,name,desc) VALUES(?,?,?)");
                 let id = require("uuid/v1")();
                 stmt.run(id, p.body.name, p.body.desc);
@@ -180,7 +172,8 @@ $_("update").imports({
     Update: {
         xml: "<Sqlite id='update' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
-            this.on("exec", (e, p) => {
+            this.on("next", (e, p) => {
+                e.stopPropagation();
                 let update = "UPDATE views SET name=?, desc=? WHERE id=?";
                 let stmt = items.update.prepare(update);
                 stmt.run(p.body.name,p.body.desc,p.body.id, err => {

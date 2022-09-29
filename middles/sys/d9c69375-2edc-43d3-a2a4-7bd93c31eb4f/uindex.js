@@ -37,12 +37,12 @@ $_().imports({
         }
     },
     Signup: {
-        xml: "<Flow id='signup' xmlns:i='signup'>\
-                <i:Validate/>\
-                <i:Signup/>\
-              </Flow>",
+        xml: "<Falls id='signup' xmlns:i='signup'>\
+                <i:Validate id='validate'/>\
+                <i:Signup id='signup'/>\
+              </Falls>",
         fun: function (sys, items, opts) {
-            this.watch("/users/signup", items.signup.start);
+            this.watch("/users/signup", (e, p) => sys.validate.trigger("validate", p));
         }
     },
     Remove: {
@@ -60,37 +60,28 @@ $_().imports({
         }
     },
     Update: {
-        xml: "<Flow id='update' xmlns:i='update'>\
-                <i:Validate/>\
-                <i:Update/>\
-              </Flow>",
+        xml: "<Falls id='update' xmlns:i='update'>\
+                <i:Validate id='validate'/>\
+                <i:Update id='update'/>\
+              </Falls>",
         fun: function (sys, items, opts) {
-            this.watch("/users/update", items.update.start);
+            this.watch("/users/update", (e, p) => sys.validate.trigger("validate", p));
         }
     },
     Chpasswd: {
-        xml: "<Flow id='chpasswd' xmlns:i='chpasswd'>\
-                <i:Validate/>\
-                <i:Chpasswd/>\
-              </Flow>",
+        xml: "<Falls id='chpasswd' xmlns:i='chpasswd'>\
+                <i:Validate id='validate'/>\
+                <i:Chpasswd id='chpasswd'/>\
+              </Falls>",
         fun: function (sys, items, opts) {
-            this.watch("/users/chpasswd", items.chpasswd.start);
+            this.watch("/users/chpasswd", (e, p) => sys.validate.trigger("validate", p));
         }
     },
-    Flow: {
+    Falls: {
         fun: function (sys, items, opts) {
-            var ptr, first = this.first();
-            this.on("next", (e, p) => {
-                e.stopPropagation();
-                ptr = ptr.next();
-                ptr.trigger("exec", p);
-            });
-            function start(e, p) {
-                ptr = first;
-                ptr.trigger("exec", p);
-            }
-            this.on("exec", e => e.stopPropagation());
-            return {start: start};
+            let kids = this.kids();
+            for (i = kids.length-2; i >= 0; i--)
+                kids[i+1].append(kids[i]);
         }
     }
 });
@@ -102,7 +93,7 @@ $_("signup").imports({
                 <InputCheck id='check'/>\
               </main>",
         fun: function ( sys, items, opts ) {
-            this.on("exec", (e, p) => {
+            this.on("validate", (e, p) => {
                 e.stopPropagation();
                 if (items.check("e", p.body.email) && items.check("u", p.body.name) || items.check("p", p.body.pass))
                     return checkName(p);
@@ -151,7 +142,8 @@ $_("signup").imports({
                 <i:Crypto id='crypto'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("exec", async (e, p) => {
+            this.on("next", async (e, p) => {
+                e.stopPropagation();
                 let salt = items.crypto.salt();
                 let pass = await items.crypto.encrypt(p.body.pass, salt);
                 let appid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
@@ -199,7 +191,7 @@ $_("update").imports({
                 <InputCheck id='check' xmlns='../signup'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("exec", (e, p) => {
+            this.on("validate", (e, p) => {
                 e.stopPropagation();
                 if (items.check("e", p.body.email) && items.check("u", p.body.name))
                     return checkName(p);
@@ -241,7 +233,8 @@ $_("update").imports({
                 <i:Crypto id='crypto'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("exec", (e, p) => {
+            this.on("next", (e, p) => {
+                e.stopPropagation();
                 let update = "UPDATE users SET name=?,email=?,remarks=?,livetime=?,relogin=? WHERE id=?";
                 let stmt = items.db.prepare(update);
                 stmt.run(p.body.name,p.body.email,p.body.remarks,p.body.livetime,p.body.relogin,p.body.id, err => {
@@ -262,7 +255,7 @@ $_("chpasswd").imports({
                 <i:InputCheck id='check'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("exec", (e, p) => {
+            this.on("validate", (e, p) => {
                 e.stopPropagation();
                 let stmt = `SELECT * FROM users WHERE id='${p.body.id}'`;
                 items.db.all(stmt, async (err, rows) => {
@@ -292,6 +285,7 @@ $_("chpasswd").imports({
               </main>",
         fun: function (sys, items, opts) {
             this.on("exec", async (e, p) => {
+                e.stopPropagation();
                 let update = "UPDATE users SET pass=?,salt=? WHERE id=?";
                 let salt = items.crypto.salt();
                 let pass = await items.crypto.encrypt(p.body.new_pass, salt);

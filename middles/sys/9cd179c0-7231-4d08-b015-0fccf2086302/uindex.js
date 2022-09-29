@@ -1,5 +1,5 @@
 /*!
- * index.js v1.0.0
+ * index.js v1.0.1
  * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
@@ -51,12 +51,12 @@ $_().imports({
         }
     },
     Signup: {
-        xml: "<Flow id='signup' xmlns:i='signup'>\
-                <i:Validate/>\
-                <i:Signup/>\
-              </Flow>",
+        xml: "<Falls id='signup' xmlns:i='signup'>\
+                <i:Validate id='validate'/>\
+                <i:Signup id='signup'/>\
+              </Falls>",
         fun: function (sys, items, opts) {
-            this.watch("/links/signup", items.signup.start);
+            this.watch("/links/signup", (e, p) => sys.validate.trigger("validate", p));
         }
     },
     Remove: {
@@ -74,28 +74,19 @@ $_().imports({
         }
     },
     Update: {
-        xml: "<Flow id='update' xmlns:i='update'>\
-                <i:Validate/>\
-                <i:Update/>\
-              </Flow>",
+        xml: "<Falls id='update' xmlns:i='update'>\
+                <i:Validate id='validate'/>\
+                <i:Update id='update'/>\
+              </Falls>",
         fun: function (sys, items, opts) {
-            this.watch("/links/update", items.update.start);
+            this.watch("/links/update", (e, p) => sys.validate.trigger("validate", p));
         }
     },
-    Flow: {
+    Falls: {
         fun: function (sys, items, opts) {
-            var ptr, first = this.first();
-            this.on("next", (e, p) => {
-                e.stopPropagation();
-                ptr = ptr.next();
-                ptr.trigger("exec", p);
-            });
-            function start(e, p) {
-                ptr = first;
-                ptr.trigger("exec", p);
-            }
-            this.on("exec", e => e.stopPropagation());
-            return {start: start};
+            let kids = this.kids();
+            for (i = kids.length-2; i >= 0; i--)
+                kids[i+1].append(kids[i]);
         }
     }
 });
@@ -103,7 +94,7 @@ $_().imports({
 $_("signup").imports({
     Validate: {
         fun: function (sys, items, opts) {
-            this.on("exec", (e, p) => {
+            this.on("validate", (e, p) => {
                 e.stopPropagation();
                 if (p.body.name.length > 1)
                     return this.trigger("next", p);
@@ -115,7 +106,8 @@ $_("signup").imports({
     Signup: {
        xml: "<Sqlite id='signup' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
-            this.on("exec", (e, p) => {
+            this.on("next", (e, p) => {
+                e.stopPropagation();
                 let stmt = items.signup.prepare("INSERT INTO links (id,name,area) VALUES(?,?,?)");
                 let id = require("uuid/v1")();
                 stmt.run(id, p.body.name, p.body.area);
@@ -135,7 +127,8 @@ $_("update").imports({
     Update: {
         xml: "<Sqlite id='update' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
-            this.on("exec", (e, p) => {
+            this.on("next", (e, p) => {
+                e.stopPropagation();
                 let update = "UPDATE links SET name=?, area=? WHERE id=?";
                 let stmt = items.update.prepare(update);
                 stmt.run(p.body.name,p.body.area,p.body.id, err => {

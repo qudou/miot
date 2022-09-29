@@ -23,8 +23,13 @@ $_().imports({
         xml: "<Sqlite id='sqlite' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/ui/areas", (e, p) => {
-                let stmt = `SELECT distinct areas.* FROM areas,links,apps,auths,status
-                            WHERE areas.id = links.area AND links.id = apps.link AND apps.id = auths.app AND auths.user=status.user_id AND status.client_id='${p.cid}' AND apps.id <> '${UID}'
+                let stmt = `SELECT distinct areas.* FROM areas,links,apps,auths,users
+                            WHERE areas.id = links.area
+                            AND links.id = apps.link
+                            AND apps.id = auths.app
+                            AND auths.user=users.id
+                            AND users.name='${p.user}'
+                            AND apps.id <> '${UID}'
                             ORDER BY areas.id ASC`
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
@@ -38,8 +43,13 @@ $_().imports({
         xml: "<Sqlite id='sqlite' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/ui/links", (e, p) => {
-                let stmt = `SELECT distinct links.* FROM links,apps,auths,status
-                            WHERE links.area = '${p.body.area}' AND links.id = apps.link AND apps.id = auths.app AND auths.user=status.user_id AND status.client_id='${p.cid}' AND apps.id <> '${UID}'`;
+                let stmt = `SELECT distinct links.* FROM links,apps,auths,users
+                            WHERE links.area = '${p.body.area}'
+                            AND links.id = apps.link
+                            AND apps.id = auths.app
+                            AND auths.user=users.id
+                            AND users.name='${p.user}'
+                            AND apps.id <> '${UID}'`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = {area: p.body.area, links: data};
@@ -52,8 +62,12 @@ $_().imports({
         xml: "<Sqlite id='sqlite' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/ui/apps", (e, p) => {
-                let stmt = `SELECT apps.* FROM apps,auths,status
-                            WHERE apps.link = '${p.body.link}' AND apps.id = auths.app AND auths.user=status.user_id AND status.client_id='${p.cid}' AND apps.id <> '${UID}'`;
+                let stmt = `SELECT apps.* FROM apps,auths,users
+                            WHERE apps.link = '${p.body.link}'
+                            AND apps.id = auths.app
+                            AND auths.user=users.id
+                            AND users.name='${p.user}'
+                            AND apps.id <> '${UID}'`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = {link: p.body.link, apps: []};
@@ -64,8 +78,12 @@ $_().imports({
                 });
             });
             this.watch("/ui/spa", (e, p) => {
-                let stmt = `SELECT apps.* FROM apps,auths,status
-                            WHERE apps.id = auths.app AND auths.user=status.user_id AND status.client_id='${p.cid}' AND apps.id <> '${UID}' AND apps.id = '${p.body.id}'`;
+                let stmt = `SELECT apps.* FROM apps,auths,users
+                            WHERE apps.id = auths.app
+                            AND auths.user = users.id
+                            AND users.name = '${p.user}'
+                            AND apps.id <> '${UID}'
+                            AND apps.id = '${p.body.id}'`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     let i = data[0];

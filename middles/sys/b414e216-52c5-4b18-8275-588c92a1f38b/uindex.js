@@ -74,12 +74,12 @@ $_().imports({
         }
     },
     Signup: {
-        xml: "<Flow id='signup' xmlns:i='signup'>\
-                <i:Validate/>\
-                <i:Signup/>\
-              </Flow>",
+        xml: "<Falls id='signup' xmlns:i='signup'>\
+                <i:Validate id='validate'/>\
+                <i:Signup id='signup'/>\
+              </Falls>",
         fun: function (sys, items, opts) {
-            this.watch("/apps/signup", items.signup.start);
+            this.watch("/apps/signup", (e, p) => sys.validate.trigger("validate", p));
         }
     },
     Remove: {
@@ -97,28 +97,19 @@ $_().imports({
         }
     },
     Update: {
-        xml: "<Flow id='update' xmlns:i='update'>\
-                <i:Validate/>\
-                <i:Update/>\
-              </Flow>",
+        xml: "<Falls id='update' xmlns:i='update'>\
+                <i:Validate id='validate'/>\
+                <i:Update id='update'/>\
+              </Falls>",
         fun: function (sys, items, opts) {
-            this.watch("/apps/update", items.update.start);
+            this.watch("/apps/update", (e, p) => sys.validate.trigger("validate", p));
         }
     },
-    Flow: {
+    Falls: {
         fun: function (sys, items, opts) {
-            var ptr, first = this.first();
-            this.on("next", (e, p) => {
-                e.stopPropagation();
-                ptr = ptr.next();
-                ptr.trigger("exec", p);
-            });
-            function start(e, p) {
-                ptr = first;
-                ptr.trigger("exec", p);
-            }
-            this.on("exec", e => e.stopPropagation());
-            return {start: start};
+            let kids = this.kids();
+            for (i = kids.length-2; i >= 0; i--)
+                kids[i+1].append(kids[i]);
         }
     }
 });
@@ -126,7 +117,7 @@ $_().imports({
 $_("signup").imports({
     Validate: {
         fun: function ( sys, items, opts ) {
-            this.on("exec", (e, p) => {
+            this.on("validate", (e, p) => {
                 e.stopPropagation();
                 if (p.body.name.length > 1)
                     return this.trigger("next", p);
@@ -140,7 +131,8 @@ $_("signup").imports({
         fun: function (sys, items, opts) {
             let uuidv1 = require("uuid/v1");
             let uuidv4 = require("uuid/v4");
-            this.on("exec", (e, p) => {
+            this.on("next", (e, p) => {
+                e.stopPropagation();
                 let b = p.body;
                 let id = uuidv1();
                 let part = uuidv4();
@@ -169,7 +161,8 @@ $_("update").imports({
         xml: "<Sqlite id='update' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             let update = "UPDATE apps SET name=?,link=?,part=?,view=?,type=?str WHERE id=?";
-            this.on("exec", (e, p) => {
+            this.on("next", (e, p) => {
+                e.stopPropagation();
                 let b = p.body;
                 let s = b.type > 1 ? ',online=1' : '';
                 let stmt = items.update.prepare(update.replace("str",s));
