@@ -335,7 +335,7 @@ $_("proxy").imports({
                     items.sqlite.runBatchAsync(statements).then(results => {
                         resolve(true);
                     }).catch(err => {
-						// When client_id is repeated, here will be executed. This is not a error.
+						// When client_id is repeated, here will be executed. This is not an error.
                         items.logger.trace(err.toString());
                         resolve(false);
                     });
