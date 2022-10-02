@@ -329,13 +329,14 @@ $_("proxy").imports({
             function connected(client, user) {
                 return new Promise((resolve, reject) => {
                     let statements = [
-                        [`INSERT INTO status(client_id,user_id) VALUES(?,?)`, client.id, user.id],
-                        [`UPDATE users SET last_login=datetime('now', 'localtime') WHERE id=?`, user.id]
+                        ["INSERT INTO status(client_id,user_id) VALUES(?,?)", client.id, user.id],
+                        ["UPDATE users SET last_login=datetime('now', 'localtime') WHERE id=?", user.id]
                     ];
                     items.sqlite.runBatchAsync(statements).then(results => {
                         resolve(true);
-                    }).catch(err => { // When client_id is repeated, it will be executed here
-                        items.logger.error(err.toString());
+                    }).catch(err => {
+						// When client_id is repeated, here will be executed. This is not a error.
+                        items.logger.trace(err.toString());
                         resolve(false);
                     });
                 });
@@ -363,7 +364,7 @@ $_("proxy").imports({
         fun: function (sys, items, opts) {
             // check sessions once an hour
             let schedule = require("node-schedule");
-            schedule.scheduleJob(`0 1 * * *`, async e => {
+            schedule.scheduleJob(`0 1 * * *`, e => {
                 let stmt = `SELECT * FROM users`;
                 items.sqlite.all(stmt, (err, users) => {
                     if (err) throw err;
