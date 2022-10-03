@@ -322,7 +322,10 @@ $_("content").imports({
             sys.footer.on(Click, "*", function (e) {
                 this.trigger("switch", this.toString());
             });
-            this.watch("switch-page", (e, page) => sys[page].trigger(Click));
+            this.watch("switch-page", (e, page) => {
+				sys[page].trigger(Click);
+				items[page].prop("checked", "true");
+			});
         }
     },
     Popup: {
@@ -653,6 +656,7 @@ $_("content/footer").imports({
         map: { attrs: { icon: "id->icon", radio: "checked" }},
         fun: function (sys, items, opts) {
             sys.label.text(opts.label);
+			return sys.radio;
         }
     },
     TabIcon: {
