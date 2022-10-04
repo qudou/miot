@@ -1,5 +1,5 @@
 /*!
- * miot.js v1.0.8
+ * miot.js v1.0.9
  * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
@@ -380,7 +380,7 @@ $_("content").imports({
                 opts = app;
                 items.mask.show();
                 sys.applet.addClass("#modal-in");
-                require([`/views/${app.view}/index.js`], () => load(app), () => {
+                require([`/views/${app.dir}/index.js`], () => load(app), () => {
                     items.mask.hide();
                     sys.applet.removeClass("#modal-in");
                     this.trigger("message", ["error", "应用打开失败，请稍后再试！"]);
@@ -493,6 +493,7 @@ $_("content/index").imports({
             let apps = sys.renderer.bind([]);
             this.watch("/ui/apps", (e, p) => {
                 link = p.link;
+				p.apps.forEach(i => i.dir = `${i.type ? "user" : "sys"}/${i.view}`);
                 apps.model = _apps = p.apps;
             });
             this.watch("/stat/app", (e, p) => {
@@ -549,10 +550,10 @@ $_("content/index/apps").imports({
               #label { margin: 4px 0 0; line-height: 1; display: block; letter-spacing: .01em; font-size: 11px; position: relative; text-overflow: ellipsis; white-space: nowrap; }\
               a#active { color: #FF6A00; }",
         xml: "<a id='item'>\
-                <Icon id='view'/>\
+                <Icon id='dir'/>\
                 <span id='label'/>\
               </a>",
-        map: { bind: {name: {skey: "label"}, online: {skey: "item", get: "get", set: "set"}, view: {get: "get", set: "set"} } },
+        map: { bind: {name: {skey: "label"}, online: {skey: "item", get: "get", set: "set"}, dir: {get: "get", set: "set"} } },
         fun: function (sys, items, opts) {
             let online = 0;
             function set(e, value) {
@@ -563,24 +564,24 @@ $_("content/index/apps").imports({
         }
     },
     Icon: {
-        css: "#view {width: 30px; height: 30px;}\
-              #view svg { fill: currentColor; width: 100%; height: 100%; display: block; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
-        xml: "<div id='view'>\
+        css: "#dir {width: 30px; height: 30px;}\
+              #dir svg { fill: currentColor; width: 100%; height: 100%; display: block; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
+        xml: "<div id='dir'>\
                 <span id='icon'/>\
               </div>",
         fun: function (sys, items, opts) {
-            let view, icon = sys.icon;
+            let tmp, icon = sys.icon;
             function show(path) {
                 icon = icon.replace(path);
             }
             function set(e, value) {
-                view = value;
-                require([`/views/${view}/icon.js`], e => {
-                    let path = `//${view}/Icon`;
+                tmp = value;
+                require([`/views/${tmp}/icon.js`], e => {
+                    let path = `//${tmp.split('/')[1]}/Icon`;
                     show(xp.hasComponent(path) ? path : "/assets/Unknow");
                 }, ()=> show("/assets/Unknow"));
             }
-            return { get: ()=>{return view}, set: set };
+            return { get: ()=>{return tmp}, set: set };
         }
     }
 });
