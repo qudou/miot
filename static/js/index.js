@@ -493,7 +493,7 @@ $_("content/index").imports({
             let apps = sys.renderer.bind([]);
             this.watch("/ui/apps", (e, p) => {
                 link = p.link;
-				p.apps.forEach(i => i.dir = `${i.type ? "user" : "sys"}/${i.view}`);
+				p.apps.forEach(i => i.dir = `${i.type ? "usr" : "sys"}/${i.view}`);
                 apps.model = _apps = p.apps;
             });
             this.watch("/stat/app", (e, p) => {
@@ -597,7 +597,7 @@ $_("content/about").imports({
                 <Logo id='logo' xmlns='/login'/>\
                 <div id='title'>马蹄莲</div>\
                 <div id='user'>当前用户：1001</div>\
-                <div id='version'>版本号：1.1.6</div>\
+                <div id='version'>版本号：1.1.7</div>\
                 <Logout id='logout'/>\
               </div>",
         fun: function (sys, items, opts) {

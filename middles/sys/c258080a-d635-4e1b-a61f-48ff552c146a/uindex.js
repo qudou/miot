@@ -81,7 +81,7 @@ $_().imports({
         xml: "<Common id='middle' xmlns='//miot'/>",
         fun: async function (sys, items, opts) {
             let table = {};
-            let cdir = `${__dirname}/../../user`;
+            let cdir = `${__dirname}/../../usr`;
             let mids = fs.readdirSync(cdir);
             for (let mid of mids)
                 if (await items.middle.exists(`${cdir}/${mid}/uindex.js`))
@@ -95,7 +95,7 @@ $_().imports({
         xml: "<Common id='middle' xmlns='//miot'/>",
         fun: async function (sys, items, opts) {
             let table = {};
-            let cdir = `${__dirname}/../../user`;
+            let cdir = `${__dirname}/../../usr`;
             let mids = fs.readdirSync(cdir);
             for (let mid of mids)
                 if (await items.middle.exists(`${cdir}/${mid}/pindex.js`))
@@ -112,7 +112,7 @@ $_().imports({
         fun: function (sys, items, opts) {
             let worker = null;
             let file = `${__dirname}/relay.js`;
-            let middle = `${__dirname}/../../user/${opts.mid}/${opts.type}.js`;
+            let middle = `${__dirname}/../../usr/${opts.mid}/${opts.type}.js`;
             (function makeWorker() {
                 worker = new Worker(file, {workerData: middle});
                 worker.on('message', msg => {

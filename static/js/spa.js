@@ -48,7 +48,7 @@ $_().imports({
         }
     },
     Verify: {
-        xml: "<Overlay id='verify' xmlns='mask'/>",
+        xml: "<Overlay id='verify' xmlns='verify'/>",
         fun: function (sys, items, opts) {
             let q = xp.create("//miot/Query");
             let sid = q.sid || localStorage.getItem("session");
@@ -78,7 +78,7 @@ $_().imports({
     },
     Service: {
         css: "#service { visibility: visible; opacity: 1; }",
-        xml: "<Overlay id='service' xmlns='mask'/>",
+        xml: "<Overlay id='service' xmlns='verify'/>",
         fun: function (sys, items, opts) {
             let client = null;
             let Server = document.querySelector("meta[name='mqtt-server']").getAttribute("content");
@@ -114,7 +114,7 @@ $_().imports({
     Content: {
         css: "#content { width: 100%; height: 100%; box-sizing: border-box; -webkit-overflow-scrolling: touch; }\
               #content > * { width: 100%; height: 100%; }",
-        xml: "<div id='content' xmlns:i='mask'>\
+        xml: "<div id='content' xmlns:i='verify'>\
                 <i:Overlay id='mask'/>\
                 <i:Message id='info'/>\
               </div>",
@@ -144,7 +144,9 @@ $_().imports({
             this.watch("/ui/spa", (e, app) => {
                 opts = app;
                 let page = sys.mask.prev();
-                page ? loaded(page) : require([`/views/${opts.view}/index.js`], () => load(opts), () => {
+				if (page) return loaded(page);
+				let dir = app.type ? "usr" : "sys";
+                require([`/views/${dir}/${opts.view}/index.js`], ()=> load(opts), ()=> {
                     items.mask.hide();
                     this.trigger("message", ["error", "应用打开失败，请稍后再试！"]);
                 });
@@ -200,7 +202,7 @@ $_().imports({
     }
 });
 
-$_("mask").imports({ 
+$_("verify").imports({ 
     Overlay: {
         css: "#overlay { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,.4); z-index: 13000; visibility: hidden; opacity: 0; -webkit-transition-duration: .4s; transition-duration: .4s; }\
               #visible { visibility: visible; opacity: 1; }",
