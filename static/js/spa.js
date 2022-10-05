@@ -98,7 +98,7 @@ $_().imports({
                 client.on("close", e => this.notify("/stat/ui/0"));
                 client.on("error", e => {
                     this.trigger("message", ["error", e.message]);
-                    e.message == "Bad username or password" && this.notify("/ui/logout");
+                    e.message == "Connection refused: Bad username or password" && this.notify("/ui/logout");
                 });
             });
             this.watch("/ui/logout", (e, p) => {
@@ -166,6 +166,12 @@ $_().imports({
             });
             this.watch("/stat/ui/0", () => {
                 items.info.show("设备已离线-[03]");
+            });
+			this.on("close", e => {
+                e.stopPropagation();
+                app.dialog.confirm("确定退出系统吗？", "温馨提示", e => {
+                    this.notify("/ui/logout");
+                });
             });
         }
     },
