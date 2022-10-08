@@ -16,19 +16,13 @@ $_().imports({
                 <Remove id='remove'/>\
                 <Service id='service'/>\
                 <Guide id='guide'/>\
-              </i:ViewStack>",
-        fun: function (sys, items, opts) {
-            items.overview.title(opts.name);
-        }
+              </i:ViewStack>"
     },
     Overview: {
         xml: "<div id='overview' xmlns:i='overview'>\
                 <i:Navbar id='navbar'/>\
                 <i:Content id='content'/>\
-              </div>",
-        fun: function (sys, items, opts) {
-            return {title: items.navbar.title};
-        }
+              </div>"
     },
     Signup: {
         xml: "<div id='signup' xmlns:i='signup'>\
@@ -36,7 +30,9 @@ $_().imports({
                 <i:Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("show", items.content.clear);
+            this.on("show", (e, prev, keep) => {
+				keep || items.content();
+			});
         }
     },
     Update: {
@@ -46,7 +42,7 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             this.on("show", (e, ptr, data) => {
-                data && items.content.val(data);
+                data && items.content(data);
             });
         }
     },
@@ -78,7 +74,7 @@ $_().imports({
                 items.content.text(`${p}不存在,请先添加${p}`);
             });
             this.watch("/links/areas", (e, data) => {
-                data.length ? this.trigger("publish", "/links/select") : this.trigger("switch", ["guide", "区域"]);
+                data.length ? this.trigger("publish", "/links/select") : this.trigger("goto", ["guide", "区域"]);
             });
             this.trigger("publish", "/links/areas");
         }
@@ -94,7 +90,7 @@ $_("overview").imports({
                    <div id='close' class='left'>\
                       <i class='icon f7-icons ios-only' style='margin:auto;'>xmark</i>\
                    </div>\
-                   <div id='title' class='title'/>\
+                   <div id='title' class='title'>网关管理</div>\
                    <div class='right'>\
                     <button id='signup' class='button' style='border:none;'>注册</button>\
                    </div>\
@@ -102,8 +98,7 @@ $_("overview").imports({
               </div>",
         fun: function (sys, items, opts) { 
             sys.close.on(Click, e => this.trigger("close"));
-            sys.signup.on(Click, () => this.trigger("switch", "signup"));
-            return { title: sys.title.text };
+            sys.signup.on(Click, () => this.trigger("goto", "signup"));
         }
     },
     Content: {
@@ -153,7 +148,7 @@ $_("overview").imports({
                </div>\
               </li>",
         fun: function (sys, items, opts) {
-            sys.edit.on(Click, () => this.trigger("switch", ["update", opts]));
+            sys.edit.on(Click, () => this.trigger("goto", ["update", opts]));
             function setValue(link) {
                 opts = link;
                 sys.label.text(link.name);
@@ -184,7 +179,7 @@ $_("signup").imports({
               </div>",
         fun: function (sys, items, opts) {
             sys.title.text(opts.title);
-            sys.backward.on(Click, e => this.trigger("switch", "overview"));
+            sys.backward.on(Click, e => this.trigger("back"));
         }
     },
     Content: {
@@ -199,23 +194,21 @@ $_("signup").imports({
               </div>",
         map: { nofragment: true },
         fun: function (sys, items, opts) {
-            sys.submit.on(Click, items.signup.start);
             sys.area.on("next", (e, p) => {
                 e.stopPropagation();
-                this.trigger("switch", "service");
+                this.trigger("goto", "service");
                 this.trigger("publish", ["/links/signup", p]);
                 this.glance("/links/signup", callback);
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
-                if (p.code == -1) 
-                    return e.target.trigger("switch", "signup");
-                e.target.trigger("publish", "/links/areas").trigger("switch", "overview");
+				e.target.trigger("back", true);
+                p.code || e.target.trigger("publish", "/links/areas");
             }
-            function clear() {
+			sys.submit.on(Click, items.signup.start);
+            return function () {
                 items.link.val("").focus();
-            }
-            return {clear: clear};
+            };
         }
     }
 });
@@ -351,27 +344,25 @@ $_("update").imports({
               </div>",
         map: { nofragment: true },
         fun: function (sys, items, opts) {
-            sys.submit.on(Click, items.update.start);
-            function val(value) {
-                opts = value;
-                items.id.val(value.id);
-                items.link.val(value.name);
-                items.area.setValue(value.areaName);
-            }
             sys.area.on("next", (e) => {
                 e.stopPropagation();
                 let p = {id:opts.id, name:items.link.val(),area:items.area.getValue()};
-                this.trigger("switch", "service");
+                this.trigger("goto", "service");
                 this.trigger("publish", ["/links/update", p]);
                 this.glance("/links/update", callback);
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
-                if (p.code == -1)
-                    return e.target.trigger("switch", "update");
-                e.target.trigger("publish", "/links/areas").trigger("switch", "overview");
+				e.target.trigger("back");
+                p.code || e.target.trigger("publish", "/links/areas");
             }
-            return {val: val};
+			sys.submit.on(Click, items.update.start);
+            return function (value) {
+                opts = value;
+                items.id.val(value.id);
+                items.link.val(value.name);
+                items.area.setValue(value.areaName);
+            };
         }
     },
     GUID: {

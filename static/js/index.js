@@ -17,7 +17,7 @@ $_().imports({
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
               #index { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
               #login { background: #FFF; }\
-              #index > * { width: 100%; height: 100%; }\
+              #index > * { width: 100%; height: 100%; transition-duration: 0s }\
               .toast-text { width:100%; text-align: center;}\
 			  .dialog { border: 1px solid #CACDD1; }",
         xml: "<ViewStack id='index'>\
@@ -45,7 +45,7 @@ $_().imports({
         fun: function (sys, items, opts) {
             let session = localStorage.getItem("session");
             setTimeout(e => {
-                this.trigger("switch", session ? ["service", {username: session}] : "login");
+                this.trigger("goto", session ? ["service", {username: session}] : "login");
             }, 0);
         }
     },
@@ -63,7 +63,7 @@ $_().imports({
                         this.notify("subscribed");
                     });
                     console.log("connected to " + Server);
-                    this.trigger("switch", "content").notify("/stat/ui/1");
+                    this.trigger("goto", "content").notify("/stat/ui/1");
                 });
                 client.on("message", (topic, p) => {
                     this.notify("message", JSON.parse(p.toString()));
@@ -77,7 +77,7 @@ $_().imports({
             this.watch("/ui/logout", (e, p) => {
                 client.end();
                 localStorage.clear();
-                this.trigger("switch", "login");
+                this.trigger("goto", "login");
             });
             this.watch("publish", (e, topic, p = {}) => {
                 client.publish(topic, JSON.stringify(p));
@@ -118,7 +118,7 @@ $_().imports({
             const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
             sys.footer.on("switch", (e, page) => {
                 e.stopPropagation();
-                sys.stack.trigger("switch", page);
+                sys.stack.trigger(page == "home" ? "back" : "goto", page);
             });
             this.on("show", () => this.notify("switch-page", "home"));
             this.on("publish", (e, p) => {
@@ -136,24 +136,44 @@ $_().imports({
         }
     },
     ViewStack: {
+		css: "#viewstack { position: relative; }\
+		      #viewstack > * { position: absolute; width: 100%; height: 100%; top: 0; bottom: 0; transition-duration: .3s; transform: translate3d(100%,0,0); }",
         xml: "<div id='viewstack'/>",
         fun: function (sys, items, opts) {
-            var args, kids = this.kids(),
-                table = kids.call("hide").hash(),
-                ptr = table[opts.index] || kids[0];
-            if (ptr) ptr = ptr.trigger("show").show();
-            this.on("switch", function (e, to) {
+            let kids = this.kids().hash();
+			let stack = [kids[opts.index] || this.first()]; 
+			stack.length && stack[0].css("transform", "translate3d(0,0,0)");
+			// "to" is element name of target.
+            this.on("goto", function (e, to) {
                 e.stopPropagation();
-                table = this.kids().hash();
-                if (!table[to] || table[to] == ptr) return;
-                args = [].slice.call(arguments).slice(2);
-                ptr.trigger("hide", [to+''].concat(args)).hide();
-                ptr = table[to].trigger("show", [ptr+''].concat(args)).show();
+				let last = stack[stack.length - 1];
+                if (!kids[to] || kids[to] == last) return;
+                let args = [].slice.call(arguments).slice(2);
+                last.css("transform", "translate3d(-100%,0,0)");
+				stack.push(kids[to]);
+				kids[to].css("transform", "translate3d(0,0,0)");
+				kids[to].once("transitionend", ()=> {
+					kids[to].trigger("show", [last+''].concat(args));
+				});
+				kids[to].css("transition-duration") == "0s" && kids[to].trigger("transitionend");
             });
+			this.on("back", function (e) {
+				e.stopPropagation();
+				if (stack.length <= 1) return;
+				let old = stack.pop();
+				old && old.css("transform", "translate3d(100%,0,0)");
+				let cur = stack[stack.length - 1];
+				cur.css("transform", "translate3d(0,0,0)");
+				let args = [].slice.call(arguments).slice(1);
+				cur.once("transitionend", ()=> {
+				    cur.trigger("show", [old+''].concat(args));
+				});
+				cur.css("transition-duration") == "0s" && cur.trigger("transitionend");
+			});
             this.on("show", e => e.stopPropagation());
-            this.on("hide", e => e.stopPropagation());
         }
     }
+
 });
 
 $_("verify").imports({ 
@@ -261,7 +281,7 @@ $_("login").imports({
               </li>",
         fun: function (sys, items, opts) {
             this.on("start", (e, o) => {
-                this.trigger("switch", ["service", {username: o.name, password: o.pass}]);
+                this.trigger("goto", ["service", {username: o.name, password: o.pass}]);
             });
         }
     },

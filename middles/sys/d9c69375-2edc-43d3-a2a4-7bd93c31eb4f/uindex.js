@@ -284,7 +284,7 @@ $_("chpasswd").imports({
                 <i:Crypto id='crypto'/>\
               </main>",
         fun: function (sys, items, opts) {
-            this.on("exec", async (e, p) => {
+            this.on("next", async (e, p) => {
                 e.stopPropagation();
                 let update = "UPDATE users SET pass=?,salt=? WHERE id=?";
                 let salt = items.crypto.salt();

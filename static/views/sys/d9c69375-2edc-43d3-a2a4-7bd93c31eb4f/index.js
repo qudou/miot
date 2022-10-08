@@ -18,7 +18,6 @@ $_().imports({
                 <Service id='service'/>\
               </i:ViewStack>",
         fun: function (sys, items, opts) {
-            items.overview.title(opts.name);
             this.trigger("publish", "/users/select");
         }
     },
@@ -26,10 +25,7 @@ $_().imports({
         xml: "<div id='overview' xmlns:i='overview'>\
                 <i:Navbar id='navbar'/>\
                 <i:Content id='content'/>\
-              </div>",
-        fun: function (sys, items, opts) {
-            return {title: items.navbar.title};
-        }
+              </div>"
     },
     Signup: {
         xml: "<div id='signup' xmlns:i='signup'>\
@@ -37,7 +33,9 @@ $_().imports({
                 <i:Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("show", items.content.clear);
+            this.on("show", (e, prev, data) => {
+				data || items.content();
+			});
         }
     },
     Update: {
@@ -46,8 +44,8 @@ $_().imports({
                 <Content id='content' xmlns='update'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("show", (e, ptr, data) => {
-                data && items.content.val(data);
+            this.on("show", (e, prev, data) => {
+                data && items.content(data);
             });
         }
     },
@@ -57,8 +55,8 @@ $_().imports({
                 <Content id='content' xmlns='chpasswd'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("show", (e, ptr, data) => {
-                data && items.content.val(data);
+            this.on("show", (e, prev, data) => {
+                data && items.content(data);
             });
         }
     },
@@ -90,7 +88,7 @@ $_("overview").imports({
                    <div id='close' class='left'>\
                       <i class='icon f7-icons ios-only' style='margin:auto;'>xmark</i>\
                    </div>\
-                   <div id='title' class='title'/>\
+                   <div id='title' class='title'>用户管理</div>\
                    <div class='right'>\
                     <button id='signup' class='button' style='border:none;'>注册</button>\
                    </div>\
@@ -98,8 +96,7 @@ $_("overview").imports({
               </div>",
         fun: function (sys, items, opts) {
             sys.close.on(Click, e => this.trigger("close"));
-            sys.signup.on(Click, () => this.trigger("switch", "signup"));
-            return {title: sys.title.text};
+            sys.signup.on(Click, () => this.trigger("goto", "signup"));
         }
     },
     Content: {
@@ -143,7 +140,7 @@ $_("overview").imports({
                </div>\
               </li>",
         fun: function (sys, items, opts) {
-            sys.edit.on(Click, () => this.trigger("switch", ["update", opts]));
+            sys.edit.on(Click, () => this.trigger("goto", ["update", opts]));
             function setValue(user) {
                 opts = user;
                 sys.label.text(user.name);
@@ -175,7 +172,7 @@ $_("signup").imports({
               </div>",
         fun: function (sys, items, opts) {
             sys.title.text(opts.title);
-            sys.backward.on(Click, e => this.trigger("switch", "overview"));
+            sys.backward.on(Click, e => this.trigger("back"));
         }
     },
     Content: {
@@ -193,27 +190,25 @@ $_("signup").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on(Click, items.signup.start);
             sys.remarks.on("next", (e, p) => {
                 e.stopPropagation();
-                this.trigger("switch", "service");
+                this.trigger("goto", "service");
                 this.trigger("publish", ["/users/signup", p]);
                 this.glance("/users/signup", callback);
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
-                if (p.code == -1) 
-                    return e.target.trigger("switch", "signup");
-                e.target.trigger("publish", "/users/select").trigger("switch", "overview");
+				e.target.trigger("back", true);
+				p.code || e.target.trigger("publish", "/users/select");
             }
-            function clear() {
+			sys.submit.on(Click, items.signup.start);
+            return function () {
                 items.email.val("");
                 items.pass.val("");
                 items.livetime.val("");
                 items.remarks.val("");
                 items.user.val("").focus();
-            }
-            return {clear: clear};
+            };
         }
     }
 });
@@ -426,30 +421,28 @@ $_("update").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on(Click, items.update.start);
-            function val(value) {
+            sys.remarks.on("next", (e, p) => {
+                e.stopPropagation();
+                p.id = opts.id;
+                this.trigger("goto", "service");
+                this.trigger("publish", ["/users/update", p]);
+                this.glance("/users/update", callback);
+            });
+            function callback(e, p) {
+                e.target.trigger("message", ["msg", p.desc]);
+				e.target.trigger("back");
+				p.code || e.target.trigger("publish", "/users/select");
+            }
+			sys.submit.on(Click, items.update.start);
+			sys.chpasswd.on(Click, () => this.trigger("goto", ["chpasswd",opts]));
+            return function (value) {
                 opts = value;
                 items.user.val(value.name);
                 items.email.val(value.email);
                 items.remarks.val(value.remarks || "");
                 items.livetime.val(value.livetime);
                 items.relogin.val(value.relogin);
-            }
-            sys.remarks.on("next", (e, p) => {
-                e.stopPropagation();
-                p.id = opts.id;
-                this.trigger("switch", "service");
-                this.trigger("publish", ["/users/update", p]);
-                this.glance("/users/update", callback);
-            });
-            sys.chpasswd.on(Click, () => this.trigger("switch", ["chpasswd",opts]));
-            function callback(e, p) {
-                e.target.trigger("message", ["msg", p.desc]);
-                if (p.code == -1) 
-                    return e.target.trigger("switch", "update");
-                e.target.trigger("publish", "/users/select").trigger("switch", "overview");
-            }
-            return {val: val};
+            };
         }
     }
 });
@@ -467,25 +460,24 @@ $_("chpasswd").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on(Click, items.chpasswd.start);
             sys.new_pass.on("next", (e) => {
                 e.stopPropagation();
-                let p = {id:opts.id, pass:items.pass.val(),new_pass:items.new_pass.val()};
-                this.trigger("switch", "service");
+                let p = {id:opts.id, pass:items.pass.val(), new_pass:items.new_pass.val()};
+                this.trigger("goto", "service");
                 this.trigger("publish", ["/users/chpasswd", p]);
                 this.glance("/users/chpasswd", callback);
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
-                if (p.code == -1)
-                    return e.target.trigger("switch", "chpasswd");
-                e.target.trigger("switch", "overview");
+				e.target.trigger("back");
             }
-            function setValue(value) {
+			sys.submit.on(Click, items.chpasswd.start);
+            return function (value) {
                 opts = value;
+				items.pass.val('');
+				items.new_pass.val('');
                 items.user.val(value.name);
-            }
-            return {val: setValue};
+            };
         }
     }
 });

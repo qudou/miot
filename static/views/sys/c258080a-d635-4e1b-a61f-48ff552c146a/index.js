@@ -17,7 +17,6 @@ $_().imports({
                 <Service id='service'/>\
               </i:ViewStack>",
         fun: function (sys, items, opts) {
-            items.overview.title(opts.name);
             this.trigger("publish", "/views/select");
         }
     },
@@ -25,10 +24,7 @@ $_().imports({
         xml: "<div id='overview' xmlns:i='overview'>\
                 <i:Navbar id='navbar'/>\
                 <i:Content id='content'/>\
-              </div>",
-        fun: function (sys, items, opts) {
-            return {title: items.navbar.title};
-        }
+              </div>"
     },
     Signup: {
         xml: "<div id='signup' xmlns:i='signup'>\
@@ -36,7 +32,9 @@ $_().imports({
                 <i:Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("show", items.content.clear);
+            this.on("show", (e, prev, keep) => {
+				keep || items.content();
+			});
         }
     },
     Update: {
@@ -45,8 +43,8 @@ $_().imports({
                 <Content id='content' xmlns='update'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("show", (e, ptr, data) => {
-                data && items.content.val(data);
+            this.on("show", (e, prev, data) => {
+                data && items.content(data);
             });
         }
     },
@@ -86,8 +84,7 @@ $_("overview").imports({
               </div>",
         fun: function (sys, items, opts) {
             sys.close.on(Click, e => this.trigger("close"));
-            sys.signup.on(Click, () => this.trigger("switch", "signup"));
-            return {title: sys.title.text};
+            sys.signup.on(Click, () => this.trigger("goto", "signup"));
         }
     },
     Content: {
@@ -135,7 +132,7 @@ $_("overview").imports({
               </li>",
         fun: function (sys, items, opts) {
             let view;
-            sys.edit.on(Click, () => this.trigger("switch", ["update", view]));
+            sys.edit.on(Click, () => this.trigger("goto", ["update", view]));
             function setValue(value) {
                 view = value;
                 sys.label.text(view.name);
@@ -168,7 +165,7 @@ $_("signup").imports({
               </div>",
         fun: function (sys, items, opts) {
             sys.title.text(opts.title);
-            sys.backward.on(Click, e => this.trigger("switch", "overview"));
+            sys.backward.on(Click, e => this.trigger("back"));
         }
     },
     Content: {
@@ -182,24 +179,22 @@ $_("signup").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on(Click, items.signup.start);
             sys.desc.on("next", (e, p) => {
                 e.stopPropagation();
-                this.trigger("switch", "service");
+                this.trigger("goto", "service");
                 this.trigger("publish", ["/views/signup", p]);
                 this.glance("/views/signup", callback);
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
-                if (p.code == -1) 
-                    return e.target.trigger("switch", "signup");
-                e.target.trigger("publish", "/views/select").trigger("switch", "overview");
+				e.target.trigger("back", true);
+                p.code || e.target.trigger("publish", "/views/select");
             }
-            function clear() {
+			sys.submit.on(Click, items.signup.start);
+            return function () {
                 items.view.val("");
                 items.desc.val("").focus();
-            }
-            return {clear: clear};
+            };
         }
     }
 });
@@ -305,26 +300,24 @@ $_("update").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on(Click, items.update.start);
-            function val(value) {
-                items.id.val(value.id);
-                items.view.val(value.name);
-                items.desc.val(value.desc);
-            }
             sys.desc.on("next", (e) => {
                 e.stopPropagation();
                 let p = {id:items.id.val(), name:items.view.val(),desc:items.desc.val()};
-                this.trigger("switch", "service");
+                this.trigger("goto", "service");
                 this.trigger("publish", ["/views/update", p]);
                 this.glance("/views/update", callback);
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
-                if (p.code == -1)
-                    return e.target.trigger("switch", "update");
-                e.target.trigger("publish", "/views/select").trigger("switch", "overview");
+				e.target.trigger("back");
+                p.code || e.target.trigger("publish", "/views/select");
             }
-            return {val: val};
+			sys.submit.on(Click, items.update.start);
+            return function (value) {
+                items.id.val(value.id);
+                items.view.val(value.name);
+                items.desc.val(value.desc);
+            };
         }
     },
     GUID: {

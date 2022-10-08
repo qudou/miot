@@ -17,19 +17,13 @@ $_().imports({
                 <Update id='update'/>\
                 <Service id='service'/>\
                 <Guide id='guide'/>\
-              </i:ViewStack>",
-        fun: function (sys, items, opts) {
-            items.overview.title(opts.name);
-        }
+              </i:ViewStack>"
     },
     Overview: {
         xml: "<div id='overview' xmlns:i='overview'>\
                 <i:Navbar id='navbar'/>\
                 <i:Content id='content'/>\
-              </div>",
-        fun: function (sys, items, opts) {
-            return {title: items.navbar.title};
-        }
+              </div>"
     },
     AppList: {
         xml: "<div id='applist' xmlns:i='applist'>\
@@ -37,10 +31,10 @@ $_().imports({
                 <i:Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("show", (e, to, p) => {
-                if (!p) return;
-                items.navbar.init(p);
-                items.content.init(p);
+            this.on("show", (e, prev, data) => {
+                if (!data) return;
+                items.navbar(data);
+                items.content(data);
             });
         }
     },
@@ -50,7 +44,9 @@ $_().imports({
                 <i:Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("show", (e,to,p) => p && items.content.init(p));
+            this.on("show", (e,prev,data) => {
+				data && items.content(data);
+			});
         }
     },
     Update: {
@@ -59,7 +55,9 @@ $_().imports({
                 <Content id='content' xmlns='update'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("show", (e,to,p) => p && items.content.init(p));
+            this.on("show", (e,prev,data) => {
+				data && items.content(data);
+			});
         }
     },
     Remove: {
@@ -85,18 +83,17 @@ $_().imports({
                 <i:Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            items.navbar.title("应用管理");
-            this.on("show", (e, to, p) => {
-                items.content.text(`${p}不存在,请先添加${p}`);
+            this.on("show", (e, prev, data) => {
+                items.content.text(`${data}不存在,请先添加${data}`);
             });
             this.watch("/apps/areas", (e, data) => {
-                data.length ? this.trigger("publish", "/apps/links") : this.trigger("switch", ["guide", "区域"]);
+                data.length ? this.trigger("publish", "/apps/links") : this.trigger("goto", ["guide", "区域"]);
             });
             this.watch("/apps/links", (e, data) => {
-                data.length ? this.trigger("publish", "/apps/views") : this.trigger("switch", ["guide", "网关"]);
+                data.length ? this.trigger("publish", "/apps/views") : this.trigger("goto", ["guide", "网关"]);
             });
             this.watch("/apps/views", (e, data) => {
-                data.length || this.trigger("switch", ["guide", "视图"]);
+                data.length || this.trigger("goto", ["guide", "视图"]);
             });
         }
     }
@@ -111,13 +108,13 @@ $_("overview").imports({
                    <div id='close' class='left'>\
                       <i class='icon f7-icons ios-only' style='margin:auto;'>xmark</i>\
                    </div>\
-                   <div id='title' class='title'/>\
+                   <div id='title' class='title'>应用管理</div>\
                    <div class='right'/>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
+			opts.title && sys.title.text(opts.title);
             sys.close.on(Click, e => this.trigger("close"));
-            return { title: sys.title.text };
         }
     },
     Content: {
@@ -142,10 +139,10 @@ $_("overview").imports({
                 links = {};
                 data.map(i => links[i.id]=i);
             });
-            this.watch("applist", (e, linkId) => {
+            this.watch("applist", (e, linkId, bool) => {
                 let data = xp.extend({},links[linkId]);
                 data.area = areas[data.area];
-                this.trigger("switch", ["applist", data]);
+				bool || this.trigger("goto", ["applist", data]);
             });
             this.trigger("publish", "/apps/areas");
         }
@@ -202,13 +199,12 @@ $_("applist").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            function init(p) {
+            sys.backward.on(Click, e => this.trigger("back"));
+            sys.signup.on(Click, e => this.trigger("goto", ["signup", opts]));
+            return function (p) {
                 opts = p;
                 sys.title.text(`${p.area.name}/${p.name}`);
-            }
-            sys.backward.on(Click, e => this.trigger("switch", "overview"));
-            sys.signup.on(Click, e => this.trigger("switch", ["signup", opts]));
-            return {init: init};
+            };
         }
     },
     Content: {
@@ -218,10 +214,6 @@ $_("applist").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            function init(p) {
-                opts = p;
-                sys.content.trigger("publish", ["/apps/list", {link: p.id}]);
-            }
             this.watch("/apps/list", (e, data) => {
                 sys.list.kids().call("remove");
                 data.forEach(item => {
@@ -232,12 +224,15 @@ $_("applist").imports({
             this.on("update", (e, data) => {
                 let item = xp.extend({}, data);
                 item.link = opts;
-                this.trigger("switch", ["update", item]);
+                this.trigger("goto", ["update", item]);
             });
             this.watch("/apps/remove", (e, p) => {
                 sys.list.kids().length || sys.list.hide();
             });
-            return {init: init};
+            return function (p) {
+                opts = p;
+                sys.content.trigger("publish", ["/apps/list", {link: p.id}]);
+            };
         }
     },
     AppList: {
@@ -292,7 +287,7 @@ $_("signup").imports({
               </div>",
         fun: function (sys, items, opts) {
             sys.title.text(opts.title);
-            sys.backward.on(Click, e => this.trigger("switch", "applist"));
+            sys.backward.on(Click, e => this.trigger("back"));
         }
     },
     Content: {
@@ -309,26 +304,25 @@ $_("signup").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on(Click, items.signup.start);
+            
             sys.type.on("next", (e, p) => {
                 opts = p;
                 e.stopPropagation();
-                this.trigger("switch", "service");
+                this.trigger("goto", "service");
                 this.trigger("publish", ["/apps/signup", p]);
                 this.glance("/apps/signup", callback);
             });
             function callback(e, p) {
                 this.trigger("message", ["msg", p.desc]);
-                if (p.code == -1)
-                    return this.trigger("switch", "signup");
-                this.notify("applist", opts.link);
+				this.trigger("back");
+                p.code || this.notify("applist", [opts.link, 1]);
             }
-            function init(p) {
+			sys.submit.on(Click, items.signup.start);
+            return function (p) {
                 items.nane.val("").focus();
                 items.area.setValue(p.area);
                 items.link.setValue(p);
-            }
-            return {init: init};
+            };
         }
     }
 });
@@ -560,22 +554,21 @@ $_("update").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            sys.submit.on(Click, items.update.start);
             sys.type.on("next", (e, p) => {
                 opts = p;
                 p.id = items.guid.val();
                 e.stopPropagation();
-                this.trigger("switch", "service");
+                this.trigger("goto", "service");
                 this.trigger("publish", ["/apps/update", p]);
                 this.glance("/apps/update", callback);
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
-                if (p.code == -1)
-                    return e.target.trigger("switch", "update");
-                e.target.notify("applist", opts.link);
+                e.target.trigger("back");
+                p.code || e.target.notify("applist", [opts.link, 1]);
             }
-            function init(data) {
+			sys.submit.on(Click, items.update.start);
+            return function (data) {
                 items.guid.val(data.id);
                 items.nane.val(data.name);
                 items.area.setValue(data.link.area);
@@ -583,8 +576,7 @@ $_("update").imports({
                 items.puid.val(data.part);
                 items.view.setValue(data.view);
                 items.type.setValue(data.type);
-            }
-            return {init: init};
+            };
         }
     },
     GUID: {

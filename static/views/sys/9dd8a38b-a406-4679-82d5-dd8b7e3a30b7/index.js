@@ -14,19 +14,13 @@ $_().imports({
                 <Apps id='apps'/>\
                 <Service id='service'/>\
                 <Guide id='guide'/>\
-              </i:ViewStack>",
-        fun: function (sys, items, opts) { 
-            items.overview.title(opts.name);
-        }
+              </i:ViewStack>"
     },
     Overview: {
         xml: "<div id='overview' xmlns:i='overview'>\
                 <i:Navbar id='navbar'/>\
                 <i:Content id='content'/>\
-              </div>",
-        fun: function (sys, items, opts) {
-            return {title: items.navbar.title};
-        }
+              </div>"
     },
     Apps: {
         xml: "<div id='apps' xmlns:i='apps'>\
@@ -34,10 +28,10 @@ $_().imports({
                 <i:Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("show", (e, to, p) => {
-                if (!p) return;
-                items.navbar.init(p);
-                items.content.init(p);
+            this.on("show", (e, prev, data) => {
+                if (!data) return;
+                items.navbar(data);
+                items.content(data);
             });
         }
     },
@@ -51,18 +45,17 @@ $_().imports({
                 <i:Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            items.navbar.title("授权管理");
             this.on("show", (e, to, p) => {
-                items.content.text(`${p}不存在,请先添加${p}`);
+                items.content(`${p}不存在,请先添加${p}`);
             });
             this.watch("/auths/users", (e, data) => {
-                data.length ? this.trigger("publish", "/auths/areas") : this.trigger("switch", ["guide", "用户"]);
+                data.length ? this.trigger("publish", "/auths/areas") : this.trigger("goto", ["guide", "用户"]);
             });
             this.watch("/auths/areas", (e, data) => {
-                data.length ? this.trigger("publish", "/auths/links") : this.trigger("switch", ["guide", "区域"]);
+                data.length ? this.trigger("publish", "/auths/links") : this.trigger("goto", ["guide", "区域"]);
             });
             this.watch("/auths/links", (e, data) => { 
-                data.length || this.trigger("switch", ["guide", "网关"]);
+                data.length || this.trigger("goto", ["guide", "网关"]);
             });
             this.trigger("publish", "/auths/users");
         }
@@ -78,13 +71,12 @@ $_("overview").imports({
                    <div id='close' class='left'>\
                       <i class='icon f7-icons ios-only' style='margin:auto;'>xmark</i>\
                    </div>\
-                   <div id='title' class='title'/>\
+                   <div id='title' class='title'>授权管理</div>\
                    <div class='right'/>\
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
             sys.close.on(Click, e => this.trigger("close"));
-            return { title: sys.title.text };
         }
     },
     Content: {
@@ -116,7 +108,7 @@ $_("overview").imports({
                 let data = xp.extend({},links[linkId]);
                 data.area = areas[data.area];
                 data.user = items.users.getValue().id;
-                this.trigger("switch", ["apps", data]);
+                this.trigger("goto", ["apps", data]);
             });
             this.watch("auth-change", (e, app) => {
                 let payload = { user:items.users.getValue().id, app:app.id, auth:app.auth };
@@ -240,12 +232,11 @@ $_("apps").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            function init(p) {
+            sys.backward.on(Click, e => this.trigger("back"));
+            return function (p) {
                 opts = p;
                 sys.title.text(`${p.area.name}/${p.name}`);
-            }
-            sys.backward.on(Click, e => this.trigger("switch", "overview"));
-            return {init: init};
+            };
         }
     },
     Content: {
@@ -255,10 +246,6 @@ $_("apps").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            function init(p) {
-                opts = p;
-                sys.content.trigger("publish", ["/auths/apps", {user: p.user, link: p.id}]);
-            }
             this.watch("/auths/apps", (e, data) => {
                 sys.apps.kids().call("remove");
                 data.forEach(item => {
@@ -268,9 +255,12 @@ $_("apps").imports({
             this.on("update", (e, data) => {
                 let item = xp.extend({}, data);
                 item.link = opts;
-                this.trigger("switch", ["update", item]);
+                this.trigger("goto", ["update", item]);
             });
-            return {init: init};
+            return function (p) {
+                opts = p;
+                sys.content.trigger("publish", ["/auths/apps", {user: p.user, link: p.id}]);
+            };
         }
     },
     Item: {
@@ -314,7 +304,7 @@ $_("guide").imports({
                 <div id='content' class='page-content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            return { text: sys.content.text };
+            return sys.content.text;
         }
     }
 });
