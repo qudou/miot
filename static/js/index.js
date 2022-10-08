@@ -172,8 +172,26 @@ $_().imports({
 			});
             this.on("show", e => e.stopPropagation());
         }
+    },
+    ViewStack2: {
+        xml: "<div id='viewstack'/>",
+        fun: function (sys, items, opts) {
+            var args, kids = this.kids(),
+                table = kids.call("hide").hash(),
+                ptr = table[opts.index] || kids[0];
+            if (ptr) ptr = ptr.trigger("show").show();
+            this.on("switch", function (e, to) {
+                e.stopPropagation();
+                table = this.kids().hash();
+                if (!table[to] || table[to] == ptr) return;
+                args = [].slice.call(arguments).slice(2);
+                ptr.trigger("hide", [to+''].concat(args)).hide();
+                ptr = table[to].trigger("show", [ptr+''].concat(args)).show();
+            });
+            this.on("show", e => e.stopPropagation());
+            this.on("hide", e => e.stopPropagation());
+        }
     }
-
 });
 
 $_("verify").imports({ 
@@ -692,12 +710,16 @@ $_("content/footer").imports({
 
 $_("content/popup").imports({
     List: {
-        css: "#list { -webkit-transition-duration: .3s; transition-duration: .3s; position: absolute; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
-              #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}",
+        css: "#list { height: 100%; -webkit-transition-duration: .3s; transition-duration: .3s; position: absolute; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
+              #overlay { z-index: auto; }\
+			  #menus { bottom: 0; position: absolute; width: 100%; }\
+			  #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}",
         xml: "<div id='list'>\
                 <Overlay id='overlay'/>\
-                <Group id='group'/>\
-                <Cancel id='cancel'/>\
+				<div id='menus'>\
+                   <Group id='group'/>\
+                   <Cancel id='cancel'/>\
+				</div>\
               </div>",
         map: { appendTo: "group" },
         fun: function (sys, items, opts) {
@@ -715,7 +737,6 @@ $_("content/popup").imports({
             }
             sys.cancel.on(Click, hide);
             sys.overlay.on(Click, hide);
-            body.appendChild(sys.overlay.elem());
             return { show: show, hide: hide };
         }
     },
