@@ -711,7 +711,7 @@ $_("content/footer").imports({
 $_("content/popup").imports({
     List: {
         css: "#list { height: 100%; -webkit-transition-duration: .3s; transition-duration: .3s; position: absolute; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
-              #overlay { z-index: auto; }\
+              #overlay { z-index: auto; visibility: visible; opacity: 1; }\
 			  #menus { bottom: 0; position: absolute; width: 100%; }\
 			  #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}",
         xml: "<div id='list'>\
@@ -727,12 +727,10 @@ $_("content/popup").imports({
             function show() {
                 height = getComputedStyle(body, "").getPropertyValue("height");
                 sys.group.css("max-height", `${parseFloat(height) - 81}px`);
-                items.overlay.show();
                 return sys.list.addClass("#modal-in");
             }
             function hide(e) {
                 e && e.stopPropagation();
-                items.overlay.hide();
                 return sys.list.removeClass("#modal-in");
             }
             sys.cancel.on(Click, hide);
