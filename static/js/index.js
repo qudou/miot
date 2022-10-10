@@ -403,11 +403,13 @@ $_("content").imports({
 				}
             });
             this.watch("/stat/link", (e, p) => {
-                if(opts.link == p.mid && p.data == 0)
+				let app = sys.mask.prev();
+                if (app && opts.link == p.mid && p.data == 0)
 					items.info.show("设备已离线-[02]");
             });
             this.watch("/stat/ui/0", () => {
-                items.info.show("设备已离线-[03]");
+				let app = sys.mask.prev();
+                app && items.info.show("设备已离线-[03]");
             });
             this.watch("/ui/apps", (e, p) => {
 				let app = sys.mask.prev();
