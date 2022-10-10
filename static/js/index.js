@@ -379,6 +379,7 @@ $_("content").imports({
 			sys.info.on("close", close);
             function close(e) {
                 e.stopPropagation();
+				items.info.hide();
                 sys.applet.removeClass("#modal-in");
                 sys.applet.once("transitionend", sys.mask.prev().remove);
             }
