@@ -66,11 +66,11 @@ $_("overview").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar'>\
-			     <div id='left'>\
-				    <a id='icon'><Close xmlns='//miot/assets'/></a>\
-			     </div>\
-			     <div id='title'>授权管理</div>\
-			     <div id='right'/>\
+                 <div id='left'>\
+                    <a id='icon'><Close xmlns='//miot/assets'/></a>\
+                 </div>\
+                 <div id='title'>授权管理</div>\
+                 <div id='right'/>\
               </div>",
         fun: function (sys, items, opts) { 
             sys.icon.on(Click, e => this.trigger("close"));
@@ -220,11 +220,11 @@ $_("apps").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar'>\
-			     <div id='left'>\
-				    <a id='icon'><Backward xmlns='//miot/assets'/></a>\
-			     </div>\
-			     <div id='title'/>\
-			     <div id='right'/>\
+                 <div id='left'>\
+                    <a id='icon'><Backward xmlns='//miot/assets'/></a>\
+                 </div>\
+                 <div id='title'/>\
+                 <div id='right'/>\
               </div>",
         fun: function (sys, items, opts) { 
             sys.icon.on(Click, e => this.trigger("back"));

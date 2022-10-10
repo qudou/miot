@@ -45,8 +45,8 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             this.on("show", (e,prev,data) => {
-				data && items.content(data);
-			});
+                data && items.content(data);
+            });
         }
     },
     Update: {
@@ -56,8 +56,8 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             this.on("show", (e,prev,data) => {
-				data && items.content(data);
-			});
+                data && items.content(data);
+            });
         }
     },
     Remove: {
@@ -103,14 +103,14 @@ $_("overview").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar'>\
-			     <div id='left'>\
-				    <a id='icon'><Close xmlns='//miot/assets'/></a>\
-			     </div>\
-			     <div id='title'>应用管理</div>\
-			     <div id='right'/>\
+                 <div id='left'>\
+                    <a id='icon'><Close xmlns='//miot/assets'/></a>\
+                 </div>\
+                 <div id='title'>应用管理</div>\
+                 <div id='right'/>\
               </div>",
         fun: function (sys, items, opts) { 
-		    opts.title && sys.title.text(opts.title);
+            opts.title && sys.title.text(opts.title);
             sys.icon.on(Click, e => this.trigger("close"));
         }
     },
@@ -139,7 +139,7 @@ $_("overview").imports({
             this.watch("applist", (e, linkId, bool) => {
                 let data = xp.extend({},links[linkId]);
                 data.area = areas[data.area];
-				bool || this.trigger("goto", ["applist", data]);
+                bool || this.trigger("goto", ["applist", data]);
             });
             this.trigger("publish", "/apps/areas");
         }
@@ -185,17 +185,17 @@ $_("applist").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar'>\
-			     <div id='left'>\
-				    <a id='icon'><Backward xmlns='//miot/assets'/></a>\
-			     </div>\
-			     <div id='title'/>\
-			     <div id='right'>\
-				     <a id='menu' href='#'>注册</a>\
-				 </div>\
+                 <div id='left'>\
+                    <a id='icon'><Backward xmlns='//miot/assets'/></a>\
+                 </div>\
+                 <div id='title'/>\
+                 <div id='right'>\
+                     <a id='menu' href='#'>注册</a>\
+                 </div>\
               </div>",
         fun: function (sys, items, opts) { 
             sys.icon.on(Click, e => this.trigger("back"));
-			sys.menu.on(Click, e => this.trigger("goto", ["signup", opts]));
+            sys.menu.on(Click, e => this.trigger("goto", ["signup", opts]));
             return function (p) {
                 opts = p;
                 sys.title.text(`${p.area.name}/${p.name}`);
@@ -272,14 +272,14 @@ $_("signup").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar'>\
-			     <div id='left'>\
-				    <a id='icon'><Backward xmlns='//miot/assets'/></a>\
-			     </div>\
-			     <div id='title'/>\
-			     <div id='right'/>\
+                 <div id='left'>\
+                    <a id='icon'><Backward xmlns='//miot/assets'/></a>\
+                 </div>\
+                 <div id='title'/>\
+                 <div id='right'/>\
               </div>",
         fun: function (sys, items, opts) { 
-		    sys.title.text(opts.title);
+            sys.title.text(opts.title);
             sys.icon.on(Click, e => this.trigger("back"));
         }
     },
@@ -307,10 +307,10 @@ $_("signup").imports({
             });
             function callback(e, p) {
                 this.trigger("message", ["msg", p.desc]);
-				this.trigger("back");
+                this.trigger("back");
                 p.code || this.notify("applist", [opts.link, 1]);
             }
-			sys.submit.on(Click, items.signup.start);
+            sys.submit.on(Click, items.signup.start);
             return function (p) {
                 items.nane.val("").focus();
                 items.area.setValue(p.area);
@@ -495,14 +495,14 @@ $_("signup/form").imports({
             return { init: init, getValue:getValue, setValue: setValue };
         }
     },
-	Button: {
-		xml: "<div class='list'><ul><li>\
+    Button: {
+        xml: "<div class='list'><ul><li>\
                 <a id='label' href='#' class='item-link list-button'/>\
               </li></ul></div>",
         map: { appendTo: "label" },
-	},
-	Input: {
-		xml: "<li id='input'>\
+    },
+    Input: {
+        xml: "<li id='input'>\
                <div class='item-content item-input'>\
                  <div class='item-inner'>\
                    <div id='label' class='item-title item-label'>Name</div>\
@@ -512,22 +512,22 @@ $_("signup/form").imports({
                  </div>\
                </div>\
               </li>",
-		map: { attrs: { text: "name value type maxlength placeholder disabled style" } },
-		fun: function (sys, items, opts) { 
+        map: { attrs: { text: "name value type maxlength placeholder disabled style" } },
+        fun: function (sys, items, opts) { 
             sys.label.text(opts.label);
-			function focus() {
-				sys.text.elem().focus();
-				return this;
-			}
-			function val(value) {
-				if ( value == undefined )
-					return sys.text.prop("value");
-				sys.text.prop("value", value);
-				return this;
-			}
-			return { val: val, focus: focus };
-		}
-	}
+            function focus() {
+                sys.text.elem().focus();
+                return this;
+            }
+            function val(value) {
+                if ( value == undefined )
+                    return sys.text.prop("value");
+                sys.text.prop("value", value);
+                return this;
+            }
+            return { val: val, focus: focus };
+        }
+    }
 });
 
 $_("update").imports({
@@ -560,7 +560,7 @@ $_("update").imports({
                 e.target.trigger("back");
                 p.code || e.target.notify("applist", [opts.link, 1]);
             }
-			sys.submit.on(Click, items.update.start);
+            sys.submit.on(Click, items.update.start);
             return function (data) {
                 items.guid.val(data.id);
                 items.nane.val(data.name);
@@ -575,7 +575,7 @@ $_("update").imports({
     GUID: {
         css: "#guid { font-size: 14px; }\
               #text { height: 44px; line-height: 44px; }",
-		xml: "<li id='guid'>\
+        xml: "<li id='guid'>\
                <div class='item-content item-input'>\
                  <div class='item-inner'>\
                    <div id='label' class='item-title item-label'>应用标识符</div>\

@@ -34,8 +34,8 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             this.on("show", (e, prev, data) => {
-				data || items.content();
-			});
+                data || items.content();
+            });
         }
     },
     Update: {
@@ -83,13 +83,13 @@ $_("overview").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar'>\
-			     <div id='left'>\
-				    <a id='icon'><Close xmlns='//miot/assets'/></a>\
-			     </div>\
-			     <div id='title'>用户管理</div>\
-			     <div id='right'>\
-				    <a id='menu'>注册</a>\
-			     </div>\
+                 <div id='left'>\
+                    <a id='icon'><Close xmlns='//miot/assets'/></a>\
+                 </div>\
+                 <div id='title'>用户管理</div>\
+                 <div id='right'>\
+                    <a id='menu'>注册</a>\
+                 </div>\
               </div>",
         fun: function (sys, items, opts) { 
             sys.icon.on(Click, e => this.trigger("close"));
@@ -159,14 +159,14 @@ $_("signup").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar' xmlns:i='//miot/assets'>\
-			     <div id='left'>\
-				    <a id='icon'><i:Backward/></a>\
-			     </div>\
-			     <div id='title'/>\
-			     <div id='right'/>\
+                 <div id='left'>\
+                    <a id='icon'><i:Backward/></a>\
+                 </div>\
+                 <div id='title'/>\
+                 <div id='right'/>\
               </div>",
         fun: function (sys, items, opts) { 
-		    sys.title.text(opts.title);
+            sys.title.text(opts.title);
             sys.icon.on(Click, e => this.trigger("back"));
         }
     },
@@ -193,10 +193,10 @@ $_("signup").imports({
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
-				e.target.trigger("back", true);
-				p.code || e.target.trigger("publish", "/users/select");
+                e.target.trigger("back", true);
+                p.code || e.target.trigger("publish", "/users/select");
             }
-			sys.submit.on(Click, items.signup.start);
+            sys.submit.on(Click, items.signup.start);
             return function () {
                 items.email.val("");
                 items.pass.val("");
@@ -255,29 +255,29 @@ $_("signup/form").imports({
             return items.user;
         }
     },
-	Email: {
-		xml: "<Input id='email' label='邮箱' placeholder='请输入邮箱' maxlength='32'/>",
-		fun: function (sys, items, opts) {
-			var patt = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i;
-			function error(msg) {
-				items.email.focus();
-				sys.email.trigger("message", ["error", msg]);
-			}
-			this.on("start", (e, o) => {
-				o.email = items.email.val();
-				if (o.email == "") {
-					error("请输入邮箱");
-				} else if (o.email.length < 6) {
-					error("邮箱至少需要6个字符");
-			    } else if (!patt.test(o.email)) {
-					error("您输入的邮箱有误");
-				} else {
-					sys.email.trigger("next", o);
-				}
-			});
-			return items.email;
-		}
-	},
+    Email: {
+        xml: "<Input id='email' label='邮箱' placeholder='请输入邮箱' maxlength='32'/>",
+        fun: function (sys, items, opts) {
+            var patt = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i;
+            function error(msg) {
+                items.email.focus();
+                sys.email.trigger("message", ["error", msg]);
+            }
+            this.on("start", (e, o) => {
+                o.email = items.email.val();
+                if (o.email == "") {
+                    error("请输入邮箱");
+                } else if (o.email.length < 6) {
+                    error("邮箱至少需要6个字符");
+                } else if (!patt.test(o.email)) {
+                    error("您输入的邮箱有误");
+                } else {
+                    sys.email.trigger("next", o);
+                }
+            });
+            return items.email;
+        }
+    },
     Pass: {
         xml: "<Input id='pass' label='密码' placeholder='请输入密码' type='password' maxlength='16'/>",
         map: { attrs: { pass: "label" } },
@@ -299,20 +299,20 @@ $_("signup/form").imports({
             return items.pass;
         }
     },
-	Remarks: {
-		xml: "<Input id='remarks' label='备注' placeholder='备注不是必需的' maxlength='256'/>",
-		fun: function (sys, items, opts) {
-			this.on("start", (e, o) => {
-				o.remarks = items.remarks.val();
+    Remarks: {
+        xml: "<Input id='remarks' label='备注' placeholder='备注不是必需的' maxlength='256'/>",
+        fun: function (sys, items, opts) {
+            this.on("start", (e, o) => {
+                o.remarks = items.remarks.val();
                 if (o.remarks.length > 256) {
                     error("备注长度不得大于 256 位");
                 } else {
                     sys.remarks.trigger("next", o);
                 }
-			});
-			return items.remarks;
-		}
-	},
+            });
+            return items.remarks;
+        }
+    },
     Livetime: {
         xml: "<Input id='livetime' type='number' label='登录时效/天' placeholder='请输入登录时效' value='30'/>",
         fun: function (sys, items, opts) {
@@ -365,14 +365,14 @@ $_("signup/form").imports({
             return { val: setValue };
         }
     },
-	Button: {
-		xml: "<div class='list'><ul><li>\
+    Button: {
+        xml: "<div class='list'><ul><li>\
                 <a id='label' href='#' class='item-link list-button'/>\
               </li></ul></div>",
         map: { appendTo: "label" },
-	},
-	Input: {
-		xml: "<li id='input'>\
+    },
+    Input: {
+        xml: "<li id='input'>\
                <div class='item-content item-input'>\
                  <div class='item-inner'>\
                    <div id='label' class='item-title item-label'>Name</div>\
@@ -382,22 +382,22 @@ $_("signup/form").imports({
                  </div>\
                </div>\
               </li>",
-		map: { attrs: { text: "name value type maxlength placeholder disabled min max" } },
-		fun: function (sys, items, opts) { 
+        map: { attrs: { text: "name value type maxlength placeholder disabled min max" } },
+        fun: function (sys, items, opts) { 
             sys.label.text(opts.label);
-			function focus() {
-				sys.text.elem().focus();
-				return this;
-			}
-			function val(value) {
-				if ( value == undefined )
-					return sys.text.prop("value");
-				sys.text.prop("value", value);
-				return this;
-			}
-			return {val: val, focus: focus};
-		}
-	}
+            function focus() {
+                sys.text.elem().focus();
+                return this;
+            }
+            function val(value) {
+                if ( value == undefined )
+                    return sys.text.prop("value");
+                sys.text.prop("value", value);
+                return this;
+            }
+            return {val: val, focus: focus};
+        }
+    }
 });
 
 $_("update").imports({
@@ -425,11 +425,11 @@ $_("update").imports({
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
-				e.target.trigger("back");
-				p.code || e.target.trigger("publish", "/users/select");
+                e.target.trigger("back");
+                p.code || e.target.trigger("publish", "/users/select");
             }
-			sys.submit.on(Click, items.update.start);
-			sys.chpasswd.on(Click, () => this.trigger("goto", ["chpasswd",opts]));
+            sys.submit.on(Click, items.update.start);
+            sys.chpasswd.on(Click, () => this.trigger("goto", ["chpasswd",opts]));
             return function (value) {
                 opts = value;
                 items.user.val(value.name);
@@ -464,13 +464,13 @@ $_("chpasswd").imports({
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
-				e.target.trigger("back");
+                e.target.trigger("back");
             }
-			sys.submit.on(Click, items.chpasswd.start);
+            sys.submit.on(Click, items.chpasswd.start);
             return function (value) {
                 opts = value;
-				items.pass.val('');
-				items.new_pass.val('');
+                items.pass.val('');
+                items.new_pass.val('');
                 items.user.val(value.name);
             };
         }

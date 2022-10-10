@@ -33,8 +33,8 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             this.on("show", (e, prev, keep) => {
-				keep || items.content();
-			});
+                keep || items.content();
+            });
         }
     },
     Update: {
@@ -71,17 +71,17 @@ $_("overview").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar'>\
-			     <div id='left'>\
-				    <a id='icon'><Close xmlns='//miot/assets'/></a>\
-			     </div>\
-			     <div id='title'>视图管理</div>\
-			     <div id='right'>\
-				  <a id='menu' href='#'>注册</a>\
-				 </div>\
+                 <div id='left'>\
+                    <a id='icon'><Close xmlns='//miot/assets'/></a>\
+                 </div>\
+                 <div id='title'>视图管理</div>\
+                 <div id='right'>\
+                  <a id='menu' href='#'>注册</a>\
+                 </div>\
               </div>",
         fun: function (sys, items, opts) { 
             sys.icon.on(Click, e => this.trigger("close"));
-			sys.menu.on(Click, () => this.trigger("goto", "signup"));
+            sys.menu.on(Click, () => this.trigger("goto", "signup"));
         }
     },
     Content: {
@@ -152,14 +152,14 @@ $_("signup").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar'>\
-			     <div id='left'>\
-				    <a id='icon'><Backward xmlns='//miot/assets'/></a>\
-			     </div>\
-			     <div id='title'/>\
-			     <div id='right'/>\
+                 <div id='left'>\
+                    <a id='icon'><Backward xmlns='//miot/assets'/></a>\
+                 </div>\
+                 <div id='title'/>\
+                 <div id='right'/>\
               </div>",
         fun: function (sys, items, opts) { 
-		    sys.title.text(opts.title);
+            sys.title.text(opts.title);
             sys.icon.on(Click, e => this.trigger("back"));
         }
     },
@@ -182,10 +182,10 @@ $_("signup").imports({
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
-				e.target.trigger("back", true);
+                e.target.trigger("back", true);
                 p.code || e.target.trigger("publish", "/views/select");
             }
-			sys.submit.on(Click, items.signup.start);
+            sys.submit.on(Click, items.signup.start);
             return function () {
                 items.view.val("").focus();
                 items.desc.val("");
@@ -247,14 +247,14 @@ $_("signup/form").imports({
             return items.desc;
         }
     },
-	Button: {
-		xml: "<div class='list'><ul><li>\
+    Button: {
+        xml: "<div class='list'><ul><li>\
                 <a id='label' href='#' class='item-link list-button'/>\
               </li></ul></div>",
         map: { appendTo: "label" },
-	},
-	Input: {
-		xml: "<li id='input'>\
+    },
+    Input: {
+        xml: "<li id='input'>\
                <div class='item-content item-input'>\
                  <div class='item-inner'>\
                    <div id='label' class='item-title item-label'>Name</div>\
@@ -264,22 +264,22 @@ $_("signup/form").imports({
                  </div>\
                </div>\
               </li>",
-		map: { attrs: { text: "name value type maxlength placeholder disabled style" } },
-		fun: function (sys, items, opts) { 
+        map: { attrs: { text: "name value type maxlength placeholder disabled style" } },
+        fun: function (sys, items, opts) { 
             sys.label.text(opts.label);
-			function focus() {
-				sys.text.elem().focus();
-				return this;
-			}
-			function val(value) {
-				if ( value == undefined )
-					return sys.text.prop("value");
-				sys.text.prop("value", value);
-				return this;
-			}
-			return { val: val, focus: focus };
-		}
-	}
+            function focus() {
+                sys.text.elem().focus();
+                return this;
+            }
+            function val(value) {
+                if ( value == undefined )
+                    return sys.text.prop("value");
+                sys.text.prop("value", value);
+                return this;
+            }
+            return { val: val, focus: focus };
+        }
+    }
 });
 
 $_("update").imports({
@@ -304,10 +304,10 @@ $_("update").imports({
             });
             function callback(e, p) {
                 e.target.trigger("message", ["msg", p.desc]);
-				e.target.trigger("back");
+                e.target.trigger("back");
                 p.code || e.target.trigger("publish", "/views/select");
             }
-			sys.submit.on(Click, items.update.start);
+            sys.submit.on(Click, items.update.start);
             return function (value) {
                 items.id.val(value.id);
                 items.view.val(value.name);

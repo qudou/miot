@@ -55,9 +55,9 @@ $_().imports({
                 if (!p.topic) 
                     await items.apps.cache(m.id, p);
                 p.mid = m.id;
-				items.middle.then((middle) => {
-					middle.notify(m.view, "pindex", p)
-				});
+                items.middle.then((middle) => {
+                    middle.notify(m.view, "pindex", p)
+                });
             });
             this.watch("to-local", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
@@ -93,13 +93,13 @@ $_().imports({
                 if (client == undefined) return;
                 let p = JSON.parse(packet.payload + '');
                 let m = await items.common.getAppById(packet.topic);
-				let u = await items.common.getUserByClient(client.id);
+                let u = await items.common.getUserByClient(client.id);
                 p.cid = client.id;
                 p.mid = packet.topic;
-				p.user = u.name;
-				items.middle.then((middle) => {
-					middle.notify(m.view, "uindex", p)
-				});
+                p.user = u.name;
+                items.middle.then((middle) => {
+                    middle.notify(m.view, "uindex", p)
+                });
             });
             this.watch("to-user", (e, topic, p) => {
                 p = (p.mid == uid) ? p : {topic: p.topic ? "/ui/app" : "/stat/app", data: p};
@@ -213,12 +213,12 @@ $_("mosca").imports({
         xml: "<Common id='middle' xmlns='/'/>",
         fun: async function (sys, items, opts) {
             let table = {};
-			let viewId = "c258080a-d635-4e1b-a61f-48ff552c146a";
-			let sdir = `${__dirname}/middles/sys`;
-			let mids = fs.readdirSync(sdir);
-			for (let mid of mids)
-				if (await items.middle.exists(`${sdir}/${mid}/uindex.js`))
-					table[mid] = sys.middle.append("System", { mid: mid });
+            let viewId = "c258080a-d635-4e1b-a61f-48ff552c146a";
+            let sdir = `${__dirname}/middles/sys`;
+            let mids = fs.readdirSync(sdir);
+            for (let mid of mids)
+                if (await items.middle.exists(`${sdir}/${mid}/uindex.js`))
+                    table[mid] = sys.middle.append("System", { mid: mid });
             this.on("to-users", (e, p) => {
                 e.stopPropagation();
                 let payload = {mid: p.mid, topic: p.topic, data: p.data};
@@ -230,25 +230,25 @@ $_("mosca").imports({
                 let body = { topic: p.topic, body: p.body };
                 this.notify("to-local", [m.link, {pid: m.part, body: body}]);
             });
-			function notify(mid, type, p) {
-				table[mid] ? table[mid].val().notify(p) : table[viewId].notify(type, [mid, p]);
+            function notify(mid, type, p) {
+                table[mid] ? table[mid].val().notify(p) : table[viewId].notify(type, [mid, p]);
             }
             return { notify: notify };
         }
     },
     System: {
         xml: "<main id='system'/>",
-		map: { msgscope: true },
+        map: { msgscope: true },
         fun: function (sys, items, opts) {
-			require(`${__dirname}/middles/sys/${opts.mid}/uindex.js`);
-			sys.system.append(`//${opts.mid}/Index`);
+            require(`${__dirname}/middles/sys/${opts.mid}/uindex.js`);
+            sys.system.append(`//${opts.mid}/Index`);
             function notify(p) {
                 let msgs = xp.messages(sys.system);
                 if(msgs.indexOf(p.topic) == -1)
                     return sys.system.trigger("to-users", p);
                 sys.system.notify(p.topic, p);
             }
-			return { notify: notify };
+            return { notify: notify };
         }
     }
 });
@@ -335,7 +335,7 @@ $_("proxy").imports({
                     items.sqlite.runBatchAsync(statements).then(results => {
                         resolve(true);
                     }).catch(err => {
-						// When client_id is repeated, here will be executed. This is not an error.
+                        // When client_id is repeated, here will be executed. This is not an error.
                         items.logger.trace(err.toString());
                         resolve(false);
                     });

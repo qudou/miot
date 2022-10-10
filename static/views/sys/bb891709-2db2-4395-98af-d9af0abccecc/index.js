@@ -17,17 +17,17 @@ $_().imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar' xmlns:i='//miot/assets'>\
-			     <div id='left'>\
-				    <a id='icon'><i:Close/></a>\
-			     </div>\
-			     <div id='title'>系统状态</div>\
-			     <div id='right'>\
-				  <a id='menu' href='#'>刷新</a>\
-				 </div>\
+                 <div id='left'>\
+                    <a id='icon'><i:Close/></a>\
+                 </div>\
+                 <div id='title'>系统状态</div>\
+                 <div id='right'>\
+                  <a id='menu' href='#'>刷新</a>\
+                 </div>\
               </div>",
         fun: function (sys, items, opts) { 
             sys.icon.on(Click, e => this.trigger("close"));
-			sys.menu.on(Click, ()=>{
+            sys.menu.on(Click, ()=>{
                 this.trigger("publish", "/status");
                 this.trigger("publish", "/sessions")
             });
