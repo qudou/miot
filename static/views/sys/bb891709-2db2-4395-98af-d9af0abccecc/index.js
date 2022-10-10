@@ -15,31 +15,28 @@ $_().imports({
               </div>"
     },
     Navbar: {
-        css: ".ios .navbar-inner { padding: 0 14px; }\
-              .ios .navbar #close { margin-right: 0; padding-right: 10px; }",
-        xml: "<div id='navbar' class='navbar'>\
-                <div class='navbar-inner'>\
-                   <div id='close' class='left'>\
-                      <i class='icon f7-icons ios-only'>xmark</i>\
-                   </div>\
-                   <div id='title' class='title'>系统状态</div>\
-                   <div class='right'>\
-                      <button id='refresh' class='button' style='border:none;'>刷新</button>\
-                   </div>\
-                </div>\
+        map: { extend: { "from": "//miot/widget/Navbar" } },
+        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+			     <div id='left'>\
+				    <a id='icon'><i:Close/></a>\
+			     </div>\
+			     <div id='title'>系统状态</div>\
+			     <div id='right'>\
+				  <a id='menu' href='#'>刷新</a>\
+				 </div>\
               </div>",
-        fun: function (sys, items, opts) {
-            sys.close.on(Click, e => this.trigger("close"));
-            sys.refresh.on(Click, ()=>{
+        fun: function (sys, items, opts) { 
+            sys.icon.on(Click, e => this.trigger("close"));
+			sys.menu.on(Click, ()=>{
                 this.trigger("publish", "/status");
                 this.trigger("publish", "/sessions")
             });
-            sys.refresh.trigger(Click);
+            sys.menu.trigger(Click); 
         }
     },
     Content: {
         xml: "<div id='content' class='page' xmlns:i='content'>\
-                <div id='detail' class='page-content'>\
+                <div id='detail' class='page-content' style='padding-top: 44px;'>\
                     <div class='block-title'>当前用户</div>\
                     <i:Status id='status'/>\
                 </div>\

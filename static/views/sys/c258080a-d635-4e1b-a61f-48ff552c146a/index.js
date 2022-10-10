@@ -69,27 +69,24 @@ $_().imports({
 
 $_("overview").imports({
     Navbar: {
-        css: ".ios .navbar-inner { padding: 0 10px; }\
-              .ios .navbar #close { margin-right: 0; width: 22px; height: 22px; }",
-        xml: "<div id='navbar' class='navbar'>\
-                <div class='navbar-inner'>\
-                   <div id='close' class='left'>\
-                      <i class='icon f7-icons ios-only' style='margin:auto;'>xmark</i>\
-                   </div>\
-                   <div id='title' class='title'/>\
-                   <div class='right'>\
-                    <button id='signup' class='button' style='border:none;'>注册</button>\
-                   </div>\
-                </div>\
+        map: { extend: { "from": "//miot/widget/Navbar" } },
+        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+			     <div id='left'>\
+				    <a id='icon'><i:Close/></a>\
+			     </div>\
+			     <div id='title'>视图管理</div>\
+			     <div id='right'>\
+				  <a id='menu' href='#'>注册</a>\
+				 </div>\
               </div>",
-        fun: function (sys, items, opts) {
-            sys.close.on(Click, e => this.trigger("close"));
-            sys.signup.on(Click, () => this.trigger("goto", "signup"));
+        fun: function (sys, items, opts) { 
+            sys.icon.on(Click, e => this.trigger("close"));
+			sys.menu.on(Click, () => this.trigger("goto", "signup"));
         }
     },
     Content: {
         xml: "<div id='content' class='page'>\
-                <div class='page-content'>\
+                <div class='page-content' style='padding-top: 44px;'>\
                   <ViewList id='list'/>\
                 </div>\
               </div>",
@@ -153,24 +150,22 @@ $_("overview").imports({
 
 $_("signup").imports({
     Navbar: {
-        css: ".ios .navbar-inner { padding: 0 10px; }",
-        xml: "<div id='navbar' class='navbar'>\
-                <div class='navbar-inner'>\
-                   <div id='backward' class='left'>\
-                      <i class='icon f7-icons ios-only' style='margin:auto;'>chevron_left_round</i>\
-                   </div>\
-                   <div id='title' class='title'>标题</div>\
-                   <div class='right'/>\
-                </div>\
+        map: { extend: { "from": "//miot/widget/Navbar" } },
+        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+			     <div id='left'>\
+				    <a id='icon'><i:Backward/></a>\
+			     </div>\
+			     <div id='title'/>\
+			     <div id='right'/>\
               </div>",
-        fun: function (sys, items, opts) {
-            sys.title.text(opts.title);
-            sys.backward.on(Click, e => this.trigger("back"));
+        fun: function (sys, items, opts) { 
+		    sys.title.text(opts.title);
+            sys.icon.on(Click, e => this.trigger("back"));
         }
     },
     Content: {
         xml: "<div id='content' class='page'>\
-                <div class='page-content' xmlns:i='form'>\
+                <div class='page-content' xmlns:i='form' style='padding-top: 44px;'>\
                     <i:Form id='signup'>\
                       <i:View id='view'/>\
                       <i:Desc id='desc'/>\
@@ -290,7 +285,7 @@ $_("signup/form").imports({
 $_("update").imports({
     Content: {
         xml: "<div id='content' class='page'>\
-                <div class='page-content' xmlns:i='../signup/form'>\
+                <div class='page-content' xmlns:i='../signup/form' style='padding-top: 44px;'>\
                     <i:Form id='update'>\
                       <GUID id='id'/>\
                       <i:View id='view'/>\

@@ -1,5 +1,5 @@
 /*!
- * miot.js v1.0.9
+ * miot.js v1.0.10
  * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
@@ -137,7 +137,7 @@ $_().imports({
     },
     ViewStack: {
 		css: "#viewstack { position: relative; }\
-		      #viewstack > * { position: absolute; width: 100%; height: 100%; top: 0; bottom: 0; transition-duration: .3s; transform: translate3d(100%,0,0); }",
+		      #viewstack > * { position: absolute; width: 100%; height: 100%; transition-duration: .3s; transform: translate3d(100%,0,0); }",
         xml: "<div id='viewstack'/>",
         fun: function (sys, items, opts) {
             let kids = this.kids().hash();
@@ -171,25 +171,6 @@ $_().imports({
 				cur.css("transition-duration") == "0s" && cur.trigger("transitionend");
 			});
             this.on("show", e => e.stopPropagation());
-        }
-    },
-    ViewStack2: {
-        xml: "<div id='viewstack'/>",
-        fun: function (sys, items, opts) {
-            var args, kids = this.kids(),
-                table = kids.call("hide").hash(),
-                ptr = table[opts.index] || kids[0];
-            if (ptr) ptr = ptr.trigger("show").show();
-            this.on("switch", function (e, to) {
-                e.stopPropagation();
-                table = this.kids().hash();
-                if (!table[to] || table[to] == ptr) return;
-                args = [].slice.call(arguments).slice(2);
-                ptr.trigger("hide", [to+''].concat(args)).hide();
-                ptr = table[to].trigger("show", [ptr+''].concat(args)).show();
-            });
-            this.on("show", e => e.stopPropagation());
-            this.on("hide", e => e.stopPropagation());
         }
     }
 });
@@ -774,6 +755,29 @@ $_("content/popup").imports({
     }
 });
 
+$_("widget").imports({
+    Navbar: {
+        css: "#navbar { display: flex; justify-content: space-between; align-items:center; position: relative; z-index: 500; height: 44px; box-sizing: border-box; padding: 0 10px; font-size: 17px; background: #f7f7f8; }\
+		      #navbar:after { content: ''; position: absolute; background-color: #c4c4c4; display: block; z-index: 15; top: auto; right: auto; bottom: 0; left: 0; height: 1px; width: 100%; transform-origin: 50% 100%; }\
+			  #navbar a:active { opacity: 0.5; }\
+			  #left { width: 60px; display: flex; fill: #007aff; }\
+              #icon { display: flex; }\
+		      #icon svg { width: 24px; height: 24px; }\
+			  #title { display: inline-block; font-weight: 600; }\
+			  #right { width: 60px; text-align: right; }\
+		      #menu { height: 44px; line-height: 44px; }",
+        xml: "<div id='navbar'>\
+			     <div id='left'>\
+				    <a id='icon'>icon</a>\
+			     </div>\
+			     <div id='title'>title</div>\
+			     <div id='right'>\
+				    <a id='menu'>menu</a>\
+			     </div>\
+              </div>"
+    }
+});
+
 $_("assets").imports({
     Area: {
         xml: "<svg viewBox='0 0 1024 1024'>\
@@ -797,7 +801,7 @@ $_("assets").imports({
     },
     Close: {
         xml: "<svg viewBox='0 0 1024 1024'>\
-                <path d='M179.2 486.4h665.6v51.2h-665.6z'/>\
+                <path id='path' d='M556.8 512L832 236.8c12.8-12.8 12.8-32 0-44.8-12.8-12.8-32-12.8-44.8 0L512 467.2l-275.2-277.333333c-12.8-12.8-32-12.8-44.8 0-12.8 12.8-12.8 32 0 44.8l275.2 277.333333-277.333333 275.2c-12.8 12.8-12.8 32 0 44.8 6.4 6.4 14.933333 8.533333 23.466666 8.533333s17.066667-2.133333 23.466667-8.533333L512 556.8 787.2 832c6.4 6.4 14.933333 8.533333 23.466667 8.533333s17.066667-2.133333 23.466666-8.533333c12.8-12.8 12.8-32 0-44.8L556.8 512z'/>\
               </svg>"
     },
     Backward: {

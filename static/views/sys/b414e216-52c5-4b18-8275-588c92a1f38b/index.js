@@ -101,25 +101,22 @@ $_().imports({
 
 $_("overview").imports({
     Navbar: {
-        css: ".ios .navbar-inner { padding: 0 10px; }\
-              .ios .navbar #close { margin-right: 0; width: 22px; height: 22px; }",
-        xml: "<div id='navbar' class='navbar'>\
-                <div class='navbar-inner'>\
-                   <div id='close' class='left'>\
-                      <i class='icon f7-icons ios-only' style='margin:auto;'>xmark</i>\
-                   </div>\
-                   <div id='title' class='title'>应用管理</div>\
-                   <div class='right'/>\
-                </div>\
+        map: { extend: { "from": "//miot/widget/Navbar" } },
+        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+			     <div id='left'>\
+				    <a id='icon'><i:Close/></a>\
+			     </div>\
+			     <div id='title'>应用管理</div>\
+			     <div id='right'/>\
               </div>",
-        fun: function (sys, items, opts) {
-			opts.title && sys.title.text(opts.title);
-            sys.close.on(Click, e => this.trigger("close"));
+        fun: function (sys, items, opts) { 
+		    opts.title && sys.title.text(opts.title);
+            sys.icon.on(Click, e => this.trigger("close"));
         }
     },
     Content: {
         xml: "<div class='page'>\
-                <div id='content' class='page-content'/>\
+                <div id='content' class='page-content' style='padding-top: 44px;'/>\
               </div>",
         fun: function (sys, items, opts) {
             let areas = {}, links = {}; 
@@ -186,21 +183,19 @@ $_("overview").imports({
 
 $_("applist").imports({
     Navbar: {
-        css: ".ios .navbar-inner { padding: 0 10px; }",
-        xml: "<div id='navbar' class='navbar'>\
-                <div class='navbar-inner'>\
-                   <div id='backward' class='left'>\
-                      <i class='icon f7-icons' style='margin:auto;'>chevron_left_round</i>\
-                   </div>\
-                   <div id='title' class='title'/>\
-                   <div class='right'>\
-                      <button id='signup' class='button' style='border:none;'>注册</button>\
-                   </div>\
-                </div>\
+        map: { extend: { "from": "//miot/widget/Navbar" } },
+        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+			     <div id='left'>\
+				    <a id='icon'><i:Backward/></a>\
+			     </div>\
+			     <div id='title'/>\
+			     <div id='right'>\
+				     <a id='menu' href='#'>注册</a>\
+				 </div>\
               </div>",
-        fun: function (sys, items, opts) {
-            sys.backward.on(Click, e => this.trigger("back"));
-            sys.signup.on(Click, e => this.trigger("goto", ["signup", opts]));
+        fun: function (sys, items, opts) { 
+            sys.icon.on(Click, e => this.trigger("back"));
+			sys.menu.on(Click, e => this.trigger("goto", ["signup", opts]));
             return function (p) {
                 opts = p;
                 sys.title.text(`${p.area.name}/${p.name}`);
@@ -209,7 +204,7 @@ $_("applist").imports({
     },
     Content: {
         xml: "<div class='page'>\
-                <div id='content' class='page-content'>\
+                <div id='content' class='page-content' style='padding-top: 44px;'>\
                   <AppList id='list'/>\
                 </div>\
               </div>",
@@ -275,24 +270,22 @@ $_("applist").imports({
 
 $_("signup").imports({
     Navbar: {
-        css: ".ios .navbar-inner { padding: 0 10px; }",
-        xml: "<div id='navbar' class='navbar'>\
-                <div class='navbar-inner'>\
-                   <div id='backward' class='left'>\
-                      <i class='icon f7-icons' style='margin:auto;'>chevron_left_round</i>\
-                   </div>\
-                   <div id='title' class='title'/>\
-                   <div class='right'/>\
-                </div>\
+        map: { extend: { "from": "//miot/widget/Navbar" } },
+        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+			     <div id='left'>\
+				    <a id='icon'><i:Backward/></a>\
+			     </div>\
+			     <div id='title'/>\
+			     <div id='right'/>\
               </div>",
-        fun: function (sys, items, opts) {
-            sys.title.text(opts.title);
-            sys.backward.on(Click, e => this.trigger("back"));
+        fun: function (sys, items, opts) { 
+		    sys.title.text(opts.title);
+            sys.icon.on(Click, e => this.trigger("back"));
         }
     },
     Content: {
         xml: "<div id='content' class='page'>\
-                <div class='page-content' xmlns:i='form'>\
+                <div class='page-content' xmlns:i='form' style='padding-top: 44px;'>\
                     <i:Form id='signup'>\
                       <i:Name id='nane'/>\
                       <i:Area id='area'/>\
@@ -540,7 +533,7 @@ $_("signup/form").imports({
 $_("update").imports({
     Content: {
         xml: "<div id='content' class='page'>\
-                <div class='page-content' xmlns:i='../signup/form'>\
+                <div class='page-content' xmlns:i='../signup/form' style='padding-top: 44px;'>\
                     <i:Form id='update'>\
                       <GUID id='guid'/>\
                       <i:Name id='nane'/>\

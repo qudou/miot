@@ -64,24 +64,21 @@ $_().imports({
 
 $_("overview").imports({
     Navbar: {
-        css: ".ios .navbar-inner { padding: 0 10px; }\
-              .ios .navbar #close { margin-right: 0; width: 22px; height: 22px; }",
-        xml: "<div id='navbar' class='navbar'>\
-                <div class='navbar-inner'>\
-                   <div id='close' class='left'>\
-                      <i class='icon f7-icons ios-only' style='margin:auto;'>xmark</i>\
-                   </div>\
-                   <div id='title' class='title'>授权管理</div>\
-                   <div class='right'/>\
-                </div>\
+        map: { extend: { "from": "//miot/widget/Navbar" } },
+        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+			     <div id='left'>\
+				    <a id='icon'><i:Close/></a>\
+			     </div>\
+			     <div id='title'>授权管理</div>\
+			     <div id='right'/>\
               </div>",
-        fun: function (sys, items, opts) {
-            sys.close.on(Click, e => this.trigger("close"));
+        fun: function (sys, items, opts) { 
+            sys.icon.on(Click, e => this.trigger("close"));
         }
     },
     Content: {
         xml: "<div class='page'>\
-                <div id='content' class='page-content' xmlns:i='users'>\
+                <div id='content' class='page-content' xmlns:i='users' style='padding-top: 44px;'>\
                    <i:List id='list'><Users id='users'/></i:List>\
                 </div>\
               </div>",
@@ -221,18 +218,16 @@ $_("overview/links").imports({
 
 $_("apps").imports({
     Navbar: {
-        css: ".ios .navbar-inner { padding: 0 10px; }",
-        xml: "<div id='navbar' class='navbar'>\
-                <div class='navbar-inner'>\
-                   <div id='backward' class='left'>\
-                      <i class='icon f7-icons' style='margin:auto;'>chevron_left_round</i>\
-                   </div>\
-                   <div id='title' class='title'/>\
-                   <div class='right'/>\
-                </div>\
+        map: { extend: { "from": "//miot/widget/Navbar" } },
+        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+			     <div id='left'>\
+				    <a id='icon'><i:Backward/></a>\
+			     </div>\
+			     <div id='title'/>\
+			     <div id='right'/>\
               </div>",
-        fun: function (sys, items, opts) {
-            sys.backward.on(Click, e => this.trigger("back"));
+        fun: function (sys, items, opts) { 
+            sys.icon.on(Click, e => this.trigger("back"));
             return function (p) {
                 opts = p;
                 sys.title.text(`${p.area.name}/${p.name}`);
@@ -241,7 +236,7 @@ $_("apps").imports({
     },
     Content: {
         xml: "<div class='page'>\
-                <div id='content' class='page-content'>\
+                <div id='content' class='page-content' style='padding-top: 44px;'>\
                   <List id='apps' xmlns='/overview/users'/>\
                 </div>\
               </div>",
