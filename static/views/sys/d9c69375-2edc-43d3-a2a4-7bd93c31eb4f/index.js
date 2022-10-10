@@ -9,7 +9,7 @@ xmlplus("d9c69375-2edc-43d3-a2a4-7bd93c31eb4f", (xp, $_) => { // 用户管理
 
 $_().imports({
     Index: {
-        xml: "<i:ViewStack xmlns:i='//miot'>\
+        xml: "<i:ViewStack xmlns:i='//miot/widget'>\
                 <Overview id='overview'/>\
                 <Signup id='signup'/>\
                 <Update id='update'/>\
@@ -82,9 +82,9 @@ $_().imports({
 $_("overview").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
-        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+        xml: "<div id='navbar'>\
 			     <div id='left'>\
-				    <a id='icon'><i:Close/></a>\
+				    <a id='icon'><Close xmlns='//miot/assets'/></a>\
 			     </div>\
 			     <div id='title'>用户管理</div>\
 			     <div id='right'>\

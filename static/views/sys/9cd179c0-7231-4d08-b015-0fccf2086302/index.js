@@ -9,7 +9,7 @@ xmlplus("9cd179c0-7231-4d08-b015-0fccf2086302", (xp, $_) => { // 网关管理
 
 $_().imports({
     Index: {
-        xml: "<i:ViewStack id='index' xmlns:i='//miot'>\
+        xml: "<i:ViewStack id='index' xmlns:i='//miot/widget'>\
                 <Overview id='overview'/>\
                 <Signup id='signup'/>\
                 <Update id='update'/>\
@@ -83,9 +83,9 @@ $_().imports({
 $_("overview").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
-        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+        xml: "<div id='navbar'>\
 			     <div id='left'>\
-				    <a id='icon'><i:Close/></a>\
+				    <a id='icon'><Close xmlns='//miot/assets'/></a>\
 			     </div>\
 			     <div id='title'>网关管理</div>\
 			     <div id='right'>\
@@ -164,9 +164,9 @@ $_("overview").imports({
 $_("signup").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
-        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+        xml: "<div id='navbar'>\
 			     <div id='left'>\
-				    <a id='icon'><i:Backward/></a>\
+				    <a id='icon'><Backward xmlns='//miot/assets'/></a>\
 			     </div>\
 			     <div id='title'/>\
 			     <div id='right'/>\
@@ -374,9 +374,9 @@ $_("update").imports({
 $_("guide").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
-        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+        xml: "<div id='navbar'>\
 			     <div id='left'>\
-				    <a id='icon'><i:Close/></a>\
+				    <a id='icon'><Close xmlns='//miot/assets'/></a>\
 			     </div>\
 			     <div id='title'>网关管理</div>\
 			     <div id='right'/>\

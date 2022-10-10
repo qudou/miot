@@ -20,12 +20,12 @@ $_().imports({
               #index > * { width: 100%; height: 100%; transition-duration: 0s }\
               .toast-text { width:100%; text-align: center;}\
 			  .dialog { border: 1px solid #CACDD1; }",
-        xml: "<ViewStack id='index'>\
+        xml: "<i:ViewStack id='index' xmlns:i='widget'>\
                 <Verify id='verify'/>\
                 <Service id='service'/>\
                 <Login id='login'/>\
                 <Content id='content'/>\
-              </ViewStack>",
+              </i:ViewStack>",
         fun: function(sys, items, opts) {
             let toast;
             this.on("message", (e, t, msg) => {
@@ -105,11 +105,11 @@ $_().imports({
     },
     Content: {
         css: "#stack, #applet, #stack > * { width: 100%; height: 100%; box-sizing: border-box;}",
-        xml: "<div id='content' xmlns:i='content'>\
-                <ViewStack id='stack'>\
+        xml: "<div id='content' xmlns:i='content' xmlns:j='widget'>\
+                <j:ViewStack id='stack'>\
                     <i:Index id='home'/>\
                     <i:About id='about'/>\
-                </ViewStack>\
+                </j:ViewStack>\
                 <i:Footer id='footer'/>\
                 <i:Popup id='popup'/>\
                 <i:Applet id='applet'/>\
@@ -133,44 +133,6 @@ $_().imports({
                 this.notify(p.topic, [p.data]);
             });
             this.watch("subscribed", () => this.trigger("publish", {topic: "/ui/areas"}));
-        }
-    },
-    ViewStack: {
-		css: "#viewstack { position: relative; }\
-		      #viewstack > * { position: absolute; width: 100%; height: 100%; transition-duration: .3s; transform: translate3d(100%,0,0); }",
-        xml: "<div id='viewstack'/>",
-        fun: function (sys, items, opts) {
-            let kids = this.kids().hash();
-			let stack = [kids[opts.index] || this.first()]; 
-			stack.length && stack[0].css("transform", "translate3d(0,0,0)");
-			// "to" is element name of target.
-            this.on("goto", function (e, to) {
-                e.stopPropagation();
-				let last = stack[stack.length - 1];
-                if (!kids[to] || kids[to] == last) return;
-                let args = [].slice.call(arguments).slice(2);
-                last.css("transform", "translate3d(-100%,0,0)");
-				stack.push(kids[to]);
-				kids[to].css("transform", "translate3d(0,0,0)");
-				kids[to].once("transitionend", ()=> {
-					kids[to].trigger("show", [last+''].concat(args));
-				});
-				kids[to].css("transition-duration") == "0s" && kids[to].trigger("transitionend");
-            });
-			this.on("back", function (e) {
-				e.stopPropagation();
-				if (stack.length <= 1) return;
-				let old = stack.pop();
-				old && old.css("transform", "translate3d(100%,0,0)");
-				let cur = stack[stack.length - 1];
-				cur.css("transform", "translate3d(0,0,0)");
-				let args = [].slice.call(arguments).slice(1);
-				cur.once("transitionend", ()=> {
-				    cur.trigger("show", [old+''].concat(args));
-				});
-				cur.css("transition-duration") == "0s" && cur.trigger("transitionend");
-			});
-            this.on("show", e => e.stopPropagation());
         }
     }
 });
@@ -756,6 +718,44 @@ $_("content/popup").imports({
 });
 
 $_("widget").imports({
+    ViewStack: {
+		css: "#viewstack { position: relative; }\
+		      #viewstack > * { position: absolute; width: 100%; height: 100%; transition-duration: .3s; transform: translate3d(100%,0,0); }",
+        xml: "<div id='viewstack'/>",
+        fun: function (sys, items, opts) {
+            let kids = this.kids().hash();
+			let stack = [kids[opts.index] || this.first()]; 
+			stack.length && stack[0].css("transform", "translate3d(0,0,0)");
+			// "to" is element name of target.
+            this.on("goto", function (e, to) {
+                e.stopPropagation();
+				let last = stack[stack.length - 1];
+                if (!kids[to] || kids[to] == last) return;
+                let args = [].slice.call(arguments).slice(2);
+                last.css("transform", "translate3d(-100%,0,0)");
+				stack.push(kids[to]);
+				kids[to].css("transform", "translate3d(0,0,0)");
+				kids[to].once("transitionend", ()=> {
+					kids[to].trigger("show", [last+''].concat(args));
+				});
+				kids[to].css("transition-duration") == "0s" && kids[to].trigger("transitionend");
+            });
+			this.on("back", function (e) {
+				e.stopPropagation();
+				if (stack.length <= 1) return;
+				let old = stack.pop();
+				old && old.css("transform", "translate3d(100%,0,0)");
+				let cur = stack[stack.length - 1];
+				cur.css("transform", "translate3d(0,0,0)");
+				let args = [].slice.call(arguments).slice(1);
+				cur.once("transitionend", ()=> {
+				    cur.trigger("show", [old+''].concat(args));
+				});
+				cur.css("transition-duration") == "0s" && cur.trigger("transitionend");
+			});
+            this.on("show", e => e.stopPropagation());
+        }
+    },
     Navbar: {
         css: "#navbar { display: flex; justify-content: space-between; align-items:center; position: relative; z-index: 500; height: 44px; box-sizing: border-box; padding: 0 10px; font-size: 17px; background: #f7f7f8; }\
 		      #navbar:after { content: ''; position: absolute; background-color: #c4c4c4; display: block; z-index: 15; top: auto; right: auto; bottom: 0; left: 0; height: 1px; width: 100%; transform-origin: 50% 100%; }\

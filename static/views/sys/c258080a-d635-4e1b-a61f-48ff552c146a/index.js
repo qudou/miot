@@ -9,7 +9,7 @@ xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => { // 视图管理
 
 $_().imports({
     Index: {
-        xml: "<i:ViewStack xmlns:i='//miot'>\
+        xml: "<i:ViewStack xmlns:i='//miot/widget'>\
                 <Overview id='overview'/>\
                 <Signup id='signup'/>\
                 <Update id='update'/>\
@@ -70,9 +70,9 @@ $_().imports({
 $_("overview").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
-        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+        xml: "<div id='navbar'>\
 			     <div id='left'>\
-				    <a id='icon'><i:Close/></a>\
+				    <a id='icon'><Close xmlns='//miot/assets'/></a>\
 			     </div>\
 			     <div id='title'>视图管理</div>\
 			     <div id='right'>\
@@ -151,9 +151,9 @@ $_("overview").imports({
 $_("signup").imports({
     Navbar: {
         map: { extend: { "from": "//miot/widget/Navbar" } },
-        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+        xml: "<div id='navbar'>\
 			     <div id='left'>\
-				    <a id='icon'><i:Backward/></a>\
+				    <a id='icon'><Backward xmlns='//miot/assets'/></a>\
 			     </div>\
 			     <div id='title'/>\
 			     <div id='right'/>\
@@ -187,8 +187,8 @@ $_("signup").imports({
             }
 			sys.submit.on(Click, items.signup.start);
             return function () {
-                items.view.val("");
-                items.desc.val("").focus();
+                items.view.val("").focus();
+                items.desc.val("");
             };
         }
     }
