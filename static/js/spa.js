@@ -17,14 +17,14 @@ $_().imports({
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
               #index { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
               #login { background: #FFF; }\
-              #index > * { width: 100%; height: 100%; }\
+              #index > * { transition-duration: 0s; }\
               .toast-text { width:100%; text-align: center;}",
-        xml: "<ViewStack id='index'>\
+        xml: "<i:ViewStack id='index' xmlns:i='widget'>\
                 <Verify id='verify'/>\
                 <Login id='login'/>\
                 <Service id='service'/>\
                 <Content id='content'/>\
-              </ViewStack>",
+              </i:ViewStack>",
         fun: function(sys, items, opts) {
             let toast;
             this.on("message", (e, t, msg) => {
@@ -38,6 +38,8 @@ $_().imports({
                 this.notify(p.topic, [p.data]);
             });
             let q = xp.create("//miot/Query");
+			if (q.app == null)
+				throw Error("please specify an app!");
             this.watch("subscribed", () => {
                 this.notify("publish", [uid, {topic: "/ui/spa", body: {id: q.app}}])
             });
@@ -53,7 +55,7 @@ $_().imports({
             let q = xp.create("//miot/Query");
             let sid = q.sid || localStorage.getItem("session");
             setTimeout(e => {
-                this.trigger("switch", sid ? ["service", {username: sid}] : "login");
+                this.trigger("goto", sid ? ["service", {username: sid}] : "login");
             }, 0);
         }
     },
@@ -90,7 +92,7 @@ $_().imports({
                         this.notify("subscribed");
                     });
                     console.log("connected to " + Server);
-                    this.trigger("switch", "content").notify("/stat/ui/1");
+                    this.trigger("goto", "content").notify("/stat/ui/1");
                 });
                 client.on("message", (topic, p) => {
                     this.notify("message", JSON.parse(p.toString()));
@@ -104,7 +106,7 @@ $_().imports({
             this.watch("/ui/logout", (e, p) => {
                 client.end();
                 localStorage.clear();
-                this.trigger("switch", "login");
+                this.trigger("goto", "login");
             });
             this.watch("publish", (e, topic, p = {}) => {
                 client.publish(topic, JSON.stringify(p));
@@ -142,6 +144,8 @@ $_().imports({
                 page.notify(`//${opts.view}`);          
             }
             this.watch("/ui/spa", (e, app) => {
+				if (app == null)
+					return items.info.show("应用不存在，无法打开！");
                 opts = app;
                 let page = sys.mask.prev();
 				if (page) return loaded(page);
@@ -173,25 +177,6 @@ $_().imports({
                     this.notify("/ui/logout");
                 });
             });
-        }
-    },
-    ViewStack: {
-        xml: "<div id='viewstack'/>",
-        fun: function (sys, items, opts) {
-            var args, kids = this.kids(),
-                table = kids.call("hide").hash(),
-                ptr = table[opts.index] || kids[0];
-            if (ptr) ptr = ptr.trigger("show").show();
-            this.on("switch", function (e, to) {
-                e.stopPropagation();
-                table = this.kids().hash();
-                if (!table[to] || table[to] == ptr) return;
-                args = [].slice.call(arguments).slice(2);
-                ptr.trigger("hide", [to+''].concat(args)).hide();
-                ptr = table[to].trigger("show", [ptr+''].concat(args)).show();
-            });
-            this.on("show", e => e.stopPropagation());
-            this.on("hide", e => e.stopPropagation());
         }
     },
     Query: {
@@ -322,7 +307,7 @@ $_("login").imports({
               </li>",
         fun: function (sys, items, opts) {
             this.on("start", (e, o) => {
-                this.trigger("switch", ["service", {username: o.name, password: o.pass}])
+                this.trigger("goto", ["service", {username: o.name, password: o.pass}])
             });
         }
     },
@@ -355,6 +340,100 @@ $_("login").imports({
             }
             return {val: val, focus: focus};
         }
+    }
+});
+
+$_("widget").imports({
+    ViewStack: {
+		css: "#viewstack { position: relative; }\
+		      #viewstack > * { position: absolute; width: 100%; height: 100%; transition-duration: .3s; transform: translate3d(100%,0,0); }",
+        xml: "<div id='viewstack'/>",
+        fun: function (sys, items, opts) {
+            let kids = this.kids().hash();
+			let stack = [kids[opts.index] || this.first()]; 
+			stack.length && stack[0].css("transform", "translate3d(0,0,0)");
+			// "to" is element name of target.
+            this.on("goto", function (e, to) {
+                e.stopPropagation();
+				let last = stack[stack.length - 1];
+                if (!kids[to] || kids[to] == last) return;
+                let args = [].slice.call(arguments).slice(2);
+                last.css("transform", "translate3d(-100%,0,0)");
+				stack.push(kids[to]);
+				kids[to].css("transform", "translate3d(0,0,0)");
+				kids[to].once("transitionend", ()=> {
+					kids[to].trigger("show", [last+''].concat(args));
+				});
+				kids[to].css("transition-duration") == "0s" && kids[to].trigger("transitionend");
+            });
+			this.on("back", function (e) {
+				e.stopPropagation();
+				if (stack.length <= 1) return;
+				let old = stack.pop();
+				old && old.css("transform", "translate3d(100%,0,0)");
+				let cur = stack[stack.length - 1];
+				cur.css("transform", "translate3d(0,0,0)");
+				let args = [].slice.call(arguments).slice(1);
+				cur.once("transitionend", ()=> {
+				    cur.trigger("show", [old+''].concat(args));
+				});
+				cur.css("transition-duration") == "0s" && cur.trigger("transitionend");
+			});
+            this.on("show", e => e.stopPropagation());
+        }
+    },
+    Navbar: {
+        css: "#navbar { display: flex; justify-content: space-between; align-items:center; position: relative; z-index: 500; height: 44px; box-sizing: border-box; padding: 0 10px; font-size: 17px; background: #f7f7f8; }\
+		      #navbar:after { content: ''; position: absolute; background-color: #c4c4c4; display: block; z-index: 15; top: auto; right: auto; bottom: 0; left: 0; height: 1px; width: 100%; transform-origin: 50% 100%; }\
+			  #navbar a:active { opacity: 0.5; }\
+			  #left { width: 60px; display: flex; fill: #007aff; }\
+              #icon { display: flex; }\
+		      #icon svg { width: 24px; height: 24px; }\
+			  #title { display: inline-block; font-weight: 600; }\
+			  #right { width: 60px; text-align: right; }\
+		      #menu { height: 44px; line-height: 44px; }",
+        xml: "<div id='navbar'>\
+			     <div id='left'>\
+				    <a id='icon'>icon</a>\
+			     </div>\
+			     <div id='title'>title</div>\
+			     <div id='right'>\
+				    <a id='menu'>menu</a>\
+			     </div>\
+              </div>"
+    }
+});
+
+$_("assets").imports({
+    Area: {
+        xml: "<svg viewBox='0 0 1024 1024'>\
+                <path d='M309.474912 719.986985c26.89658 0 48.695049-21.798469 48.695049-48.646953l-49.715285-264.667915c0-26.920116-21.798469-48.767703-48.695049-48.767703L136.249639 357.904413c-26.89658 0-48.646953 21.847587-48.646953 48.767703l49.715285 264.667915c0 26.848485 21.750373 48.646953 48.646953 48.646953L309.474912 719.986985z' p-id='6348'></path><path d='M591.985194 719.986985c26.89658 0 48.646953-21.798469 48.646953-48.646953l49.714262-476.756311c0-26.89658-21.750373-48.719608-48.646953-48.719608L418.711825 145.864112c-26.847461 0-48.744167 21.823028-48.744167 48.719608l49.715285 476.756311c0 26.848485 21.895683 48.646953 48.743144 48.646953L591.985194 719.986985z' p-id='6349'></path><path d='M874.446357 719.986985c26.89658 0 48.744167-21.798469 48.744167-48.646953L923.190525 547.709293c0-26.921139-21.847587-48.743144-48.744167-48.743144l-73.844845 0c-26.846438 0-35.634592 15.730263-48.694025 48.743144l-49.715285 123.630738c0 26.848485 21.847587 48.646953 48.695049 48.646953L874.446357 719.986985z' p-id='6350'></path><path d='M913.139611 773.779122 146.930909 773.779122c-12.720719 0-23.206538 10.414187-23.206538 23.231097 0 12.792351 18.157545 53.550637 30.974455 53.550637l758.440785-30.271444c12.769838 0 23.25668-10.486842 23.25668-23.279193C936.395268 784.193309 925.908426 773.779122 913.139611 773.779122z'/>\
+              </svg>"
+    },
+    Home: {
+        xml: "<svg width='48' height='48' viewBox='0 0 1024 1024'>\
+                <path d='M949.082218 519.343245 508.704442 107.590414 68.326667 518.133697c-8.615215 8.03193-9.096169 21.538549-1.043772 30.144554 8.043187 8.599865 21.566178 9.085936 30.175253 1.035586l411.214573-383.337665 411.232992 384.505257c4.125971 3.854794 9.363252 5.760191 14.5903 5.760191 5.690606 0 11.384281-2.260483 15.58393-6.757914C958.138478 540.883841 957.695387 527.388479 949.082218 519.343245L949.082218 519.343245zM949.082218 519.343245M814.699602 527.800871c-11.787464 0-21.349237 9.555633-21.349237 21.327748l0 327.037405L622.552373 876.166023 622.552373 648.662543 394.824789 648.662543l0 227.503481L224.032938 876.166023 224.032938 549.128619c0-11.772115-9.55154-21.327748-21.348214-21.327748-11.802814 0-21.35333 9.555633-21.35333 21.327748l0 369.691877 256.19494 0L437.526333 691.318038l142.329613 0 0 227.502457 256.1888 0L836.044746 549.128619C836.045769 537.356504 826.481949 527.800871 814.699602 527.800871L814.699602 527.800871zM814.699602 527.800871M665.254941 222.095307l128.095423 0 0 113.74867c0 11.789511 9.562796 21.332864 21.349237 21.332864 11.783371 0 21.346167-9.543354 21.346167-21.332864L836.045769 179.439812 665.254941 179.439812c-11.789511 0-21.35333 9.538237-21.35333 21.327748C643.900587 212.554 653.464407 222.095307 665.254941 222.095307L665.254941 222.095307zM665.254941 222.095307'/>\
+              </svg>",
+    },
+    About: {
+        xml: "<svg width='48' height='48' viewBox='0 0 1024 1024'>\
+                <path d='M507.577907 23.272727C240.142852 23.272727 23.272727 239.870837 23.272727 507.094323 23.272727 774.535126 240.153546 991.375225 507.577907 991.375225 775.101356 991.375225 991.883087 774.596878 991.883087 507.094323 991.883087 239.824352 775.104293 23.272727 507.577907 23.272727ZM507.577907 69.818182C749.408866 69.818182 945.337633 265.541628 945.337633 507.094323 945.337633 748.890368 749.395172 944.82977 507.577907 944.82977 265.857934 944.82977 69.818182 748.826829 69.818182 507.094323 69.818182 265.590268 265.836128 69.818182 507.577907 69.818182ZM460.17174 368.061568 555.443661 368.061568 555.443661 763.664179 460.17174 763.664179 460.17174 368.061568ZM507.761743 230.268948C534.095946 230.268948 555.397702 251.580874 555.397702 277.899264 555.397702 304.171723 534.072967 325.506614 507.761743 325.506614 481.450515 325.506614 460.17174 304.171723 460.17174 277.899264 460.17174 251.580874 481.450515 230.268948 507.761743 230.268948Z'/>\
+              </svg>"
+    },
+    Unknow: {
+        xml: "<svg viewBox='0 0 1024 1024'>\
+                  <path d='M797.75744 438.02624c-11.07968 0-21.95456 0.8192-32.72704 2.56 2.2528-13.6192 3.62496-27.36128 3.62496-41.69728 0-146.47296-118.6816-265.3184-265.29792-265.3184-142.56128 0-258.62144 112.78336-264.62208 254.03392C105.6768 394.38336 0 503.99232 0 638.64832c0 139.10016 112.68096 251.76064 251.82208 251.76064h545.93536C922.64448 890.40896 1024 789.13536 1024 664.18688c0-124.88704-101.35552-226.16064-226.24256-226.16064zM510.27968 808.38656c-22.69184 0-41.14432-18.06336-41.14432-40.30464 0-22.24128 18.39104-40.30464 41.14432-40.30464 22.67136 0 41.14432 18.06336 41.14432 40.30464-0.02048 22.24128-18.41152 40.30464-41.14432 40.30464z m110.46912-228.0448c-8.06912 12.6976-25.1904 29.92128-51.44576 51.77344-13.57824 11.28448-22.03648 20.3776-25.31328 27.29984-3.2768 6.8608-4.8128 19.16928-4.48512 36.90496h-58.5728c-0.12288-8.3968-0.24576-13.5168-0.24576-15.38048 0-18.96448 3.13344-34.52928 9.4208-46.77632 6.26688-12.24704 18.8416-26.0096 37.62176-41.2672 18.78016-15.31904 30.04416-25.31328 33.71008-30.04416 5.632-7.49568 8.51968-15.7696 8.51968-24.73984 0-12.4928-5.05856-23.18336-15.0528-32.1536-9.99424-8.9088-23.57248-13.39392-40.57088-13.39392-16.40448 0-30.12608 4.68992-41.14432 13.96736-11.01824 9.29792-20.50048 29.7984-22.75328 42.496-2.10944 11.9808-59.84256 17.03936-59.14624-7.24992 0.69632-24.28928 13.33248-50.62656 34.97984-69.71392 21.66784-19.08736 50.11456-28.65152 85.2992-28.65152 37.04832 0 66.4576 9.68704 88.3712 29.02016 21.9136 19.3536 32.80896 41.84064 32.80896 67.54304a74.07616 74.07616 0 0 1-12.00128 40.36608z'/>\
+              </svg>"
+    },
+    Close: {
+        xml: "<svg viewBox='0 0 1024 1024'>\
+                <path id='path' d='M556.8 512L832 236.8c12.8-12.8 12.8-32 0-44.8-12.8-12.8-32-12.8-44.8 0L512 467.2l-275.2-277.333333c-12.8-12.8-32-12.8-44.8 0-12.8 12.8-12.8 32 0 44.8l275.2 277.333333-277.333333 275.2c-12.8 12.8-12.8 32 0 44.8 6.4 6.4 14.933333 8.533333 23.466666 8.533333s17.066667-2.133333 23.466667-8.533333L512 556.8 787.2 832c6.4 6.4 14.933333 8.533333 23.466667 8.533333s17.066667-2.133333 23.466666-8.533333c12.8-12.8 12.8-32 0-44.8L556.8 512z'/>\
+              </svg>"
+    },
+    Backward: {
+        xml: "<svg viewBox='0 0 1024 1024'>\
+                <path d='M398.64 512l271.53 271.529c16.662 16.662 16.662 43.677 0 60.34-16.662 16.662-43.678 16.662-60.34 0l-301.699-301.7c-16.662-16.661-16.662-43.677 0-60.339l301.7-301.699c16.661-16.662 43.677-16.662 60.339 0 16.662 16.663 16.662 43.678 0 60.34L398.64 512z'/>\
+              </svg>"
     }
 });
 

@@ -17,7 +17,7 @@ $_().imports({
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
               #index { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
               #login { background: #FFF; }\
-              #index > * { width: 100%; height: 100%; transition-duration: 0s }\
+              #index > * { transition-duration: 0s; }\
               .toast-text { width:100%; text-align: center;}\
 			  .dialog { border: 1px solid #CACDD1; }",
         xml: "<i:ViewStack id='index' xmlns:i='widget'>\
@@ -145,14 +145,32 @@ $_("verify").imports({
                 <Loader/>\
               </div>",
         fun: function (sys, items, opts) {
-            function show() {
-                sys.overlay.addClass("#visible");
+            function show(text) {
+				sys.overlay.addClass("#visible");
+                text && sys.label.text(text);
             }
             function hide() {
                 sys.overlay.removeClass("#visible");
             }
             return { show: show, hide: hide };
         }
+    },
+    Message: {
+        css: "#info { position: absolute; top: 50%; width: 100%; padding: 8px; box-sizing: border-box; color: white; text-align: center; background: rgba(0, 0, 0, 0.4); border-radius: 5px; }\
+		      #close { fill: #007aff; width: 22px; height: 22px; margin-bottom: -6px; }",
+        xml: "<div id='overlay'>\
+                <div id='info'>\
+				    <span id='label'/>\
+					<a href='#'>\
+				      <Close id='close' xmlns='/assets'/>\
+					</a>\
+				</div>\
+              </div>",
+        map: { extend: { from: "Overlay" } },
+		fun: function (sys, items, opts) {
+			sys.close.on(Click, () => this.trigger("close")); 
+		}
+
     },
     Loader: {
         css: "#preloader { position: absolute; left: 50%; top: 50%; padding: 8px; margin-left: -25px; margin-top: -25px; background: rgba(0, 0, 0, 0.8); z-index: 13500; border-radius: 5px; }\
@@ -335,8 +353,9 @@ $_("content").imports({
         css: "#applet { -webkit-transition-duration: .3s; transition-duration: .3s; position: absolute; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
               #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}\
               #applet > * { width: 100%; height: 100%; }",
-        xml: "<div id='applet'>\
-                <Overlay id='mask' xmlns='/verify'/>\
+        xml: "<div id='applet' xmlns:i='/verify'>\
+                <i:Overlay id='mask'/>\
+				<i:Message id='info'/>\
               </div>",
         fun: function (sys, items, opts) {
             this.on("publish", (e, topic, body) => {
@@ -357,6 +376,12 @@ $_("content").imports({
                 sys.applet.once("close", close);
                 sys.mask.prev().notify(`//${opts.view}`);
             }
+			sys.info.on("close", close);
+            function close(e) {
+                e.stopPropagation();
+                sys.applet.removeClass("#modal-in");
+                sys.applet.once("transitionend", sys.mask.prev().remove);
+            }
             this.watch("/open/applet", (e, app) => {
                 opts = app;
                 items.mask.show();
@@ -367,25 +392,32 @@ $_("content").imports({
                     this.trigger("message", ["error", "应用打开失败，请稍后再试！"]);
                 });
             });
-            function close(e) {
-                e.stopPropagation();
-                sys.applet.removeClass("#modal-in");
-                sys.applet.once("transitionend", sys.mask.prev().remove);
-            }
             this.watch("/stat/app", (e, p) => {
                 let app = sys.mask.prev();
-                if (app && opts.mid == p.mid)
-                    p.data == 0 && app.trigger("close");
+                if (app && opts.mid == p.mid)　{
+					if (p.data == 0)
+                        return items.info.show("设备已离线-[01]");
+					items.info.hide();
+                    app.notify(`//${opts.view}`);
+				}
             });
             this.watch("/stat/link", (e, p) => {
-                if(opts.link == p.mid && p.data == 0){
-                    let app = sys.mask.prev();
-                    app && app.trigger("close");
-                }
+                if(opts.link == p.mid && p.data == 0)
+					items.info.show("设备已离线-[02]");
             });
             this.watch("/stat/ui/0", () => {
-                let app = sys.mask.prev();
-                app && app.trigger("close");
+                items.info.show("设备已离线-[03]");
+            });
+            this.watch("/ui/apps", (e, p) => {
+				let app = sys.mask.prev();
+				app && p.apps.forEach(i => {
+					if (i.mid == opts.mid) {
+						if (i.online == 0)
+							return items.info.show("设备已离线-[00]");
+						items.info.hide();
+						app.notify(`//${opts.view}`)
+					}
+				});
             });
         }
     }
