@@ -1,5 +1,5 @@
 /*!
- * xmlplus.js v1.7.9
+ * xmlplus.js v1.7.15
  * https://xmlplus.cn
  * (c) 2017-2022 qudou
  * Released under the MIT license
@@ -29,8 +29,7 @@ var vdoc, rdoc;
 
 var XPath, DOMParser_, XMLSerializer_, NodeElementAPI;
 var Manager = [HtmlManager(),CompManager(),,TextManager(),TextManager(),,,,TextManager(),,];
-var Formater = { "int": parseInt, "float": parseFloat, "bool": new Function("v","return v==true || v=='true';") };
-var Template = { css: "", cfg: {}, opt: {}, ali: {}, map: { share: "", defer: "", cfgs: {}, attrs: {}, format: {}, class: {} }, fun: new Function };
+var Template = { css: "", cfg: {}, opt: {}, ali: {}, map: { share: "", defer: "", cfgs: {}, attrs: {}, class: {} }, bnd: {}, fun: new Function };
 var isReady;
 
 // isHTML contains isSVG
@@ -508,7 +507,7 @@ var bd = {
     },
     bindObject: function (that) {
         let objects = {}, binds = {};
-        let bind = that.map.bind || {};
+        let bind = that.bnd;
         let proxy = new bd.ObjectProxy(objects, binds);
         function setter(target) {
             let props = Object.getOwnPropertyNames(target);
@@ -516,7 +515,7 @@ var bd = {
                 return $.each(props, (i,key) => proxy[key] = target[key]);
             $.each(props, (i,key) => {
                 let value = target[key];
-                binds[key] ||= [];
+                binds[key] = binds[key] || [];
                 objects[key] = value;
                 let views = that.fdr.sys[bind[key] && bind[key].skey || key];
                 if (!views) {
@@ -527,11 +526,18 @@ var bd = {
                     views = [views];
                 views = views.map(v => {return Store[v.guid()]});
                 if ($.isArray(value)) {
-                    views.forEach(v => binds[key].push(bd.bindArray(v)));
+                    views.forEach(view => {
+						binds[key].push(bd.bindArray(view));
+					});
                 } else if ($.isPlainObject(value)) {
-                    views.forEach(v => binds[key].push(bd.bindObject(v)));
+                    views.forEach(view => {
+						view.api.trigger("beforeBind", [value]);
+						binds[key].push(bd.bindObject(view));
+					});
                 } else if (bd.isLiteral(value)) {
-                    views.forEach(v => binds[key].push(bd.bindLiteral(v, proxy, key)));
+                    views.forEach(view => {
+						binds[key].push(bd.bindLiteral(view, proxy, key));
+					});
                 } else {
                     $.error(`Type error: ${value}`);
                 }
@@ -575,7 +581,7 @@ var bd = {
         return {get: ()=>{return proxy}, set: setter, del: delter, unbind: unbind};
     },
     bindLiteral: function (that, proxy, key) {
-        let hook = (that.env.map.bind ||= {})[key] || {};
+        let hook = that.env.bnd[key] || {};
         let targets = getTargets(that);
         if (targets.length == 0)
             return bd.BindNormal();
@@ -737,7 +743,7 @@ $.extend(hp, (function () {
         ["opt","cfg","map","ali"].forEach(function (k) {
             $.isPlainObject(obj[k]) || $.error("invalid " + k + " expected a plainObject");
         });
-        ["format","cfgs","attrs"].forEach(function (k) {
+        ["cfgs","attrs"].forEach(function (k) {
             $.isPlainObject(obj.map[k]) || $.error("invalid " + k + " in map, expected a plainObject");
         });
         typeof obj.map.defer == "string" || $.error("invalid defer in map, expected a string");
@@ -758,10 +764,7 @@ $.extend(hp, (function () {
         }
     }
     function initialize(obj) {
-        var i, formats = {}, map = obj.map;
-        for ( i in map.format )
-            Formater[i] && (formats[i] = obj.map.format[i].split(' '));
-        map.format = formats;
+        var map = obj.map;
         resetInput(map.attrs), resetInput(map.cfgs);
         map.defer = map.defer ? map.defer.split(' ') : [];
         map.share = map.share ? map.share.split(' ') : [];
@@ -841,7 +844,7 @@ var Collection = (function () {
         values: function () {
             var result = new Collection;
             for ( var i = 0; i < this.length; i++ )
-                result.push(this[i].value());
+                result.push(this[i].val());
             return result;
         }
     };
@@ -946,12 +949,10 @@ var EventModuleAPI = (function () {
         }
         eventTable[uid] = eventTable[uid] || {};
         eventTable[uid][type] = eventTable[uid][type] || [];
-        eventTable[uid][type].push({ selector: selector, fn: fn, handler: handler});
-        let doc = this.elem().ownerDocument;
-        listeners[type] = listeners[type] || [];
-        if (listeners[type].indexOf(doc) == -1) {
-            listeners[type].push(doc);
-            doc.addEventListener(type, eventHandler)
+        eventTable[uid][type].push({selector: selector, fn: fn, handler: handler});
+        if (!listeners[type]) {
+            listeners[type] = type;
+            rdoc.addEventListener(type, eventHandler)
         }
         return this;
     }
@@ -995,9 +996,8 @@ var EventModuleAPI = (function () {
         }
         return this;
     }
-    function trigger(type, data, bubble) {
+    function trigger(type, data) {
         var event = Event(type, true);
-        event.bubble = bubble;
         event.xmlTarget = Store[this.uid];
         event.data = data == null ? [] : ($.isArray(data) ? data : [data]);
         this.elem().dispatchEvent(event);
@@ -1029,16 +1029,17 @@ var EventModuleAPI = (function () {
         if (!target) return;
         let node = target.node;
         let cancelBubble = false;
-        let elem = target.elem();
         while (node.uid) {
             let items =(eventTable[node.uid] || {})[event.type] || [];
             for (let i = 0; i < items.length; i++) {
                 let e = items[i].handler(event);
+                if (e.cancelImmediateBubble) {
+                    cancelBubble = true;
+                    break;
+                }
                 e.cancelBubble && (cancelBubble = true);
-                if (e.cancelImmediateBubble) break;
             }
-            if (cancelBubble || event.bubble === false && Store[node.uid].elem() !== elem)
-                break;
+            if (cancelBubble) break;
             let tnode = node.parentNode;
             node = tnode.uid ? tnode : (Store[node.uid].env.node || {});
         }
@@ -1354,9 +1355,11 @@ var CommonElementAPI = {
             } else if ($.isPlainObject(value)) {
                 if (!view.fdr)
                     $.error("a PlainObject is not allow to bind a htmltag!");
+				view.api.trigger("beforeBind", [value]);
                 model = bd.bindObject(view);
-            } else if (bd.isLiteral(value))
+            } else if (bd.isLiteral(value)) {
                 model = bd.bindLiteral(view, proxy, propKey);
+			}
             model.set(value);
             return true;
         }
@@ -1644,13 +1647,13 @@ function CompManager() {
     function create(env, node, parent) {
         var w = hp.component(env.dir, node);
         if ( !w ) return;
-        var k, o = table.pop() || CompElement(node, parent);
+        var o = table.pop() || CompElement(node, parent);
         o.map = $.extend(true, {}, w.map);
         o.opt = $.extend(true, {}, w.opt);
         o.cfg = $.extend(true, {}, w.cfg);
         o.ctr = o.map.msgscope ? Communication() : env.ctr;
         // aid: appid, cid: classid
-        o.dir = w.dir, o.css = w.css, o.ali = w.ali, o.fun = w.fun, o.cid = w.cid;
+        o.dir = w.dir, o.css = w.css, o.ali = w.ali, o.fun = w.fun, o.cid = w.cid, o.bnd = w.bnd;
         o.smr = env.smr, o.env = env, o.node = node, o.aid = env.aid, node.uid = o.uid;
         var exprs = aliasMatch(env, node);
         resetAttrs(env, node, exprs);
@@ -1871,13 +1874,6 @@ function resetOptions(env, ins, exprs) {
         o = ins.node.attributes[i];
         o.prefix || (ins.opt[o.name] = o.value);
     }
-    for ( i in ins.map.format ) {
-        list = ins.map.format[i];
-        for ( k = 0; k < list.length; k++ ) {
-            o = ins.opt[list[k]];
-            o && (ins.opt[list[k]] = Formater[i](o));
-        }
-    }
 }
 
 // Here, the component is parsed recursively.
@@ -1980,9 +1976,9 @@ function startup(xml, parent, param) {
         $.error("target type must be ELEMENT_NODE");
     if ( $.isPlainObject(parent) ) {
         param = parent;
-        parent = rdoc.body || rdoc.cloneNode();
+        parent = rdoc.body || rdoc.lastChild;
     } else if ( parent === undefined ) {
-        parent = rdoc.body || rdoc.cloneNode();
+        parent = rdoc.body || rdoc.lastChild;
     } else if ( typeof parent == "string" ) {
         parent =  rdoc.getElementById(parent);
         if (!parent)
@@ -1998,7 +1994,7 @@ function startup(xml, parent, param) {
         env.cfg[env.xml.getAttribute("id")] = param;
     }
     env.xml = env.xml.parentNode || vdoc.cloneNode().appendChild(env.xml).parentNode;
-    fragment = parent.ownerDocument.createDocumentFragment();
+    fragment = rdoc.createDocumentFragment();
     instance = parseEnvXML(env, fragment, env.xml.lastChild);
     parent.appendChild(fragment);
     instance = $.extend(hp.create(instance).api, {style: env.smr.style});
@@ -2027,7 +2023,8 @@ function startup(xml, parent, param) {
         XPath = require("xpath");
         DOMParser_ = require("exmldom").DOMParser;
         XMLSerializer_ = require("exmldom").XMLSerializer;
-        vdoc = rdoc = $.parseXML("<void/>");
+        vdoc = $.parseXML("<body/>");
+        rdoc = $.parseXML("<body/>");
         NodeElementAPI = $.extend(ServerElementAPI, EventModuleAPI, CommonElementAPI);
         module.exports = $.extend(xmlplus, $);
     }

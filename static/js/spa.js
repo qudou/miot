@@ -38,8 +38,8 @@ $_().imports({
                 this.notify(p.topic, [p.data]);
             });
             let q = xp.create("//miot/Query");
-			if (q.app == null)
-				throw Error("please specify an app!");
+            if (q.app == null)
+                throw Error("please specify an app!");
             this.watch("subscribed", () => {
                 this.notify("publish", [uid, {topic: "/ui/spa", body: {id: q.app}}])
             });
@@ -144,12 +144,12 @@ $_().imports({
                 page.notify(`//${opts.view}`);          
             }
             this.watch("/ui/spa", (e, app) => {
-				if (app == null)
-					return items.info.show("应用不存在，无法打开！");
+                if (app == null)
+                    return items.info.show("应用不存在或未授权！");
                 opts = app;
                 let page = sys.mask.prev();
-				if (page) return loaded(page);
-				let dir = app.type ? "usr" : "sys";
+                if (page) return loaded(page);
+                let dir = app.type ? "usr" : "sys";
                 require([`/views/${dir}/${opts.view}/index.js`], ()=> load(opts), ()=> {
                     items.mask.hide();
                     this.trigger("message", ["error", "应用打开失败，请稍后再试！"]);
@@ -171,9 +171,11 @@ $_().imports({
             this.watch("/stat/ui/0", () => {
                 items.info.show("设备已离线-[03]");
             });
-			this.on("close", e => {
+            this.on("close", e => {
                 e.stopPropagation();
                 app.dialog.confirm("确定退出系统吗？", "温馨提示", e => {
+					items.info.hide();
+					sys.mask.prev().remove();
                     this.notify("/ui/logout");
                 });
             });
@@ -345,61 +347,61 @@ $_("login").imports({
 
 $_("widget").imports({
     ViewStack: {
-		css: "#viewstack { position: relative; }\
-		      #viewstack > * { position: absolute; width: 100%; height: 100%; transition-duration: .3s; transform: translate3d(100%,0,0); }",
+        css: "#viewstack { position: relative; }\
+              #viewstack > * { position: absolute; width: 100%; height: 100%; transition-duration: .3s; transform: translate3d(100%,0,0); }",
         xml: "<div id='viewstack'/>",
         fun: function (sys, items, opts) {
             let kids = this.kids().hash();
-			let stack = [kids[opts.index] || this.first()]; 
-			stack.length && stack[0].css("transform", "translate3d(0,0,0)");
-			// "to" is element name of target.
+            let stack = [kids[opts.index] || this.first()]; 
+            stack.length && stack[0].css("transform", "translate3d(0,0,0)");
+            // "to" is element name of target.
             this.on("goto", function (e, to) {
                 e.stopPropagation();
-				let last = stack[stack.length - 1];
+                let last = stack[stack.length - 1];
                 if (!kids[to] || kids[to] == last) return;
                 let args = [].slice.call(arguments).slice(2);
                 last.css("transform", "translate3d(-100%,0,0)");
-				stack.push(kids[to]);
-				kids[to].css("transform", "translate3d(0,0,0)");
-				kids[to].once("transitionend", ()=> {
-					kids[to].trigger("show", [last+''].concat(args));
-				});
-				kids[to].css("transition-duration") == "0s" && kids[to].trigger("transitionend");
+                stack.push(kids[to]);
+                kids[to].css("transform", "translate3d(0,0,0)");
+                kids[to].once("transitionend", ()=> {
+                    kids[to].trigger("show", [last+''].concat(args));
+                });
+                kids[to].css("transition-duration") == "0s" && kids[to].trigger("transitionend");
             });
-			this.on("back", function (e) {
-				e.stopPropagation();
-				if (stack.length <= 1) return;
-				let old = stack.pop();
-				old && old.css("transform", "translate3d(100%,0,0)");
-				let cur = stack[stack.length - 1];
-				cur.css("transform", "translate3d(0,0,0)");
-				let args = [].slice.call(arguments).slice(1);
-				cur.once("transitionend", ()=> {
-				    cur.trigger("show", [old+''].concat(args));
-				});
-				cur.css("transition-duration") == "0s" && cur.trigger("transitionend");
-			});
+            this.on("back", function (e) {
+                e.stopPropagation();
+                if (stack.length <= 1) return;
+                let old = stack.pop();
+                old && old.css("transform", "translate3d(100%,0,0)");
+                let cur = stack[stack.length - 1];
+                cur.css("transform", "translate3d(0,0,0)");
+                let args = [].slice.call(arguments).slice(1);
+                cur.once("transitionend", ()=> {
+                    cur.trigger("show", [old+''].concat(args));
+                });
+                cur.css("transition-duration") == "0s" && cur.trigger("transitionend");
+            });
             this.on("show", e => e.stopPropagation());
         }
     },
     Navbar: {
         css: "#navbar { display: flex; justify-content: space-between; align-items:center; position: relative; z-index: 500; height: 44px; box-sizing: border-box; padding: 0 10px; font-size: 17px; background: #f7f7f8; }\
-		      #navbar:after { content: ''; position: absolute; background-color: #c4c4c4; display: block; z-index: 15; top: auto; right: auto; bottom: 0; left: 0; height: 1px; width: 100%; transform-origin: 50% 100%; }\
-			  #navbar a:active { opacity: 0.5; }\
-			  #left { width: 60px; display: flex; fill: #007aff; }\
+              #navbar:after { content: ''; position: absolute; background-color: #c4c4c4; display: block; z-index: 15; top: auto; right: auto; bottom: 0; left: 0; height: 1px; width: 100%; transform-origin: 50% 100%; }\
+              #navbar a:active { opacity: 0.5; }\
+              #left { width: 60px; display: flex; fill: #007aff; }\
               #icon { display: flex; }\
-		      #icon svg { width: 24px; height: 24px; }\
-			  #title { display: inline-block; font-weight: 600; }\
-			  #right { width: 60px; text-align: right; }\
-		      #menu { height: 44px; line-height: 44px; }",
+              #icon svg { width: 24px; height: 24px; }\
+              #title { display: inline-block; font-weight: 600; }\
+              #right { width: 60px; text-align: right; }\
+              #menu { height: 44px; line-height: 44px; margin-right: 4px; }",
         xml: "<div id='navbar'>\
-			     <div id='left'>\
-				    <a id='icon'>icon</a>\
-			     </div>\
-			     <div id='title'>title</div>\
-			     <div id='right'>\
-				    <a id='menu'>menu</a>\
-			     </div>\
+                 <div id='left'>\
+                    <a id='icon'>icon</a>\
+                 </div>\
+                 <div id='title'>title</div>\
+                 <div id='right'>\
+                    <a id='menu'>menu</a>\
+                 </div>\
               </div>"
     }
 });

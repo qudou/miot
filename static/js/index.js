@@ -19,7 +19,7 @@ $_().imports({
               #login { background: #FFF; }\
               #index > * { transition-duration: 0s; }\
               .toast-text { width:100%; text-align: center;}\
-			  .dialog { border: 1px solid #CACDD1; }",
+              .dialog { border: 1px solid #CACDD1; }",
         xml: "<i:ViewStack id='index' xmlns:i='widget'>\
                 <Verify id='verify'/>\
                 <Service id='service'/>\
@@ -146,7 +146,7 @@ $_("verify").imports({
               </div>",
         fun: function (sys, items, opts) {
             function show(text) {
-				sys.overlay.addClass("#visible");
+                sys.overlay.addClass("#visible");
                 text && sys.label.text(text);
             }
             function hide() {
@@ -157,19 +157,19 @@ $_("verify").imports({
     },
     Message: {
         css: "#info { position: absolute; top: 50%; width: 100%; padding: 8px; box-sizing: border-box; color: white; text-align: center; background: rgba(0, 0, 0, 0.4); border-radius: 5px; }\
-		      #close { fill: #007aff; width: 22px; height: 22px; margin-bottom: -6px; }",
+              #close { fill: #007aff; width: 22px; height: 22px; margin-bottom: -6px; }",
         xml: "<div id='overlay'>\
                 <div id='info'>\
-				    <span id='label'/>\
-					<a href='#'>\
-				      <Close id='close' xmlns='/assets'/>\
-					</a>\
-				</div>\
+                    <span id='label'/>\
+                    <a href='#'>\
+                      <Close id='close' xmlns='/assets'/>\
+                    </a>\
+                </div>\
               </div>",
         map: { extend: { from: "Overlay" } },
-		fun: function (sys, items, opts) {
-			sys.close.on(Click, () => this.trigger("close")); 
-		}
+        fun: function (sys, items, opts) {
+            sys.close.on(Click, () => this.trigger("close")); 
+        }
 
     },
     Loader: {
@@ -322,9 +322,9 @@ $_("content").imports({
                 this.trigger("switch", this.toString());
             });
             this.watch("switch-page", (e, page) => {
-				sys[page].trigger(Click);
-				items[page].prop("checked", "true");
-			});
+                sys[page].trigger(Click);
+                items[page].prop("checked", "true");
+            });
         }
     },
     Popup: {
@@ -355,7 +355,7 @@ $_("content").imports({
               #applet > * { width: 100%; height: 100%; }",
         xml: "<div id='applet' xmlns:i='/verify'>\
                 <i:Overlay id='mask'/>\
-				<i:Message id='info'/>\
+                <i:Message id='info'/>\
               </div>",
         fun: function (sys, items, opts) {
             this.on("publish", (e, topic, body) => {
@@ -376,10 +376,10 @@ $_("content").imports({
                 sys.applet.once("close", close);
                 sys.mask.prev().notify(`//${opts.view}`);
             }
-			sys.info.on("close", close);
+            sys.info.on("close", close);
             function close(e) {
                 e.stopPropagation();
-				items.info.hide();
+                items.info.hide();
                 sys.applet.removeClass("#modal-in");
                 sys.applet.once("transitionend", sys.mask.prev().remove);
             }
@@ -396,31 +396,31 @@ $_("content").imports({
             this.watch("/stat/app", (e, p) => {
                 let app = sys.mask.prev();
                 if (app && opts.mid == p.mid)　{
-					if (p.data == 0)
+                    if (p.data == 0)
                         return items.info.show("设备已离线-[01]");
-					items.info.hide();
+                    items.info.hide();
                     app.notify(`//${opts.view}`);
-				}
+                }
             });
             this.watch("/stat/link", (e, p) => {
-				let app = sys.mask.prev();
+                let app = sys.mask.prev();
                 if (app && opts.link == p.mid && p.data == 0)
-					items.info.show("设备已离线-[02]");
+                    items.info.show("设备已离线-[02]");
             });
             this.watch("/stat/ui/0", () => {
-				let app = sys.mask.prev();
+                let app = sys.mask.prev();
                 app && items.info.show("设备已离线-[03]");
             });
             this.watch("/ui/apps", (e, p) => {
-				let app = sys.mask.prev();
-				app && p.apps.forEach(i => {
-					if (i.mid == opts.mid) {
-						if (i.online == 0)
-							return items.info.show("设备已离线-[00]");
-						items.info.hide();
-						app.notify(`//${opts.view}`)
-					}
-				});
+                let app = sys.mask.prev();
+                app && p.apps.forEach(i => {
+                    if (i.mid == opts.mid) {
+                        if (i.online == 0)
+                            return items.info.show("设备已离线-[00]");
+                        items.info.hide();
+                        app.notify(`//${opts.view}`)
+                    }
+                });
             });
         }
     }
@@ -509,7 +509,7 @@ $_("content/index").imports({
             let apps = sys.renderer.bind([]);
             this.watch("/ui/apps", (e, p) => {
                 link = p.link;
-				p.apps.forEach(i => i.dir = `${i.type ? "usr" : "sys"}/${i.view}`);
+                p.apps.forEach(i => i.dir = `${i.type ? "usr" : "sys"}/${i.view}`);
                 apps.model = _apps = p.apps;
             });
             this.watch("/stat/app", (e, p) => {
@@ -569,7 +569,7 @@ $_("content/index/apps").imports({
                 <Icon id='dir'/>\
                 <span id='label'/>\
               </a>",
-        map: { bind: {name: {skey: "label"}, online: {skey: "item", get: "get", set: "set"}, dir: {get: "get", set: "set"} } },
+        bnd: { name: {skey: "label"}, online: {skey: "item", get: "get", set: "set"}, dir: {get: "get", set: "set"} },
         fun: function (sys, items, opts) {
             let online = 0;
             function set(e, value) {
@@ -673,7 +673,7 @@ $_("content/footer").imports({
         map: { attrs: { icon: "id->icon", radio: "checked" }},
         fun: function (sys, items, opts) {
             sys.label.text(opts.label);
-			return sys.radio;
+            return sys.radio;
         }
     },
     TabIcon: {
@@ -690,14 +690,14 @@ $_("content/popup").imports({
     List: {
         css: "#list { height: 100%; -webkit-transition-duration: .3s; transition-duration: .3s; position: absolute; left: 0; bottom: 0; z-index: 13500; width: 100%; -webkit-transform: translate3d(0,100%,0); transform: translate3d(0,100%,0); max-height: 100%; -webkit-overflow-scrolling: touch; }\
               #overlay { z-index: auto; visibility: visible; opacity: 1; }\
-			  #menus { bottom: 0; position: absolute; width: 100%; }\
-			  #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}",
+              #menus { bottom: 0; position: absolute; width: 100%; }\
+              #modal-in { -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}",
         xml: "<div id='list'>\
                 <Overlay id='overlay'/>\
-				<div id='menus'>\
+                <div id='menus'>\
                    <Group id='group'/>\
                    <Cancel id='cancel'/>\
-				</div>\
+                </div>\
               </div>",
         map: { appendTo: "group" },
         fun: function (sys, items, opts) {
@@ -733,7 +733,7 @@ $_("content/popup").imports({
                     <div id='icon'/>\
                 </label>\
               </div>",
-        map: { bind: {name: {skey: "label"} } },
+        bnd: { name: {skey: "label"} },
         fun: function (sys, items, opts) {
             return sys.radio.attr("name", opts.key).elem();
         }
@@ -754,61 +754,61 @@ $_("content/popup").imports({
 
 $_("widget").imports({
     ViewStack: {
-		css: "#viewstack { position: relative; }\
-		      #viewstack > * { position: absolute; width: 100%; height: 100%; transition-duration: .3s; transform: translate3d(100%,0,0); }",
+        css: "#viewstack { position: relative; }\
+              #viewstack > * { position: absolute; width: 100%; height: 100%; transition-duration: .3s; transform: translate3d(100%,0,0); }",
         xml: "<div id='viewstack'/>",
         fun: function (sys, items, opts) {
             let kids = this.kids().hash();
-			let stack = [kids[opts.index] || this.first()]; 
-			stack.length && stack[0].css("transform", "translate3d(0,0,0)");
-			// "to" is element name of target.
+            let stack = [kids[opts.index] || this.first()]; 
+            stack.length && stack[0].css("transform", "translate3d(0,0,0)");
+            // "to" is element name of target.
             this.on("goto", function (e, to) {
                 e.stopPropagation();
-				let last = stack[stack.length - 1];
+                let last = stack[stack.length - 1];
                 if (!kids[to] || kids[to] == last) return;
                 let args = [].slice.call(arguments).slice(2);
                 last.css("transform", "translate3d(-100%,0,0)");
-				stack.push(kids[to]);
-				kids[to].css("transform", "translate3d(0,0,0)");
-				kids[to].once("transitionend", ()=> {
-					kids[to].trigger("show", [last+''].concat(args));
-				});
-				kids[to].css("transition-duration") == "0s" && kids[to].trigger("transitionend");
+                stack.push(kids[to]);
+                kids[to].css("transform", "translate3d(0,0,0)");
+                kids[to].once("transitionend", ()=> {
+                    kids[to].trigger("show", [last+''].concat(args));
+                });
+                kids[to].css("transition-duration") == "0s" && kids[to].trigger("transitionend");
             });
-			this.on("back", function (e) {
-				e.stopPropagation();
-				if (stack.length <= 1) return;
-				let old = stack.pop();
-				old && old.css("transform", "translate3d(100%,0,0)");
-				let cur = stack[stack.length - 1];
-				cur.css("transform", "translate3d(0,0,0)");
-				let args = [].slice.call(arguments).slice(1);
-				cur.once("transitionend", ()=> {
-				    cur.trigger("show", [old+''].concat(args));
-				});
-				cur.css("transition-duration") == "0s" && cur.trigger("transitionend");
-			});
+            this.on("back", function (e) {
+                e.stopPropagation();
+                if (stack.length <= 1) return;
+                let old = stack.pop();
+                old && old.css("transform", "translate3d(100%,0,0)");
+                let cur = stack[stack.length - 1];
+                cur.css("transform", "translate3d(0,0,0)");
+                let args = [].slice.call(arguments).slice(1);
+                cur.once("transitionend", ()=> {
+                    cur.trigger("show", [old+''].concat(args));
+                });
+                cur.css("transition-duration") == "0s" && cur.trigger("transitionend");
+            });
             this.on("show", e => e.stopPropagation());
         }
     },
     Navbar: {
         css: "#navbar { display: flex; justify-content: space-between; align-items:center; position: relative; z-index: 500; height: 44px; box-sizing: border-box; padding: 0 10px; font-size: 17px; background: #f7f7f8; }\
-		      #navbar:after { content: ''; position: absolute; background-color: #c4c4c4; display: block; z-index: 15; top: auto; right: auto; bottom: 0; left: 0; height: 1px; width: 100%; transform-origin: 50% 100%; }\
-			  #navbar a:active { opacity: 0.5; }\
-			  #left { width: 60px; display: flex; fill: #007aff; }\
+              #navbar:after { content: ''; position: absolute; background-color: #c4c4c4; display: block; z-index: 15; top: auto; right: auto; bottom: 0; left: 0; height: 1px; width: 100%; transform-origin: 50% 100%; }\
+              #navbar a:active { opacity: 0.5; }\
+              #left { width: 60px; display: flex; fill: #007aff; }\
               #icon { display: flex; }\
-		      #icon svg { width: 24px; height: 24px; }\
-			  #title { display: inline-block; font-weight: 600; }\
-			  #right { width: 60px; text-align: right; }\
-		      #menu { height: 44px; line-height: 44px; }",
+              #icon svg { width: 24px; height: 24px; }\
+              #title { display: inline-block; font-weight: 600; }\
+              #right { width: 60px; text-align: right; }\
+              #menu { height: 44px; line-height: 44px; margin-right: 4px; }",
         xml: "<div id='navbar'>\
-			     <div id='left'>\
-				    <a id='icon'>icon</a>\
-			     </div>\
-			     <div id='title'>title</div>\
-			     <div id='right'>\
-				    <a id='menu'>menu</a>\
-			     </div>\
+                 <div id='left'>\
+                    <a id='icon'>icon</a>\
+                 </div>\
+                 <div id='title'>title</div>\
+                 <div id='right'>\
+                    <a id='menu'>menu</a>\
+                 </div>\
               </div>"
     }
 });
