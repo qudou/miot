@@ -504,6 +504,7 @@ $_("content/index").imports({
         xml: "<div id='apps'>\
                  <Item id='renderer' xmlns='apps'/>\
               </div>",
+		bnd: { online: {get: "get", set: "set"} },
         fun: function (sys, items, opts) {
             let link, _apps;
             let apps = sys.renderer.bind([]);
@@ -569,7 +570,7 @@ $_("content/index/apps").imports({
                 <Icon id='dir'/>\
                 <span id='label'/>\
               </a>",
-        bnd: { name: {skey: "label"}, online: {skey: "item", get: "get", set: "set"}, dir: {get: "get", set: "set"} },
+        bnd: { name: {skey: "label"}, dir: {get: "get", set: "set"} },
         fun: function (sys, items, opts) {
             let online = 0;
             function set(e, value) {
@@ -580,13 +581,13 @@ $_("content/index/apps").imports({
         }
     },
     Icon: {
-        css: "#dir {width: 30px; height: 30px;}\
-              #dir svg { fill: currentColor; width: 100%; height: 100%; display: block; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
-        xml: "<div id='dir'>\
-                <span id='icon'/>\
+        css: "#icon {width: 30px; height: 30px;}\
+              #icon svg { fill: currentColor; width: 100%; height: 100%; display: block; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
+        xml: "<div id='icon'>\
+                <span id='span'/>\
               </div>",
         fun: function (sys, items, opts) {
-            let tmp, icon = sys.icon;
+            let tmp, icon = sys.span;
             function show(path) {
                 icon = icon.replace(path);
             }
