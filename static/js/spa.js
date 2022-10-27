@@ -346,46 +346,46 @@ $_("login").imports({
 });
 
 $_("widget").imports({
-    ViewStack: {
-        css: "#viewstack { position: relative; }\
-              #viewstack > * { position: absolute; width: 100%; height: 100%; transition-duration: .3s; transform: translate3d(100%,0,0); }",
-        xml: "<div id='viewstack'/>",
-        fun: function (sys, items, opts) {
-            let kids = this.kids().hash();
-            let stack = [kids[opts.index] || this.first()]; 
-            stack.length && stack[0].css("transform", "translate3d(0,0,0)");
-            // "to" is element name of target.
-            this.on("goto", function (e, to) {
-                e.stopPropagation();
-                let last = stack[stack.length - 1];
-                if (!kids[to] || kids[to] == last) return;
-                let args = [].slice.call(arguments).slice(2);
-                last.css("transform", "translate3d(-100%,0,0)");
-                stack.push(kids[to]);
-                kids[to].css("transform", "translate3d(0,0,0)");
-                kids[to].once("transitionend", ()=> {
-                    kids[to].trigger("show", [last+''].concat(args));
-                });
-                kids[to].css("transition-duration") == "0s" && kids[to].trigger("transitionend");
-            });
-            this.on("back", function (e) {
-                e.stopPropagation();
-                if (stack.length <= 1) return;
-                let old = stack.pop();
-                old && old.css("transform", "translate3d(100%,0,0)");
-                let cur = stack[stack.length - 1];
-                cur.css("transform", "translate3d(0,0,0)");
-                let args = [].slice.call(arguments).slice(1);
-                cur.once("transitionend", ()=> {
-                    cur.trigger("show", [old+''].concat(args));
-                });
-                cur.css("transition-duration") == "0s" && cur.trigger("transitionend");
-            });
-            this.on("show", e => e.stopPropagation());
-        }
-    },
+	Applet: { 
+		xml: "<div id='applet'/>",
+		fun: function (sys, items, opts) {
+			this.on("$popup/open", (e, target, content, scroll, sheet) => {
+				e.stopPropagation();
+				let elem = this.elem();
+				target.css("z-index", elem.childNodes.length * 1000);
+				elem.appendChild(target.elem());
+				scrollToEl(content, scroll, sheet);
+			});
+			function scrollToEl(content, scroll, sheet) {
+				let paddingTop = parseInt(content.css('padding-top'), 10);
+				let paddingBottom = parseInt(content.css('padding-bottom'), 10);
+				let pageHeight = content.elem().offsetHeight - paddingTop - parseInt(sheet.height(), 10);
+				let pageScrollHeight = content.elem().scrollHeight - paddingTop - parseInt(sheet.height(), 10);
+				let pageScroll = content.scrollTop();
+				let newPaddingBottom;
+				let scrollElTop = scroll.offset().top - paddingTop + scroll.elem().offsetHeight;
+				if (scrollElTop > pageHeight) {
+					let scrollTop = pageScroll + scrollElTop - pageHeight;
+					if (scrollTop + pageHeight > pageScrollHeight) {
+						newPaddingBottom = scrollTop + pageHeight - pageScrollHeight + paddingBottom;
+						if (pageHeight === pageScrollHeight) {
+							newPaddingBottom = sheet.height();
+						}
+						content.css("padding-bottom", `${newPaddingBottom}px`);
+					}
+					content.scrollTop(scrollTop);
+				}
+		    }
+			this.on(Click, () => this.notify("$global/click"));
+		}
+	},
+	BlockTitle: {
+		css: "#blockTitle { position: relative; overflow: hidden; margin: 0; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; line-height: 1; }\
+		      #blockTitle { text-transform: uppercase; color: #6d6d72; margin: 35px 15px 10px;}",
+		xml: "<div id='blockTitle'/>"
+	},
     Navbar: {
-        css: "#navbar { display: flex; justify-content: space-between; align-items:center; position: relative; z-index: 500; height: 44px; box-sizing: border-box; padding: 0 10px; font-size: 17px; background: #f7f7f8; }\
+        css: "#navbar { display: flex; justify-content: space-between; align-items:center; position: relative; z-index: 2; height: 44px; box-sizing: border-box; padding: 0 10px; font-size: 17px; background: #f7f7f8; }\
               #navbar:after { content: ''; position: absolute; background-color: #c4c4c4; display: block; z-index: 15; top: auto; right: auto; bottom: 0; left: 0; height: 1px; width: 100%; transform-origin: 50% 100%; }\
               #navbar a:active { opacity: 0.5; }\
               #left { width: 60px; display: flex; fill: #007aff; }\
@@ -403,7 +403,301 @@ $_("widget").imports({
                     <a id='menu'>menu</a>\
                  </div>\
               </div>"
+    },
+	Content: {
+		css: "#page { background: #efeff4; box-sizing: border-box; position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform: translate3d(0,0,0); contain: layout size style; }\
+		      #content { padding-top: 44px; overflow: auto; box-sizing: border-box; height: 100%; position: relative; z-index: 1; contain: layout size style; will-change: scroll-position; }",
+		xml: "<div id='page'>\
+		         <div id='content'/>\
+		      </div>",
+		map: { appendTo: "content" },
+		fun: function (sys, items, opts) {
+			this.on("$popup/open", (e, scrollEl, sheetEl, no) => {
+				if (no) return;
+				e.stopPropagation();
+				this.trigger(e.type, [e.target, sys.content, scrollEl, sheetEl]);
+			});
+			this.on("$popup/close", (e) => {
+				sys.content.css("padding-bottom", '');
+			});
+		}
+	},
+    Popup: {
+        css: "#popup { display: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; }\
+			  #mask { position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,.3); visibility: hidden; opacity: 0; transition-duration: .4s; }\
+              #mshow { visibility: visible; opacity: 1; }\
+			  #content { position: absolute; width: 100%; height: 100%; transition-duration: .4s; transform: translate3d(0,100%,0); }\
+			  #sheet { position: absolute; left: 0; bottom: 0; width: 100%; background: white; }",
+        xml: "<div id='popup'>\
+		         <div id='mask'/>\
+		         <div id='content'>\
+				   <div id='sheet'/>\
+				 </div>\
+		      </div>",
+	    map: { msgscope: true, appendTo: "sheet" },
+        fun: function (sys, items, opts) {
+			sys.content.on(Click, e => {
+				sys.sheet.contains(e.target.elem()) || hide();
+			});
+			function show() {
+				sys.popup.show().trigger("$popup/open", sys.sheet);
+				sys.mask.addClass("#mshow");
+				sys.content.css("transform", "translate3d(0,0,0)");
+			}
+			let parent = this.elem().parentNode;
+			function hide() {
+				sys.mask.removeClass("#mshow");
+				sys.content.css("transform", "translate3d(0,100%,0)");
+				sys.content.once("transitionend", () => {
+					parent.appendChild(sys.popup.elem());
+					sys.popup.trigger("$popup/close").hide();
+				});
+			}
+			return { show: show, hide: hide };
+        } 
+    },
+	PopupPicker: {
+		xml: "<div id='picker'>\
+		        <Input id='input' xmlns='picker'/>\
+				<Popup id='popup'/>\
+		      </div>",
+		map: { attrs: {input: "placeholder" }, appendTo: "popup", msgscope: true }, 
+		opt: { updateOnTouchmove: true, formatValue: (values, displayValues) => {return displayValues.join(' ')} },
+		fun: function (sys, items, opts) {
+			let _values = [];
+			let _displayValues = [];
+			let scrollValues = [];
+			let scrollDisplayValues = [];
+			sys.input.on(Click, () => {
+				items.popup.show();
+				let picker = this.last().val();
+				for (let i = 0; i < _values.length; i++) 
+					picker.model[i].value = _values[i];
+			});
+			sys.popup.on("change", (e, col, values, displayValues, onScroll) => {
+				e.stopPropagation();
+				scrollValues = values;
+				scrollDisplayValues = displayValues;
+				if (onScroll && !opts.updateOnTouchmove) return;
+				_values = values;
+				_displayValues = displayValues;
+				sys.input.prop("value", opts.formatValue(_values, _displayValues));
+			});
+			sys.popup.on("close", (e) => {
+				e.stopPropagation();
+				items.popup.hide();
+			});
+			sys.popup.on("confirm", (e) => {
+				e.stopPropagation();
+				_values = scrollValues;
+				_displayValues = scrollDisplayValues;
+				sys.input.prop("value", opts.formatValue(_values, _displayValues));
+			});
+			sys.popup.on("$popup/open", (e, sheet, no) => {
+				if (no) return;
+				e.stopPropagation();
+				sys.popup.trigger("$popup/open", [sys.input, sheet]);
+			});
+		}
+	},
+    ViewStack: {
+        css: "#viewstack { position: relative; overflow: hidden; }\
+              #viewstack > * { position: absolute; width: 100%; height: 100%; transition-duration: .3s; transform: translate3d(100%,0,0); }",
+        xml: "<div id='viewstack'/>",
+        fun: function (sys, items, opts) {
+            let kids = this.kids().hash();
+            let stack = [kids[opts.index] || this.first()]; 
+            stack.length && stack[0].css("transform", "translate3d(0,0,0)");
+            // "to" is element name of target.
+            this.on("goto", function (e, to) {
+                e.stopPropagation();
+                let last = stack[stack.length - 1];
+                if (!kids[to] || kids[to] == last) return;
+                last.css("transform", "translate3d(-100%,0,0)");
+                stack.push(kids[to]);
+                kids[to].css("transform", "translate3d(0,0,0)");
+				let args = [].slice.call(arguments).slice(2);
+				kids[to].once("transitionend", (e) => {
+				    kids[to].trigger("show", [last+''].concat(args), false);
+				});
+				kids[to].css("transition-duration") == "0s" && kids[to].trigger("transitionend", [], false);
+            });
+            this.on("back", function (e) {
+                e.stopPropagation();
+                if (stack.length <= 1) return;
+                let old = stack.pop();
+                old && old.css("transform", "translate3d(100%,0,0)");
+                let cur = stack[stack.length - 1];
+                cur.css("transform", "translate3d(0,0,0)");
+				let args = [].slice.call(arguments).slice(1);
+				cur.once("transitionend", (e) => {
+				    cur.trigger("show", [old+''].concat(args), false);
+				});
+				cur.css("transition-duration") == "0s" && cur.trigger("transitionend", [], false);
+            });
+        }
     }
+});
+
+$_("widget/picker").imports({
+	Picker: {
+		css: "#picker { display: flex; overflow: hidden; justify-content: center; padding: 0; text-align: right; height: 200px; position: relative; -webkit-mask-box-image: linear-gradient(to top,transparent,transparent 5%,white 20%,white 80%,transparent 95%,transparent); font-size: 20px; }\
+		      #highlight { z-index: 1000; height: 36px; box-sizing: border-box; position: absolute; left: 16px; right: 16px; top: 50%; margin-top: calc(-1 * 36px / 2); pointer-events: none; background-color: rgba(0, 0, 0, 0.12); border-radius: 8px; }",
+		xml: "<div id='picker'>\
+		        <Renderer id='renderer'/>\
+				<div id='highlight'/>\
+		      </div>",
+		fun: function (sys, items, opts) {
+			let proxy = sys.renderer.bind([]);
+			sys.picker.on("#change", "./*", function (e, onScroll) { 
+				e.stopPropagation();
+				let kids = sys.picker.kids();
+				let values = [], displayValues = [];
+				for (let i = 0; i < kids.length - 2; i++) {
+					let item = kids[i].val()();
+					values.push(item.value);
+					displayValues.push(item.displayValue);
+				}
+				this.trigger("change", [kids.indexOf(this), values, displayValues, onScroll]);
+			});
+			return proxy;
+		}
+	},
+	Renderer: {
+		xml: "<div id='renderer'/>",
+		bnd: { textAlign: { skey: "value" } },
+		fun: function (sys, items, opts) {
+			this.on("beforeBind", (e, value) => {
+				e.stopPropagation();
+				if (e.target != this) return;
+				let render = value.divider ? "<Divider id='value'/>" : "<Column id='value'><Item id='values'/></Column>"
+				sys('//*')[0].replace(render);
+			});
+			return () => { return items.value };
+		}
+	},
+	Column: {
+		css: "#column { overflow: visible; position: relative; max-height: 100%; transform-style: preserve-3d; }\
+		      #items { text-align: center; transform-style: preserve-3d; overflow: auto; scrollbar-width: none; scroll-snap-type: y mandatory; height: 100%; box-sizing: border-box; padding: 82px 0px; }\
+			  #items::-webkit-scrollbar { display: none; opacity: 0; }\
+			  div#selected { color: black; transform: translate3d(0,0,0) rotateX(0deg); }",
+		xml: "<div id='column'>\
+		        <div id='items'/>\
+		      </div>",
+		map: { appendTo: "items" },
+		fun: function (sys, items, opts) {
+			let object = {};
+			let selected, that = this;
+			function updateItems(activeIndex, scrollTop, onScroll) {
+				if (typeof scrollTop === 'undefined') {
+				    scrollTop = sys.items.elem().scrollTop;
+				}
+				let itemHeight = that.get(0).elem().offsetHeight;
+				if (typeof activeIndex === 'undefined') {
+				    activeIndex = Math.round(scrollTop / itemHeight);
+				}
+				let items = that.kids();
+				if (activeIndex < 0) activeIndex = 0;
+				if (activeIndex >= items.length) activeIndex = items.length - 1;
+				if (items[activeIndex] == selected) return;
+				selected && selected.removeClass("#selected", sys.items);
+				selected = items[activeIndex];
+				selected.addClass("#selected", sys.items);
+				selected.trigger("#change", onScroll);
+			}
+			this.on("click", "./*", function (e) {
+				let itemHeight = that.get(0).elem().offsetHeight;
+				let newActiveIndex = that.kids().indexOf(this);
+				let newScrollTop = newActiveIndex * itemHeight;
+				sys.items.elem().scrollTop = newScrollTop;
+				updateItems(newActiveIndex, newScrollTop, true);
+			});
+			sys.items.elem().addEventListener("scroll", () => {
+				updateItems(undefined, undefined, true);
+			});
+			function setValue(newValue) {
+				let itemHeight = that.get(0).elem().offsetHeight;
+				xp.each(that.kids(), (index, item) => {
+					if (item.val().value != newValue) return;
+					let scrollTop = index * itemHeight;
+					sys.items.elem().scrollTop = scrollTop;
+					updateItems(index, scrollTop);
+					return false;
+				});
+			}
+			Object.defineProperty(object, "value", {
+			    get: () => {
+					return selected && selected.val().value;
+				},
+			    set: setValue
+			});
+			Object.defineProperty(object, "displayValue", {
+			    get: () => {
+					return selected && selected.val().displayValue;
+				}
+			});
+			return Object.defineProperty(object, "textAlign", {
+			    get: () => {
+					return sys.items.css("text-align");
+				},
+			    set: value => sys.items.css("text-align", value)
+			});
+		}
+	},
+	Divider: {
+		css: "#divider { overflow: visible; position: relative; max-height: 100%; display: flex; align-items: center; color: black; }",
+		xml: "<div id='divider'/>",
+		fun: function (sys, items, opts) {
+			return Object.defineProperty({}, "value", { 
+			    get: () => {
+					return sys.divider.text();
+				},
+			    set: value => sys.divider.text(value)
+			});
+		}
+	},
+	Item: {
+		css: "#item { perspective: 1200px; overflow: visible; transform-style: preserve-3d; height: 36px; line-height: 36px; white-space: nowrap; position: relative; overflow: hidden; text-overflow: ellipsis; left: 0; top: 0; width: 100%; box-sizing: border-box; color: rgba(0, 0, 0, 0.45); cursor: pointer; scroll-snap-align: center; }\
+		      #display { padding: 0 10px; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: block; transform-style: preserve-3d; position: relative; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; max-width: 100%; transform-origin: center center -100px; }",
+		xml: "<div id='item'>\
+		        <span id='display'/>\
+		      </div>",
+		bnd: { model: { skey: "display" } },
+		fun: function (sys, items, opts) {
+			let value, object = {};
+			Object.defineProperty(object, "value", {
+			    get: () => { return value || sys.display.text() },
+			    set: v => value = v
+			});
+			return Object.defineProperty(object, "displayValue", {
+			    get: () => { 
+					return sys.display.text();
+				}
+			});
+		}
+	},
+    Navbar: {
+        map: { extend: { "from": "../Navbar" } },
+        xml: "<div id='navbar'>\
+                 <div id='left'>\
+                    <a id='icon'><Close xmlns='//miot/assets'/></a>\
+                 </div>\
+                 <div id='title'>Picker</div>\
+                 <div id='right'>\
+                    <a id='menu'>确定</a>\
+                 </div>\
+              </div>",
+        fun: function (sys, items, opts) { 
+		    sys.title.text(opts.title || "Picker");
+            sys.icon.on(Click, e => this.trigger("close"));
+            sys.menu.on(Click, () => this.trigger("confirm").trigger("close"));
+        }
+    },
+	Input: {
+		css: "#input { width: 100%; height: 46px; padding: 0 16px; margin: 0px; display: block; font-size: 17px; box-sizing: border-box; border: 1px solid #C7C7C7; border-left: none; border-right: none;}",
+		xml: "<input id='input' readonly='true'/>",
+		map: { attrs: {input: "placeholder"} }
+	}
 });
 
 $_("assets").imports({

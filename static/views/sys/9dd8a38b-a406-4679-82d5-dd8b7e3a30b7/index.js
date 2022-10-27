@@ -12,9 +12,14 @@ $_().imports({
         xml: "<i:ViewStack id='index' xmlns:i='//miot/widget'>\
                 <Overview id='overview'/>\
                 <Apps id='apps'/>\
-                <Service id='service'/>\
                 <Guide id='guide'/>\
-              </i:ViewStack>"
+              </i:ViewStack>",
+		fun: function (sys, items, opts) {
+			sys.apps.on("/auth/change", (e, app) => {
+				e.stopPropagation();
+				sys.overview.notify("/auth/change", app);
+			});
+		}
     },
     Overview: {
         xml: "<div id='overview' xmlns:i='overview'>\
@@ -34,10 +39,6 @@ $_().imports({
                 items.content(data);
             });
         }
-    },
-    Service: {
-        css: "#service { visibility: visible; opacity: 1; background: #EFEFF4; }",
-        xml: "<Overlay id='service' xmlns='//miot/verify'/>"
     },
     Guide: {
         xml: "<div id='guide' xmlns:i='guide'>\
@@ -107,7 +108,7 @@ $_("overview").imports({
                 data.user = items.users.getValue().id;
                 this.trigger("goto", ["apps", data]);
             });
-            this.watch("auth-change", (e, app) => {
+            this.watch("/auth/change", (e, app) => {
                 let payload = { user:items.users.getValue().id, app:app.id, auth:app.auth };
                 this.trigger("publish", ["/auths/auth", payload]);
             });
@@ -118,9 +119,6 @@ $_("overview").imports({
         fun: function (sys, items, opts) {
             this.watch("/auths/users", (e, data) => {
                 data.length ? sys.users.show().val().init(data) : sys.users.hide();
-            });
-            this.on("value-change", (e, value) => {
-                this.notify("user-change", value);
             });
             return { getValue: items.users.getValue };
         }
@@ -277,7 +275,7 @@ $_("apps").imports({
             }
             sys.input.on("change", (e) => {
                 opts.auth = sys.input.prop("checked");
-                this.notify("auth-change", opts);
+                this.trigger("/auth/change", opts);
             });
             return Object.defineProperty({}, "value", { set: setValue});
         }

@@ -9,14 +9,29 @@ xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => { // 视图管理
 
 $_().imports({
     Index: {
-        xml: "<i:ViewStack xmlns:i='//miot/widget'>\
-                <Overview id='overview'/>\
-                <Signup id='signup'/>\
-                <Update id='update'/>\
-                <Remove id='remove'/>\
-                <Service id='service'/>\
-              </i:ViewStack>",
+		css: "#stack { width: 100%; height: 100%; }",
+		xml: "<div id='index'>\
+                <i:ViewStack id='stack' xmlns:i='//miot/widget'>\
+                  <Overview id='overview'/>\
+                  <Signup id='signup'/>\
+                  <Update id='update'/>\
+                  <Remove id='remove'/>\
+                </i:ViewStack>\
+				<Overlay id='mask' xmlns='//miot/verify'/>\
+			  </div>",
         fun: function (sys, items, opts) {
+			sys.overview.on("remove", (e, item) => {
+				e.stopPropagation();
+				items.remove(e, item);
+			});
+			sys.stack.on("/mask/show", (e) => {
+				e.stopPropagation();
+				items.mask.show();
+			});
+			sys.stack.on("/mask/hide", (e) => {
+				e.stopPropagation();
+				items.mask.hide();
+			});
             this.trigger("publish", "/views/select");
         }
     },
@@ -49,21 +64,18 @@ $_().imports({
         }
     },
     Remove: {
+		xml: "<void id='remove'/>",
         fun: function (sys, items, opts) {
-            this.watch("remove", (e, p) => {
+            return function (e, p) {
                 window.app.dialog.confirm("确定删除该视图吗？", "温馨提示", () => {
-                    this.trigger("publish", ["/views/remove", {id: p.id}]);
-                    this.glance("/views/remove", (m, p) => {
-                        this.trigger("message", ["msg", p.desc]);
+                    sys.remove.trigger("publish", ["/views/remove", {id: p.id}]);
+                    sys.remove.glance("/views/remove", (m, p) => {
+                        sys.remove.trigger("message", ["msg", p.desc]);
                         p.code == 0 && e.target.remove();
                     },1);
                 });
-            });
+            };
         }
-    },
-    Service: {
-        css: "#service { visibility: visible; opacity: 1; background: #EFEFF4; }",
-        xml: "<Overlay id='service' xmlns='//miot/verify'/>"
     }
 });
 
@@ -135,7 +147,7 @@ $_("overview").imports({
                 sys.label.text(view.name);
                 sys.id.text(view.id);
             }
-            sys.remove.on(Click, () => this.notify("remove", view));
+            sys.remove.on(Click, () => this.trigger("remove", view));
             return Object.defineProperty({}, "value", { set: setValue});
         }
     },
@@ -176,14 +188,17 @@ $_("signup").imports({
         fun: function (sys, items, opts) {
             sys.desc.on("next", (e, p) => {
                 e.stopPropagation();
-                this.trigger("goto", "service");
+                this.trigger("/mask/show");
                 this.trigger("publish", ["/views/signup", p]);
                 this.glance("/views/signup", callback);
             });
             function callback(e, p) {
-                e.target.trigger("message", ["msg", p.desc]);
-                e.target.trigger("back", true);
-                p.code || e.target.trigger("publish", "/views/select");
+				sys.content.trigger("/mask/hide");
+                sys.content.trigger("message", ["msg", p.desc]);
+				if (p.code == 0) {
+					sys.content.trigger("back");
+					sys.content.trigger("publish", "/views/select");
+				}
             }
             sys.submit.on(Click, items.signup.start);
             return function () {
@@ -298,14 +313,17 @@ $_("update").imports({
             sys.desc.on("next", (e) => {
                 e.stopPropagation();
                 let p = {id:items.id.val(), name:items.view.val(),desc:items.desc.val()};
-                this.trigger("goto", "service");
+                this.trigger("/mask/show");
                 this.trigger("publish", ["/views/update", p]);
                 this.glance("/views/update", callback);
             });
             function callback(e, p) {
-                e.target.trigger("message", ["msg", p.desc]);
-                e.target.trigger("back");
-                p.code || e.target.trigger("publish", "/views/select");
+				sys.content.trigger("/mask/hide");
+                sys.content.trigger("message", ["msg", p.desc]);
+				if (p.code == 0) {
+                    sys.content.trigger("back");
+                    sys.content.trigger("publish", "/views/select");
+				}
             }
             sys.submit.on(Click, items.update.start);
             return function (value) {

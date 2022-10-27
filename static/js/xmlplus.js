@@ -1,5 +1,5 @@
 /*!
- * xmlplus.js v1.7.16
+ * xmlplus.js v1.7.17
  * https://xmlplus.cn
  * (c) 2017-2022 qudou
  * Released under the MIT license
@@ -29,7 +29,7 @@ var vdoc, rdoc;
 
 var XPath, DOMParser_, XMLSerializer_, NodeElementAPI;
 var Manager = [HtmlManager(),CompManager(),,TextManager(),TextManager(),,,,TextManager(),,];
-var Template = { css: "", cfg: {}, opt: {}, ali: {}, map: { share: "", defer: "", cfgs: {}, attrs: {}, class: {} }, bnd: {}, fun: new Function };
+var Template = { css: "", cfg: {}, opt: {}, ali: {}, map: { share: "", defer: "", cfgs: {}, attrs: {}, class: {}, bind: {} }, fun: new Function };
 var isReady;
 
 // isHTML contains isSVG
@@ -201,12 +201,6 @@ var $ = {
         var s = ph.split(path);
         s.dir = s.dir.substr(2);
         return Library[s.dir] && Library[s.dir][s.basename] || false;
-    },
-    messages: function (obj) {
-        if (!$.isSystemObject(obj))
-            $.error("invalid input, expected a SystemObject");
-        var item = Store[obj.guid()];
-        return item && item.ctr.messages() || [];
     },
     getElementById: function (id, isGuid) {
         if ( isGuid )
@@ -383,9 +377,9 @@ var hp = {
     appendTo: function () {
         if (this.ele) return this.ele;
         var target = this.fdr.sys[this.map.appendTo];
-		if (!target)
-			return Store[this.xml.lastChild.uid].elem()
-		return Store[target.guid()].appendTo();
+        if (!target)
+            return Store[this.xml.lastChild.uid].elem()
+        return Store[target.guid()].appendTo();
     },
     createElement: (function() {
         var buffer = {};
@@ -472,7 +466,9 @@ var bd = {
             let i = e.target.elem(),
                 n = i.nodeName;
             let v = Store[uid].env.value;
-            let get = v && v[bind.hook.get] || bd.Getters[n] || bd.Getters[`${n}-${i.getAttribute("type")}`] || bd.Getters["OTHERS"];;
+            if (v && v[bind.key])
+                return bind.proxy[bind.key] = v[bind.key];
+            let get = bd.Getters[n] || bd.Getters[`${n}-${i.getAttribute("type")}`] || bd.Getters["OTHERS"];;
             bind.proxy[bind.key] = get(i, [e.target]);
         }
     },
@@ -530,36 +526,36 @@ var bd = {
                 delete binds[key];
             });
         }
-		function bind(target, key) {
-			let value = target[key];
-			binds[key] = binds[key] || [];
-			objects[key] = value;
-			let views = view.fdr.sys[view.bnd[key] && view.bnd[key].skey || key];
-			if (!views) {
-				binds[key].push(bd.BindNormal(view, key));
-				return proxy[key] = value;
-			}
-			if ($.isSystemObject(views))
-				views = [views];
-			views = views.map(v => {return Store[v.guid()]});
-			if ($.isArray(value)) {
-				views.forEach(view => {
-					binds[key].push(bd.bindArray(view));
-				});
-			} else if ($.isPlainObject(value)) {
-				views.forEach(view => {
-					view.api.trigger("beforeBind", [value]);
-					binds[key].push(bd.bindObject(view));
-				});
-			} else if (bd.isLiteral(value)) {
-				views.forEach(view => {
-					binds[key].push(bd.bindLiteral(view, proxy, key));
-				});
-			} else {
-				$.error(`Type error: ${value}`);
-			}
-			proxy[key] = value;
-		}
+        function bind(target, key) {
+            let value = target[key];
+            binds[key] = binds[key] || [];
+            objects[key] = value;
+            let views = view.fdr.sys[view.map.bind[key] || key];
+            if (!views) {
+                binds[key].push(bd.BindNormal(view, key));
+                return proxy[key] = value;
+            }
+            if ($.isSystemObject(views))
+                views = [views];
+            views = views.map(v => {return Store[v.guid()]});
+            if ($.isArray(value)) {
+                views.forEach(view => {
+                    binds[key].push(bd.bindArray(view));
+                });
+            } else if ($.isPlainObject(value)) {
+                views.forEach(view => {
+                    view.api.trigger("beforeBind", [value]);
+                    binds[key].push(bd.bindObject(view));
+                });
+            } else if (bd.isLiteral(value)) {
+                views.forEach(view => {
+                    binds[key].push(bd.bindLiteral(view, proxy, key));
+                });
+            } else {
+                $.error(`Type error: ${value}`);
+            }
+            proxy[key] = value;
+        }
         return {get: ()=>{return proxy}, set: setter, del: delter, unbind: unbind};
     },
     bindArray: function (view) {
@@ -583,14 +579,14 @@ var bd = {
         return {get: ()=>{return proxy}, set: setter, del: delter, unbind: unbind};
     },
     bindLiteral: function (view, proxy, key) {
-        let hook = view.env.bnd[key] || {};
+        let realKey = (view.fdr ? view.map.bind : view.env.map.bind)[key] || key;
         let targets = getTargets(view);
         if (targets.length == 0)
             return bd.BindNormal(view, key);
-        targets.forEach(i => Binds[i.node.uid] = {hook: hook, proxy: proxy, key: key});
+        targets.forEach(i => Binds[i.node.uid] = {proxy: proxy, key: key});
         function getTargets(view) {
             if (!view.fdr) return [view];
-            let targets = view.fdr.sys[hook.skey || key];
+            let targets = view.fdr.sys[realKey];
             if (!targets) return [];
             if ($.isSystemObject(targets))
                 targets = [targets];
@@ -607,16 +603,16 @@ var bd = {
         function getter() {
             let e = targets[0].elem();
             let v = targets[0].env.value;
-			if (v && v.hasOwnProperty(key))
-				return v[key];
+            if (v && v.hasOwnProperty(key))
+                return v[key];
             return operator("Getters", e)(e, targets);
         }
         function setter(value) {
             targets.forEach(target => {
                 let e = target.elem();
                 let v = target.env.value;
-				if (v && v.hasOwnProperty(key))
-					return v[key] = value;
+                if (v && v.hasOwnProperty(key))
+                    return v[key] = value;
                 operator("Setters", e)(e, value, target);
             });
         }
@@ -634,14 +630,14 @@ var bd = {
     },
     BindNormal: function (view, key) {
         let tmpValue;
-		let v = view.value;
+        let v = view.value;
         function getter() {
-			return v && v.hasOwnProperty(key) ? v[key] : tmpValue;
+            return v && v.hasOwnProperty(key) ? v[key] : tmpValue;
         }
         function setter(value) {
-			if (v && v.hasOwnProperty(key))
-				return v[key] = value;
-			tmpValue = value;
+            if (v && v.hasOwnProperty(key))
+                return v[key] = value;
+            tmpValue = value;
         }
         function dump() {}
         return {get: getter, set: setter, del: dump, unbind: dump};
@@ -671,7 +667,7 @@ var bd = {
         let [views, list, empty] = [[], new List, []];
         let proxy = new Proxy(list, {get: getter, set: setter, deleteProperty: delter});
         function push(value) {
-            let view = holder.before(render.cloneNode(false));
+            let view = holder.before(render.cloneNode(false), {data: value});
             views.push(view);
             empty.push.apply(list, [view.bind(value)])
             return true;
@@ -860,74 +856,95 @@ var Collection = (function () {
     return fn;
 }());
 
-var Communication = function () {
+var MessageModuleAPI = (function () {
     var table = {};
-    function watch(type, fn, priority) {
-        var list = table[type] = table[type] || [],
-            priority = $.isNumeric(priority) ? priority : -Infinity,
-            target = { source: this, fn: fn, priority: priority };
-        var i = 0, len = list.length;
-        for ( ; i < len; i++ )
-            if ( priority > list[i].priority ) {
-                list.splice(i, 0, target);
-                break;
-            }
-        list.length == len && list.push(target);
+    function watch(type, fn) {
+        if (typeof fn !== "function") 
+            $.error("invalid handler, expected a function");
+        var uid = this.elem().xmlTarget.uid;
+        table[uid] = table[uid] || {};
+        table[uid][type] = table[uid][type] || [];
+        table[uid][type].push({watcher: this, fn: fn});
         return this;
     }
-    function glance(type, fn, priority) {
+    function glance(type, fn) {
         function callback(e) {
-            e.currentTarget.unwatch(type, callback);
+            this.unwatch(type, callback);
             fn.apply(this, [].slice.call(arguments));
         }
-        return this.api.watch(type, callback, priority);
+        return this.api.watch(type, callback);
     }
     function unwatch(type, fn) {
-        var key, buf;
-        if ( type == undefined ) {
-            for ( key in table )
-              unwatch.call(this, key);
-        } else if ( typeof type == "function" ) {
-            for ( key in table )
-              unwatch.call(this, key, type);
-        } else if ( fn == undefined ) {
-            buf = [].slice.call(table[type] || []);
-            for ( key in buf )
-              if ( buf[key].source == this )
-                table[type].splice(table[type].indexOf(buf[key]), 1);
+        var item = table[this.elem().xmlTarget.uid] || {};
+        if (type == undefined) {
+            for (type in item)
+                unwatch.call(this, type);
+            return this;
+        }
+        if (!item[type]) return this;
+        var buf = [].slice.call(item[type]);
+        if (typeof fn == "function") {
+            for (var k in buf)
+                if (fn == buf[k].fn)
+                    item[type].splice(item[type].indexOf(buf[k]), 1);
         } else {
-            buf = [].slice.call(table[type] || []);
-            for ( key in buf )
-              if ( buf[key].source == this && buf[key].fn == fn )
-                table[type].splice(table[type].indexOf(buf[key]), 1);
+            delete item[type];
         }
         return this;
     }
     function notify(type, data) {
-        if ( !table[type] ) return;
+        var that = this;
         data = data == null ? [] : ($.isArray(data) ? data : [data]);
-        var i = 0, buf = [].slice.call(table[type]);
-        for ( ; i < buf.length; i++ ) {
-            var obj = [{type: type, target: this.api, currentTarget: buf[i].source.api}].concat(data);
-            if (buf[i].fn.apply(this.api, obj) === false)
-                return this;
-        }
+        (function iterate(target) {
+            var uid = target.uid;
+            if (target.fdr) {
+                var filter = target.map.msgFilter;
+                if (filter && filter.test(type) && target != that)
+                    return;
+                iterate(Store[Store[uid].xml.lastChild.uid]);
+            } else {
+				var cancel;
+                var targets = table[uid] && table[uid] || {};
+				xp.each(targets[type], (key, item) => {
+                    var e = {type: type, target: that.api, currentTarget: item.watcher.api};
+					e.stopImmediateNotification = ()=> e.cancelImmediate = true;
+					e.stopNotification = ()=> e.cancel = true;
+                    item.fn.apply(that.api, [e].concat(data));
+					if (e.cancelImmediate)
+						return !(cancel = true);
+					e.cancel && (cancel = e.cancel);
+                });
+				if (cancel) return;
+            }
+            for (var i = 0; i < target.node.childNodes.length; i++) {
+                var node = target.node.childNodes[i];
+                node.nodeType == 1 && iterate(Store[node.uid]);
+            }
+        }(this));
         return this;
     }
-    function remove(item) {
-        for ( var type in table ) {
-            var i, array = [];
-            for ( i = 0; i < table[type].length; i++ )
-                if ( table[type][i].source != item )
-                    array.push(table[type][i]);
-            table[type] = array;
-        }
+    function remove(target) {
+        delete table[target.uid];
     }
     function messages() {
-        return Object.keys(table);
+        var result = {};
+        (function iterate(target) {
+            var uid = target.uid;
+            if (target.fdr)
+                iterate(Store[Store[uid].xml.lastChild.uid]);
+            else if (table[uid]) {
+                for (var key in table[uid])
+                    result[key] = 1;
+            }
+            for (var i = 0; i < target.node.childNodes.length; i++) {
+                var node = target.node.childNodes[i];
+                node.nodeType == 1 && iterate(Store[node.uid]);
+            }
+        }(this));
+        return Object.keys(result);
     }
     return { watch: watch, glance: glance, unwatch: unwatch, notify: notify, remove: remove, messages: messages };
-};
+}());
 
 var EventModuleAPI = (function () {
     var eventTable = {},
@@ -944,7 +961,7 @@ var EventModuleAPI = (function () {
             fn = selector, selector = undefined;
         assert(type, selector, fn);
         var uid = this.elem().xmlTarget.uid;
-		var listener = this.api;
+        var listener = this.api;
         function handler(event) {
             var e = createProxy(event, listener);
             if (!selector)
@@ -1007,13 +1024,13 @@ var EventModuleAPI = (function () {
     function trigger(type, data, bubble) {
         var event = Event(type, true);
         event.xmlTarget = Store[this.uid];
-		event.bubble_ = bubble == false ? false : true;
+        event.bubble_ = bubble == false ? false : true;
         event.data = data == null ? [] : ($.isArray(data) ? data : [data]);
         this.elem().dispatchEvent(event);
         return this;
     }
-    function remove(item) {
-        delete eventTable[item.uid];
+    function remove(target) {
+        delete eventTable[target.uid];
     }
     function Event(type, bubble) {
         var canBubble = !(bubble === false),
@@ -1037,7 +1054,7 @@ var EventModuleAPI = (function () {
         let target = event.target;
         let cancelBubble = false;
         while (target.xmlTarget) {
-			let uid = target.xmlTarget.uid;
+            let uid = target.xmlTarget.uid;
             let items =(eventTable[uid] || {})[event.type] || [];
             for (let i = 0; i < items.length; i++) {
                 let e = items[i].handler(event);
@@ -1048,8 +1065,8 @@ var EventModuleAPI = (function () {
                 e.cancelBubble && (cancelBubble = true);
             }
             if (cancelBubble || !event.bubbles || event.bubble_ == false) 
-				break;
-			target = target.parentNode;
+                break;
+            target = target.parentNode;
         }
     }
     return { on: on, once: once, off: off, trigger: trigger, remove: remove };
@@ -1124,6 +1141,15 @@ var CommonElementAPI = {
         elem.setAttribute("class", result.join(" "));
         return this;
     },
+    hasClass: function(value) {
+        var elem = this.elem();
+        value = value || '';
+        var env = this.env;
+        value = value.replace(/#/g, env.aid + env.cid);
+        if (value.length == 0) 
+            return false;
+        return new RegExp(' ' + value + ' ').test(' ' + elem.getAttribute("class") + ' ');
+    },
     contains: function (obj) {
         if ( !obj ) return false;
         var target = this.elem(),
@@ -1133,22 +1159,6 @@ var CommonElementAPI = {
             elem = elem.parentNode;
         } while (elem);
         return false;
-    },
-    notify: function (type, data) {
-        return this.ctr.notify.call(this, type, data);
-    },
-    watch: function (type, fn, priority) {
-        if ( typeof fn != "function" )
-            $.error("invalid callback, expected a function");
-        return this.ctr.watch.call(this, type, fn, priority);
-    },
-    glance: function (type, fn, priority) {
-        if ( typeof fn != "function" )
-            $.error("invalid callback, expected a function");
-        return this.ctr.glance.call(this, type, fn, priority);
-    },
-    unwatch: function (type, fn) {
-        return this.ctr.unwatch.call(this, type, fn);
     },
     append: function (target, options, parent) {
         parent = parent || this.appendTo();
@@ -1363,11 +1373,11 @@ var CommonElementAPI = {
             } else if ($.isPlainObject(value)) {
                 if (!view.fdr)
                     $.error("a PlainObject is not allow to bind a htmltag!");
-				view.api.trigger("beforeBind", [value]);
+                view.api.trigger("beforeBind", [value]);
                 model = bd.bindObject(view);
             } else if (bd.isLiteral(value)) {
                 model = bd.bindLiteral(view, proxy, propKey);
-			}
+            }
             model.set(value);
             return true;
         }
@@ -1419,12 +1429,28 @@ var ClientElementAPI = {
         elem.style.width = parseFloat(value) + "px";
         return this;
     },
+    outerWidth: function (includeMargins) {
+        var elem = this.elem();
+        if (includeMargins) {
+            var styles = getComputedStyle(elem, null);
+            return elem.offsetWidth + parseFloat(styles.getPropertyValue('margin-right')) + parseFloat(styles.getPropertyValue('margin-left'));
+        }
+        return elem.offsetWidth;
+    },
     height: function (value) {
         var elem = this.elem();
         if (value === undefined)
             return elem.getBoundingClientRect().height;
         elem.style.height = parseFloat(value) + "px";
         return this;
+    },
+    outerHeight: function (includeMargins) {
+        var elem = this.elem();
+        if (includeMargins) {
+            var styles = getComputedStyle(elem, null);
+            return elem.offsetHeight + parseFloat(styles.getPropertyValue('margin-bottom')) + parseFloat(styles.getPropertyValue('margin-top'));
+        }
+        return elem.offsetHeight;
     },
     offset: function (coordinates) {
         var elem = this.elem();
@@ -1606,7 +1632,7 @@ function HtmlManager() {
             resetAttrs(env, node, aliasMatch(env, node));
         o.ele = hp.createElement(node, parent);
         o.api = node.defer ? hp.build(o, DeferElementAPI) : o.back;
-        o.ctr = env.ctr, o.env = env, o.node = node, node.uid = o.uid, o.ele.xmlTarget = o;
+        o.env = env, o.node = node, node.uid = o.uid, o.ele.xmlTarget = o;
         return Store[o.uid] = o;
     }
     function recycle(item) {
@@ -1617,7 +1643,7 @@ function HtmlManager() {
             Manager[o.typ].recycle(o);
         }
         delete Store[item.uid];
-        item.ctr.remove(item);
+        MessageModuleAPI.remove(item);
         item.env.smr.remove(item);
         EventModuleAPI.remove(item);
         table[item.node.nodeName].push(item);
@@ -1629,7 +1655,6 @@ function HtmlManager() {
             Manager[o.typ].chenv(env, o);
         }
         item.env = env;
-        item.ctr = env.ctr;
     }
     return { create: create, recycle: recycle, chenv: chenv };
 }
@@ -1659,9 +1684,8 @@ function CompManager() {
         o.map = $.extend(true, {}, w.map);
         o.opt = $.extend(true, {}, w.opt);
         o.cfg = $.extend(true, {}, w.cfg);
-        o.ctr = o.map.msgscope ? Communication() : env.ctr;
         // aid: appid, cid: classid
-        o.dir = w.dir, o.css = w.css, o.ali = w.ali, o.fun = w.fun, o.cid = w.cid, o.bnd = w.bnd;
+        o.dir = w.dir, o.css = w.css, o.ali = w.ali, o.fun = w.fun, o.cid = w.cid;
         o.smr = env.smr, o.env = env, o.node = node, o.aid = env.aid, node.uid = o.uid;
         var exprs = aliasMatch(env, node);
         resetAttrs(env, node, exprs);
@@ -1686,7 +1710,7 @@ function CompManager() {
         }
         Manager[deep.typ].recycle(deep);
         delete Store[item.uid];
-        item.ctr.remove(item);
+        MessageModuleAPI.remove(item);
         item.smr.remove(item);
         EventModuleAPI.remove(item);
         table.push(item);
@@ -1698,7 +1722,6 @@ function CompManager() {
             Manager[o.typ].chenv(env, o);
         }
         item.env = env;
-        item.msgscope || (item.ctr = env.ctr);
     }
     return { create: create, recycle: recycle, chenv: chenv };
 }
@@ -1900,15 +1923,13 @@ function parseEnvXML(env, parent, node) {
                 iterate(node.childNodes[i], ins.ele);
             env.smr.create(ins);
         } else if ( (ins = Manager[1].create(env, node, parent)) ) {
-			var father = ins.map.fragment == false ? rdoc.lastChild : parent;
-            var re = parseEnvXML(ins, parent, ins.xml.lastChild);
+            parseEnvXML(ins, parent, ins.xml.lastChild);
             ins.fdr.refresh();
             var appendTo = ins.appendTo();
             for ( i = 0; i < node.childNodes.length; i++ )
                 iterate(node.childNodes[i], appendTo);
             env.smr.create(ins);
             ins.value = ins.fun.call(ins.api, ins.fdr.sys, ins.fdr.items, ins.opt);
-			father == parent || parent.appendChild(re.elem());
         } else {
             $.release || console.warn($.serialize(node) + " not found");
             ins = Manager[0].create(env, node, parent);
@@ -1996,7 +2017,6 @@ function startup(xml, parent, param) {
     }
     env.fdr = Finder(env);
     env.smr = StyleManager();
-    env.ctr = Communication();
     env.aid = inBrowser ? $.guid() : "";
     env.api = hp.build(env, NodeElementAPI);
     if ( $.isPlainObject(param) ) {
@@ -2018,7 +2038,7 @@ function startup(xml, parent, param) {
         XMLSerializer_ = XMLSerializer;
         rdoc = document;
         vdoc = $.parseXML("<void/>");
-        NodeElementAPI = $.extend(ClientElementAPI, EventModuleAPI, CommonElementAPI);
+        NodeElementAPI = $.extend(ClientElementAPI, EventModuleAPI, MessageModuleAPI, CommonElementAPI);
         window.xmlplus = window.xp = $.extend(xmlplus, $);
         if ( typeof define === "function" && define.amd )
             define( "xmlplus", [], new Function("return xmlplus;"));
@@ -2035,7 +2055,7 @@ function startup(xml, parent, param) {
         XMLSerializer_ = require("exmldom").XMLSerializer;
         vdoc = $.parseXML("<body/>");
         rdoc = $.parseXML("<body/>");
-        NodeElementAPI = $.extend(ServerElementAPI, EventModuleAPI, CommonElementAPI);
+        NodeElementAPI = $.extend(ServerElementAPI, EventModuleAPI, MessageModuleAPI, CommonElementAPI);
         module.exports = $.extend(xmlplus, $);
     }
     CopyElementAPI = $.extend({}, NodeElementAPI, CopyElementAPI);

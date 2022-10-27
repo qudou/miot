@@ -9,15 +9,36 @@ xmlplus("b414e216-52c5-4b18-8275-588c92a1f38b", (xp, $_) => { // 应用管理
 
 $_().imports({
     Index: {
-        xml: "<i:ViewStack id='index' xmlns:i='//miot/widget'>\
-                <Overview id='overview'/>\
-                <AppList id='applist'/>\
-                <Signup id='signup'/>\
-                <Remove id='remove'/>\
-                <Update id='update'/>\
-                <Service id='service'/>\
-                <Guide id='guide'/>\
-              </i:ViewStack>"
+		css: "#stack { width: 100%; height: 100%; }",
+		xml: "<div id='index'>\
+                <i:ViewStack id='stack' xmlns:i='//miot/widget'>\
+                  <Overview id='overview'/>\
+                  <AppList id='applist'/>\
+                  <Signup id='signup'/>\
+                  <Remove id='remove'/>\
+                  <Update id='update'/>\
+                  <Guide id='guide'/>\
+                </i:ViewStack>\
+				<Overlay id='mask' xmlns='//miot/verify'/>\
+			  </div>",
+		fun: function (sys, items, opts) {
+			sys.applist.on("remove", (e, item) => {
+				e.stopPropagation();
+				items.remove(e, item);
+			});
+			this.on("/list/show", (e, link) => {
+				e.stopPropagation();
+				this.notify("/list/show", {id: link});
+			});
+			sys.stack.on("/mask/show", (e) => {
+				e.stopPropagation();
+				items.mask.show();
+			});
+			sys.stack.on("/mask/hide", (e) => {
+				e.stopPropagation();
+				items.mask.hide();
+			});
+		}
     },
     Overview: {
         xml: "<div id='overview' xmlns:i='overview'>\
@@ -29,14 +50,7 @@ $_().imports({
         xml: "<div id='applist' xmlns:i='applist'>\
                 <i:Navbar id='navbar'/>\
                 <i:Content id='content'/>\
-              </div>",
-        fun: function (sys, items, opts) {
-            this.on("show", (e, prev, data) => {
-                if (!data) return;
-                items.navbar(data);
-                items.content(data);
-            });
-        }
+              </div>"
     },
     Signup: {
         xml: "<div id='signup' xmlns:i='signup'>\
@@ -61,21 +75,18 @@ $_().imports({
         }
     },
     Remove: {
+		xml: "<void id='remove'/>",
         fun: function (sys, items, opts) {
-            this.watch("remove", (e, p) => {
+            return function (e, p) {
                 window.app.dialog.confirm("确定删除该应用吗？", "温馨提示", () => {
-                    this.trigger("publish", ["/apps/remove", {id: p.id}]);
-                    this.glance("/apps/remove", (m, p) => {
-                        this.trigger("message", ["msg", p.desc]);
+                    sys.remove.trigger("publish", ["/apps/remove", {id: p.id}]);
+                    sys.remove.glance("/apps/remove", (m, p) => {
+                        sys.remove.trigger("message", ["msg", p.desc]);
                         p.code == 0 && e.target.remove();
                     },1);
                 });
-            });
+            };
         }
-    },
-    Service: {
-        css: "#service { visibility: visible; opacity: 1; background: #EFEFF4; }",
-        xml: "<Overlay id='service' xmlns='//miot/verify'/>"
     },
     Guide: {
         xml: "<div id='guide' xmlns:i='guide'>\
@@ -136,10 +147,9 @@ $_("overview").imports({
                 links = {};
                 data.map(i => links[i.id]=i);
             });
-            this.watch("applist", (e, linkId, bool) => {
-                let data = xp.extend({},links[linkId]);
+            this.watch("/list/show", (e, data) => {
+                xp.extend(data, links[data.id]);
                 data.area = areas[data.area];
-                bool || this.trigger("goto", ["applist", data]);
             });
             this.trigger("publish", "/apps/areas");
         }
@@ -169,7 +179,8 @@ $_("overview").imports({
                 sys.label.text(link.name);
             }
             this.on(Click, (e) => {
-                this.notify("applist", opts.id);
+				this.trigger("goto", "applist");
+                this.trigger("/list/show", opts.id);
             });
             return Object.defineProperty({}, "value", {set: setValue});
         }
@@ -196,10 +207,10 @@ $_("applist").imports({
         fun: function (sys, items, opts) { 
             sys.icon.on(Click, e => this.trigger("back"));
             sys.menu.on(Click, e => this.trigger("goto", ["signup", opts]));
-            return function (p) {
-                opts = p;
+			this.watch("/list/show", (e, p) => {
+				opts = p;
                 sys.title.text(`${p.area.name}/${p.name}`);
-            };
+			});
         }
     },
     Content: {
@@ -224,10 +235,10 @@ $_("applist").imports({
             this.watch("/apps/remove", (e, p) => {
                 sys.list.kids().length || sys.list.hide();
             });
-            return function (p) {
-                opts = p;
-                sys.content.trigger("publish", ["/apps/list", {link: p.id}]);
-            };
+			this.watch("/list/show", (e, p) => {
+				opts = p;
+				sys.content.trigger("publish", ["/apps/list", {link: p.id}]);
+			});
         }
     },
     AppList: {
@@ -257,7 +268,7 @@ $_("applist").imports({
                 sys.label.text(app.name);
                 sys.app.text(app.id);
             }
-            sys.remove.on(Click, () => this.notify("remove", opts));
+            sys.remove.on(Click, () => this.trigger("remove", opts));
             return Object.defineProperty({}, "value", { set: setValue});
         }
     },
@@ -297,18 +308,20 @@ $_("signup").imports({
                 </div>\
               </div>",
         fun: function (sys, items, opts) {
-            
             sys.type.on("next", (e, p) => {
                 opts = p;
                 e.stopPropagation();
-                this.trigger("goto", "service");
+				this.trigger("/mask/show");
                 this.trigger("publish", ["/apps/signup", p]);
                 this.glance("/apps/signup", callback);
             });
             function callback(e, p) {
-                this.trigger("message", ["msg", p.desc]);
-                this.trigger("back");
-                p.code || this.notify("applist", [opts.link, 1]);
+				sys.content.trigger("/mask/hide");
+                sys.content.trigger("message", ["msg", p.desc]);
+				if (p.code == 0) {
+					sys.content.trigger("back");
+					sys.content.trigger("/list/show", opts.link);
+				}
             }
             sys.submit.on(Click, items.signup.start);
             return function (p) {
@@ -551,14 +564,17 @@ $_("update").imports({
                 opts = p;
                 p.id = items.guid.val();
                 e.stopPropagation();
-                this.trigger("goto", "service");
+				this.trigger("/mask/show");
                 this.trigger("publish", ["/apps/update", p]);
                 this.glance("/apps/update", callback);
             });
             function callback(e, p) {
-                e.target.trigger("message", ["msg", p.desc]);
-                e.target.trigger("back");
-                p.code || e.target.notify("applist", [opts.link, 1]);
+				sys.content.trigger("/mask/hide");
+                sys.content.trigger("message", ["msg", p.desc]);
+				if (p.code == 0) {
+					sys.content.trigger("back");
+					sys.content.trigger("/list/show", opts.link);
+				}
             }
             sys.submit.on(Click, items.update.start);
             return function (data) {

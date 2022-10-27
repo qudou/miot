@@ -9,16 +9,31 @@ xmlplus("d9c69375-2edc-43d3-a2a4-7bd93c31eb4f", (xp, $_) => { // 用户管理
 
 $_().imports({
     Index: {
-        xml: "<i:ViewStack xmlns:i='//miot/widget'>\
-                <Overview id='overview'/>\
-                <Signup id='signup'/>\
-                <Update id='update'/>\
-                <Chpasswd id='chpasswd'/>\
-                <Remove id='remove'/>\
-                <Service id='service'/>\
-              </i:ViewStack>",
+		css: "#stack { width: 100%; height: 100%; }",
+        xml: "<div id='index'>\
+		        <i:ViewStack id='stack' xmlns:i='//miot/widget'>\
+                  <Overview id='overview'/>\
+                  <Signup id='signup'/>\
+                  <Update id='update'/>\
+                  <Chpasswd id='chpasswd'/>\
+                  <Remove id='remove'/>\
+                </i:ViewStack>\
+				<Overlay id='mask' xmlns='//miot/verify'/>\
+			  </div>",
         fun: function (sys, items, opts) {
-            this.trigger("publish", "/users/select");
+			sys.overview.on("remove", (e, item) => {
+				e.stopPropagation();
+				items.remove(e, item);
+			});
+			sys.stack.on("/mask/show", (e) => {
+				e.stopPropagation();
+				items.mask.show();
+			});
+			sys.stack.on("/mask/hide", (e) => {
+				e.stopPropagation();
+				items.mask.hide();
+			});
+			this.trigger("publish", "/users/select");
         }
     },
     Overview: {
@@ -61,21 +76,18 @@ $_().imports({
         }
     },
     Remove: {
+		xml: "<void id='remove'/>",
         fun: function (sys, items, opts) {
-            this.watch("remove", (e, p) => {
+            return function (e, p) {
                 window.app.dialog.confirm("确定删除该用户吗？", "温馨提示", () => {
-                    this.trigger("publish", ["/users/remove", {id: p.id}]);
-                    this.glance("/users/remove", (m, p) => {
-                        this.trigger("message", ["msg", p.desc]);
+                    sys.remove.trigger("publish", ["/users/remove", {id: p.id}]);
+                    sys.remove.glance("/users/remove", (m, p) => {
+                        sys.remove.trigger("message", ["msg", p.desc]);
                         p.code == 0 && e.target.hide();
                     });
                 });
-            });
+            };
         }
-    },
-    Service: {
-        css: "#service { visibility: visible; opacity: 1; background: #EFEFF4; }",
-        xml: "<Overlay id='service' xmlns='//miot/verify'/>"
     }
 });
 
@@ -144,7 +156,7 @@ $_("overview").imports({
                 sys.last_login.text(`最后登录：${user.last_login}`);
                 user.id && sys.type.text("普通用户") || sys.type.text("管理员") && sys.remove.remove();
             }
-            sys.remove.on(Click, () => this.notify("remove", opts));
+            sys.remove.on(Click, () => this.trigger("remove", opts));
             return Object.defineProperty({}, "value", { set: setValue});
         }
     },
@@ -187,14 +199,17 @@ $_("signup").imports({
         fun: function (sys, items, opts) {
             sys.remarks.on("next", (e, p) => {
                 e.stopPropagation();
-                this.trigger("goto", "service");
+                this.trigger("/mask/show");
                 this.trigger("publish", ["/users/signup", p]);
                 this.glance("/users/signup", callback);
             });
             function callback(e, p) {
-                e.target.trigger("message", ["msg", p.desc]);
-                e.target.trigger("back", true);
-                p.code || e.target.trigger("publish", "/users/select");
+				sys.content.trigger("/mask/hide");
+                sys.content.trigger("message", ["msg", p.desc]);
+				if (p.code == 0) {
+					sys.content.trigger("back");
+					sys.content.trigger("publish", "/users/select");
+				}
             }
             sys.submit.on(Click, items.signup.start);
             return function () {
@@ -419,14 +434,17 @@ $_("update").imports({
             sys.remarks.on("next", (e, p) => {
                 e.stopPropagation();
                 p.id = opts.id;
-                this.trigger("goto", "service");
+                this.trigger("/mask/show");
                 this.trigger("publish", ["/users/update", p]);
                 this.glance("/users/update", callback);
             });
             function callback(e, p) {
-                e.target.trigger("message", ["msg", p.desc]);
-                e.target.trigger("back");
-                p.code || e.target.trigger("publish", "/users/select");
+				sys.content.trigger("/mask/hide");
+                sys.content.trigger("message", ["msg", p.desc]);
+				if (p.code == 0) {
+					sys.content.trigger("back");
+					sys.content.trigger("publish", "/users/select");
+				}
             }
             sys.submit.on(Click, items.update.start);
             sys.chpasswd.on(Click, () => this.trigger("goto", ["chpasswd",opts]));
@@ -458,13 +476,14 @@ $_("chpasswd").imports({
             sys.new_pass.on("next", (e) => {
                 e.stopPropagation();
                 let p = {id:opts.id, pass:items.pass.val(), new_pass:items.new_pass.val()};
-                this.trigger("goto", "service");
+                this.trigger("/mask/show");
                 this.trigger("publish", ["/users/chpasswd", p]);
                 this.glance("/users/chpasswd", callback);
             });
             function callback(e, p) {
-                e.target.trigger("message", ["msg", p.desc]);
-                e.target.trigger("back");
+				sys.content.trigger("/mask/hide");
+                sys.content.trigger("message", ["msg", p.desc]);
+                p.code || sys.content.trigger("back");
             }
             sys.submit.on(Click, items.chpasswd.start);
             return function (value) {

@@ -5,87 +5,84 @@
  * Released under the MIT license
  */
 
-window.app = new Framework7({theme: "ios", dialog:{buttonOk: '确定', buttonCancel: "取消"}});
+window.app = new Framework7({theme: "ios", dialog:{buttonOk: "确定", buttonCancel: "取消"}});
+const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
 const Click = 'ontouchend' in document.documentElement === true ? "touchend" : "click";
+const Server = document.querySelector("meta[name='mqtt-server']").getAttribute("content");
 
 xmlplus("miot", (xp, $_) => {
 
 $_().imports({
     Index: {
-        css: "* { -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }\
-              input { -webkit-user-select: text; } \
+        css: "* { user-select: none; -webkit-tap-highlight-color: transparent; }\
+              input { user-select: text; } \
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
               #index { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
-              #login { background: #FFF; }\
-              #index > * { transition-duration: 0s; }\
+			  #index > * { width: 100%; height: 100%; }\
+              #stack > * { transition-duration: 0s; }\
               .toast-text { width:100%; text-align: center;}\
               .dialog { border: 1px solid #CACDD1; }",
-        xml: "<i:ViewStack id='index' xmlns:i='widget'>\
-                <Verify id='verify'/>\
-                <Service id='service'/>\
-                <Login id='login'/>\
-                <Content id='content'/>\
-              </i:ViewStack>",
+        xml: "<div id='index'>\
+				  <i:ViewStack id='stack' xmlns:i='widget'>\
+					<Content id='content'/>\
+					<Login id='login'/>\
+				  </i:ViewStack>\
+				  <Overlay id='mask' xmlns='verify'/>\
+			  </div>",
         fun: function(sys, items, opts) {
-            let toast;
+            let toast, client;
             this.on("message", (e, t, msg) => {
                 toast && toast.close();
                 window.app.toast.destroy(toast);
                 toast = window.app.toast.create({ text: msg, position: 'top', closeTimeout: 3000});
                 toast.open();
             });
-            this.watch("/ui/session", (e, p) => {
-                localStorage.setItem("session", p.session);
-                localStorage.setItem("username", p.username);
-            });
-        }
-    },
-    Verify: {
-        xml: "<Overlay id='verify' xmlns='verify'/>",
-        fun: function (sys, items, opts) {
-            let session = localStorage.getItem("session");
-            setTimeout(e => {
-                this.trigger("goto", session ? ["service", {username: session}] : "login");
-            }, 0);
-        }
-    },
-    Service: {
-        css: "#service { visibility: visible; opacity: 1; }",
-        xml: "<Overlay id='service' xmlns='verify'/>",
-        fun: function (sys, items, opts) {
-            let client = null;
-            let Server = document.querySelector("meta[name='mqtt-server']").getAttribute("content");
-            this.on("show", (e, key, cfg) => {
+			this.on("connect", function (e, cfg) {
+				items.mask.show();
                 client = mqtt.connect(Server, cfg);
-                client.on("connect", e => {
+                client.on("connect", function (e) {
                     client.subscribe(client.options.clientId, err => {
                         if (err) throw err;
-                        this.notify("subscribed");
+                        sys.content.trigger("publish", {topic: "/ui/areas"});
+						items.mask.hide();
                     });
+					sys.content.notify("/stat/ui/1");
+					localStorage.setItem("online", 1);
+                    sys.stack.trigger("goto", "content");
                     console.log("connected to " + Server);
-                    this.trigger("goto", "content").notify("/stat/ui/1");
                 });
-                client.on("message", (topic, p) => {
-                    this.notify("message", JSON.parse(p.toString()));
+                client.on("message", function (topic, p) {
+					p = JSON.parse(p.toString());
+					sys.content.notify(p.topic, [p.data]);
                 });
-                client.on("close", e => this.notify("/stat/ui/0"));
-                client.on("error", e => {
+                client.on("close", function (e) {
+					sys.content.notify("/stat/ui/0");
+					localStorage.setItem("online", 0);
+				});
+                client.on("error", function (e) {
+					items.mask.hide();
                     this.trigger("message", ["error", e.message]);
-                    e.message == "Connection refused: Bad username or password" && this.notify("/ui/logout");
+                    if (e.message == "Connection refused: Bad username or password") {
+						 sys.content.trigger("/ui/logout");
+					}
                 });
-            });
-            this.watch("/ui/logout", (e, p) => {
-                client.end();
-                localStorage.clear();
-                this.trigger("goto", "login");
-            });
-            this.watch("publish", (e, topic, p = {}) => {
+			});
+            sys.content.on("publish", (e, p = {}, topic = uid) => {
                 client.publish(topic, JSON.stringify(p));
             });
+			sys.content.on("/ui/logout", (e) => {
+				client.end();
+                localStorage.clear();
+                sys.stack.trigger("goto", "login");
+			});
+			let session = localStorage.getItem("session");
+			setTimeout(() => {
+				session ? this.trigger("connect", {username: session}) : sys.stack.trigger("goto", "login");
+			}, 0);
         }
     },
     Login: {
-        css: "#logo { margin: 60px auto 25px; display: block; width: 50%; height: auto; }",
+        css: "#logo { margin: 60px auto 25px; display: block; width: 50%; height: auto; background: white; }",
         xml: "<div class='page'><div class='page-content login-screen-content' xmlns:i='login'>\
                 <i:Logo id='logo'/>\
                 <i:Form id='login'>\
@@ -115,24 +112,32 @@ $_().imports({
                 <i:Applet id='applet'/>\
               </div>",
         fun: function (sys, items, opts) {
-            const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
+			this.on("/popup/open", (e, key, values) => {
+				e.stopPropagation();
+				if (localStorage.getItem("online") == 1)
+				    sys.popup.notify(e.type, [key, values]);
+			});
+            sys.home.on("/applet/open", (e, p) => {
+                e.stopPropagation();
+                sys.applet.notify("/applet/open", p);
+            });
             sys.footer.on("switch", (e, page) => {
                 e.stopPropagation();
                 sys.stack.trigger(page == "home" ? "back" : "goto", page);
             });
-            this.on("show", () => this.notify("switch-page", "home"));
-            this.on("publish", (e, p) => {
-                e.stopPropagation();
-                this.notify("publish", [uid, p]);
+			sys.popup.on("/area/open", (e, p) => {
+				e.stopPropagation();
+				sys.home.notify(e.type, p);
+			});
+			sys.popup.on("/link/open", (e, p) => {
+				e.stopPropagation();
+				sys.home.notify(e.type, p);
+			});
+			this.watch("/ui/session", (e, p) => {
+                localStorage.setItem("session", p.session);
+                localStorage.setItem("username", p.username);
             });
-            this.on("/open/applet", (e, p) => {
-                e.stopPropagation();
-                this.notify("/open/applet", p);
-            });
-            this.watch("message", (e, p) => {
-                this.notify(p.topic, [p.data]);
-            });
-            this.watch("subscribed", () => this.trigger("publish", {topic: "/ui/areas"}));
+            this.on("show", () => items.footer.changePage("home"));
         }
     }
 });
@@ -260,7 +265,7 @@ $_("login").imports({
               </li>",
         fun: function (sys, items, opts) {
             this.on("start", (e, o) => {
-                this.trigger("goto", ["service", {username: o.name, password: o.pass}]);
+                this.trigger("connect", {username: o.name, password: o.pass});
             });
         }
     },
@@ -304,7 +309,13 @@ $_("content").imports({
                 <i:Head id='head'/>\
                 <i:Title id='title'/>\
                 <i:Apps id='apps'/>\
-              </div>"
+              </div>",
+		fun: function (sys, items, opts) {
+			this.on("/ui/links", (e, p) => {
+				e.stopPropagation();
+				sys.index.notify(e.type, [p]);
+			});
+		}
     },
     About: {
         css: "#content { height: calc(100% - 88px); }",
@@ -321,10 +332,11 @@ $_("content").imports({
             sys.footer.on(Click, "*", function (e) {
                 this.trigger("switch", this.toString());
             });
-            this.watch("switch-page", (e, page) => {
-                sys[page].trigger(Click);
+			function changePage(page) {
+				sys[page].trigger(Click);
                 items[page].prop("checked", "true");
-            });
+			}
+			return { changePage: changePage };
         }
     },
     Popup: {
@@ -334,7 +346,7 @@ $_("content").imports({
         fun: function (sys, items, opts) {
             let key, buf = [];
                 list = sys.render.bind([]);
-            this.watch("/open/popup", (e, _key, _list) => {
+            this.watch("/popup/open", (e, _key, _list) => {
                 let pid = localStorage.getItem(key = _key);
                 list.model = buf = _list;
                 let i = _list.findIndex(i=>{return i.id == pid});
@@ -345,7 +357,7 @@ $_("content").imports({
             sys.popup.on(Click, "*", function () {
                 let i = sys.popup.kids().indexOf(this);
                 localStorage.setItem(key, buf[i].id);
-                items.popup.hide().notify(`/open/${key}`, buf[i]);
+                items.popup.hide().trigger(`/${key}/open`, buf[i]);
             });
         }
     },
@@ -359,8 +371,9 @@ $_("content").imports({
               </div>",
         fun: function (sys, items, opts) {
             this.on("publish", (e, topic, body) => {
+				if (e.target == this) return;
                 e.stopPropagation();
-                this.notify("publish", [opts.mid, {topic: topic, body: body}]);
+                this.trigger("publish", [{topic: topic, body: body}, opts.mid]);
             });
             this.watch("/ui/app", (e, p) => {
                 let app = sys.mask.prev();
@@ -370,7 +383,7 @@ $_("content").imports({
                 let applet = `//${app.view}/Index`;
                 let c = xp.hasComponent(applet);
                 if (!c) return setTimeout(i=>load(app), 10);
-                c.map.msgscope = true;
+				c.map.msgFilter = /[^]*/;
                 sys.mask.before(applet, app);
                 items.mask.hide();
                 sys.applet.once("close", close);
@@ -383,7 +396,7 @@ $_("content").imports({
                 sys.applet.removeClass("#modal-in");
                 sys.applet.once("transitionend", sys.mask.prev().remove);
             }
-            this.watch("/open/applet", (e, app) => {
+            this.watch("/applet/open", (e, app) => {
                 opts = app;
                 items.mask.show();
                 sys.applet.addClass("#modal-in");
@@ -440,26 +453,26 @@ $_("content/index").imports({
         fun: function (sys, items, opts) {
             let areas = [], table = {};
             sys.label.on(Click, () => {
-                this.notify("/open/popup", ["area", areas]);
+                this.trigger("/popup/open", ["area", areas]);
             });
             this.watch("/ui/areas", (e, _areas) => {
                 if (_areas.length == 0) {
-                    this.notify("/ui/logout");
+                    e.stopImmediateNotification();
+                    this.trigger("/ui/logout");
                     this.trigger("message", ["error", "该用户未获得任何应用的授权！"]);
-                    return false;
                 }
             });
             this.watch("/ui/areas", (e, _areas) => {
                 areas = _areas;
                 let id = localStorage.getItem("area");
                 let area = areas.find(i=>{return i.id == id});
-                this.notify(`/open/area`, area || areas[0]);
-            });
-            this.watch("/open/area", (e, area) => {
+				this.notify("/area/open", area || areas[0]);
+			});
+			this.watch("/area/open", (e, area) => {
                 sys.label.text(area.name);
                 localStorage.setItem("area", area.id);
                 if (table[area.id])
-                    return this.notify("/ui/links", [table[area.id]]);
+                    return this.trigger("/ui/links", [table[area.id]]);
                 this.trigger("publish", {topic: "/ui/links", body: {area: area.id}});
             });
             this.watch("/stat/link", (e, p) => {
@@ -478,15 +491,15 @@ $_("content/index").imports({
         fun: function (sys, items, opts) {
             let links = [];
             this.on(Click, () => {
-                this.notify("/open/popup", ["link", links]);
+                this.trigger("/popup/open", ["link", links]);
             });
             this.watch("/ui/links", (e, p) => {
                 links = p.links;
                 let id = localStorage.getItem("link");
                 let link = links.find(i=>{return i.id == id});
-                this.notify(`/open/link`, link || links[0]);
-            });
-            this.watch("/open/link", (e, link) => {
+                this.notify("/link/open", link || links[0]);
+			});
+			this.watch("/link/open", (e, link) => {
                 text(opts = link);
                 this.trigger("publish", {topic: "/ui/apps", body: {link: link.id}});
             });
@@ -518,7 +531,7 @@ $_("content/index").imports({
             });
             sys.apps.on(Click, "*", function (e) {
                 let i = sys.apps.kids().indexOf(this);
-                _apps[i].online && this.trigger("/open/applet", _apps[i]);
+                _apps[i].online && this.trigger("/applet/open", _apps[i]);
             });
             this.watch("/stat/link", (e, p) => {
                 link == p.mid && p.data == 0 && offlineAll(1);
@@ -549,9 +562,6 @@ $_("content/index/head").imports({
     Stat: {
         xml: "<Text id='stat'>在线</Text>",
         fun: function (sys, items, opts) {
-            this.watch("/open/popup", () => {
-                if (this.text() == "离线") return false;
-            });
             this.watch("/stat/ui/1", e => this.text("在线"));
             this.watch("/stat/ui/0", e => this.text("离线"));
         }
@@ -569,7 +579,7 @@ $_("content/index/apps").imports({
                 <Icon id='dir'/>\
                 <span id='label'/>\
               </a>",
-        bnd: { name: {skey: "label"} },
+        map: { bind: {"name": "label"} },
         fun: function (sys, items, opts) {
 			let online = 0;
 			return Object.defineProperty({}, "online", {
@@ -623,7 +633,7 @@ $_("content/about").imports({
         fun: function (sys, items, opts) {
             this.watch("/ui/session", (e, p) => {
                 sys.user.text(`当前用户：${p.username}`);
-            }, -1);
+            });
         }
     },
     Icon: {
@@ -637,14 +647,11 @@ $_("content/about").imports({
                 <ul><li><a href='#' class='list-button item-link color-gray'>退出</a></li></ul>\
               </div>",
         fun: function (sys, items, opts) {
-            let online = 0;
-            this.watch("/stat/ui/1", e => online = 1);
-            this.watch("/stat/ui/0", e => online = 0);
             this.on(Click, e => {
-                if (online == 0)
+                if (localStorage.getItem("online") == 0)
                     this.trigger("message", ["msg", "当前系统离线，无法退出！"]);
                 else app.dialog.confirm("确定退出系统吗？", "温馨提示", e => {
-                    this.notify("/ui/logout");
+                    this.trigger("/ui/logout");
                 });
             });
         }
@@ -737,7 +744,7 @@ $_("content/popup").imports({
                     <div id='icon'/>\
                 </label>\
               </div>",
-        bnd: { name: {skey: "label"} },
+        map: { bind: {name: "label"} },
         fun: function (sys, items, opts) {
             return sys.radio.attr("name", opts.key).elem();
         }
@@ -787,8 +794,13 @@ $_("widget").imports({
 					content.scrollTop(scrollTop);
 				}
 		    }
-			this.on(Click, () => this.notify("$global/click"));
+			// this.on(Click, () => this.notify("$global/click"));
 		}
+	},
+	BlockTitle: {
+		css: "#blockTitle { position: relative; overflow: hidden; margin: 0; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; line-height: 1; }\
+		      #blockTitle { text-transform: uppercase; color: #6d6d72; margin: 35px 15px 10px;}",
+		xml: "<div id='blockTitle'/>"
 	},
     Navbar: {
         css: "#navbar { display: flex; justify-content: space-between; align-items:center; position: relative; z-index: 2; height: 44px; box-sizing: border-box; padding: 0 10px; font-size: 17px; background: #f7f7f8; }\
@@ -840,7 +852,7 @@ $_("widget").imports({
 				   <div id='sheet'/>\
 				 </div>\
 		      </div>",
-	    map: { msgscope: true, appendTo: "sheet" },
+	    map: { msgFilter: /[^]*/, appendTo: "sheet" },
         fun: function (sys, items, opts) {
 			sys.content.on(Click, e => {
 				sys.sheet.contains(e.target.elem()) || hide();
@@ -867,23 +879,27 @@ $_("widget").imports({
 		        <Input id='input' xmlns='picker'/>\
 				<Popup id='popup'/>\
 		      </div>",
-		map: { attrs: {input: "placeholder" }, appendTo: "popup" }, 
-		opt: { updateOnTouchmove: true, formatValue: values => {return values.join(' ')} },
+		map: { attrs: {input: "placeholder" }, appendTo: "popup", msgFilter: /[^]*/ }, 
+		opt: { updateOnTouchmove: true, formatValue: (values, displayValues) => {return displayValues.join(' ')} },
 		fun: function (sys, items, opts) {
 			let _values = [];
+			let _displayValues = [];
 			let scrollValues = [];
+			let scrollDisplayValues = [];
 			sys.input.on(Click, () => {
 				items.popup.show();
 				let picker = this.last().val();
 				for (let i = 0; i < _values.length; i++) 
 					picker.model[i].value = _values[i];
 			});
-			sys.popup.on("change", (e, col, values, onScroll) => {
+			sys.popup.on("change", (e, col, values, displayValues, onScroll) => {
 				e.stopPropagation();
 				scrollValues = values;
+				scrollDisplayValues = displayValues;
 				if (onScroll && !opts.updateOnTouchmove) return;
 				_values = values;
-				sys.input.prop("value", opts.formatValue(values));
+				_displayValues = displayValues;
+				sys.input.prop("value", opts.formatValue(_values, _displayValues));
 			});
 			sys.popup.on("close", (e) => {
 				e.stopPropagation();
@@ -892,7 +908,8 @@ $_("widget").imports({
 			sys.popup.on("confirm", (e) => {
 				e.stopPropagation();
 				_values = scrollValues;
-				sys.input.prop("value", opts.formatValue(scrollValues));
+				_displayValues = scrollDisplayValues;
+				sys.input.prop("value", opts.formatValue(_values, _displayValues));
 			});
 			sys.popup.on("$popup/open", (e, sheet, no) => {
 				if (no) return;
@@ -902,7 +919,7 @@ $_("widget").imports({
 		}
 	},
     ViewStack: {
-        css: "#viewstack { position: relative; }\
+        css: "#viewstack { position: relative; overflow: hidden; }\
               #viewstack > * { position: absolute; width: 100%; height: 100%; transition-duration: .3s; transform: translate3d(100%,0,0); }",
         xml: "<div id='viewstack'/>",
         fun: function (sys, items, opts) {
@@ -950,30 +967,31 @@ $_("widget/picker").imports({
 		      </div>",
 		fun: function (sys, items, opts) {
 			let proxy = sys.renderer.bind([]);
-			sys.picker.on("#change", "./*", function (e, value, onScroll) { 
+			sys.picker.on("#change", "./*", function (e, onScroll) { 
 				e.stopPropagation();
 				let kids = sys.picker.kids();
-				let values = [];
-				for (let i = 0; i < kids.length - 2; i++)
-					values.push(kids[i].val().value);
-				this.trigger("change", [kids.indexOf(this), values, onScroll]);
+				let values = [], displayValues = [];
+				for (let i = 0; i < kids.length - 2; i++) {
+					let item = kids[i].val()();
+					values.push(item.value);
+					displayValues.push(item.displayValue);
+				}
+				this.trigger("change", [kids.indexOf(this), values, displayValues, onScroll]);
 			});
 			return proxy;
 		}
 	},
 	Renderer: {
 		xml: "<div id='renderer'/>",
-		bnd: { textAlign: { skey: "value" } },
+		map: { bind: {textAlign: "value"} },
 		fun: function (sys, items, opts) {
 			this.on("beforeBind", (e, value) => {
 				e.stopPropagation();
 				if (e.target != this) return;
 				let render = value.divider ? "<Divider id='value'/>" : "<Column id='value'><Item id='values'/></Column>"
-				render = sys('//*')[0].replace(render);
+				sys('//*')[0].replace(render);
 			});
-			return Object.defineProperty({}, "value", {
-				get: () => {return items.value.value;} 
-			});
+			return () => { return items.value };
 		}
 	},
 	Column: {
@@ -1003,7 +1021,7 @@ $_("widget/picker").imports({
 				selected && selected.removeClass("#selected", sys.items);
 				selected = items[activeIndex];
 				selected.addClass("#selected", sys.items);
-				selected.trigger("#change", [selected.val()(), onScroll]);
+				selected.trigger("#change", onScroll);
 			}
 			this.on("click", "./*", function (e) {
 				let itemHeight = that.get(0).elem().offsetHeight;
@@ -1016,9 +1034,9 @@ $_("widget/picker").imports({
 				updateItems(undefined, undefined, true);
 			});
 			function setValue(newValue) {
+				let itemHeight = that.get(0).elem().offsetHeight;
 				xp.each(that.kids(), (index, item) => {
-					if (item.val()() != newValue) return;
-					let itemHeight = that.get(0).elem().offsetHeight;
+					if (item.val().value != newValue) return;
 					let scrollTop = index * itemHeight;
 					sys.items.elem().scrollTop = scrollTop;
 					updateItems(index, scrollTop);
@@ -1027,9 +1045,14 @@ $_("widget/picker").imports({
 			}
 			Object.defineProperty(object, "value", {
 			    get: () => {
-					return selected && selected.val()();
+					return selected && selected.val().value;
 				},
 			    set: setValue
+			});
+			Object.defineProperty(object, "displayValue", {
+			    get: () => {
+					return selected && selected.val().displayValue;
+				}
 			});
 			return Object.defineProperty(object, "textAlign", {
 			    get: () => {
@@ -1053,12 +1076,22 @@ $_("widget/picker").imports({
 	},
 	Item: {
 		css: "#item { perspective: 1200px; overflow: visible; transform-style: preserve-3d; height: 36px; line-height: 36px; white-space: nowrap; position: relative; overflow: hidden; text-overflow: ellipsis; left: 0; top: 0; width: 100%; box-sizing: border-box; color: rgba(0, 0, 0, 0.45); cursor: pointer; scroll-snap-align: center; }\
-		      #model { padding: 0 10px; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: block; transform-style: preserve-3d; position: relative; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; max-width: 100%; transform-origin: center center -100px; }",
+		      #display { padding: 0 10px; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: block; transform-style: preserve-3d; position: relative; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; max-width: 100%; transform-origin: center center -100px; }",
 		xml: "<div id='item'>\
-		        <span id='model'/>\
+		        <span id='display'/>\
 		      </div>",
+		map: { bind: { model: "display" } },
 		fun: function (sys, items, opts) {
-			return sys.model.text;
+			let value, object = {};
+			Object.defineProperty(object, "value", {
+			    get: () => { return value || sys.display.text() },
+			    set: v => value = v
+			});
+			return Object.defineProperty(object, "displayValue", {
+			    get: () => { 
+					return sys.display.text();
+				}
+			});
 		}
 	},
     Navbar: {
