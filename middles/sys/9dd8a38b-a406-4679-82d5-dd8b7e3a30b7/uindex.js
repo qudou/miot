@@ -14,7 +14,6 @@ $_().imports({
         xml: "<main id='index'>\
                 <Users id='users'/>\
                 <Areas id='areas'/>\
-                <Links id='links'/>\
                 <Apps id='apps'/>\
                 <Auth id='auth'/>\
               </main>"
@@ -36,29 +35,32 @@ $_().imports({
         }
     },
     Areas: {
-        xml: "<Sqlite id='areas' xmlns='//miot'/>",
+        xml: "<Sqlite id='sqlite' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
-            let stmt = "SELECT id, name FROM areas WHERE id <> 0";
-            this.watch("/auths/areas", (e, p) => {
-                items.areas.all(stmt, (err, data) => {
-                    if (err) throw err;
-                    p.data = data;
-                    this.trigger("to-users", p);
-                });
+            this.watch("/auths/areas", async (e, p) => {
+				p.data = await areas();
+				for (let item of p.data)
+					item.links = await links(item.id);
+				this.trigger("to-users", p);
             });
-        }
-    },
-    Links: {
-        xml: "<Sqlite id='links' xmlns='//miot'/>",
-        fun: function (sys, items, opts) {
-            let stmt = "SELECT id, name, area FROM links WHERE area<>0 ORDER BY area";
-            this.watch("/auths/links", (e, p) => {
-                items.links.all(stmt, (err, data) => {
-                    if (err) throw err;
-                    p.data = data;
-                    this.trigger("to-users", p);
+            function areas() {
+				let stmt = "SELECT * FROM areas WHERE id <> 0";
+                return new Promise((resolve, reject) => {
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data);
+                    });
                 });
-            });
+            }
+            function links(areaId) {
+				let stmt = `SELECT * FROM links WHERE area = ${areaId}`;
+                return new Promise((resolve, reject) => {
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data);
+                    });
+                });
+            }
         }
     },
     Apps: {
@@ -67,9 +69,14 @@ $_().imports({
             this.watch("/auths/apps", async (e, p) => {
                 let table = {};
                 let apps = await getApps(p.body.link);
-                apps.forEach(i=>table[i.id]=i);
+                apps.forEach(i => {
+					table[i.id] = i;
+					i.auth = false;
+				});
                 let auths = await getAuths(p.body.user);
-                auths.forEach(i=>table[i.app] && (table[i.app].auth = 1));
+                auths.forEach(i => {
+					table[i.app] && (table[i.app].auth = true);
+				});
                 p.data = apps;
                 this.trigger("to-users", p);
             });

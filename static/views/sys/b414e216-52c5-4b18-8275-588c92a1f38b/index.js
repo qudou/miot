@@ -10,26 +10,17 @@ xmlplus("b414e216-52c5-4b18-8275-588c92a1f38b", (xp, $_) => { // 应用管理
 $_().imports({
     Index: {
 		css: "#stack { width: 100%; height: 100%; }",
-		xml: "<div id='index'>\
-                <i:ViewStack id='stack' xmlns:i='//miot/widget'>\
+		xml: "<i:Applet id='index' xmlns:i='//xp'>\
+                <i:ViewStack id='stack'>\
                   <Overview id='overview'/>\
                   <AppList id='applist'/>\
                   <Signup id='signup'/>\
-                  <Remove id='remove'/>\
                   <Update id='update'/>\
                   <Guide id='guide'/>\
                 </i:ViewStack>\
-				<Overlay id='mask' xmlns='//miot/verify'/>\
-			  </div>",
+				<Preload id='mask' xmlns='//xp/preload'/>\
+			  </i:Applet>",
 		fun: function (sys, items, opts) {
-			sys.applist.on("remove", (e, item) => {
-				e.stopPropagation();
-				items.remove(e, item);
-			});
-			this.on("/list/show", (e, link) => {
-				e.stopPropagation();
-				this.notify("/list/show", {id: link});
-			});
 			sys.stack.on("/mask/show", (e) => {
 				e.stopPropagation();
 				items.mask.show();
@@ -56,37 +47,13 @@ $_().imports({
         xml: "<div id='signup' xmlns:i='signup'>\
                 <i:Navbar id='navbar' title='应用注册'/>\
                 <i:Content id='content'/>\
-              </div>",
-        fun: function (sys, items, opts) {
-            this.on("show", (e,prev,data) => {
-                data && items.content(data);
-            });
-        }
+              </div>"
     },
     Update: {
         xml: "<div id='update' xmlns:i='signup'>\
                 <i:Navbar id='navbar' title='应用修改'/>\
                 <Content id='content' xmlns='update'/>\
-              </div>",
-        fun: function (sys, items, opts) {
-            this.on("show", (e,prev,data) => {
-                data && items.content(data);
-            });
-        }
-    },
-    Remove: {
-		xml: "<void id='remove'/>",
-        fun: function (sys, items, opts) {
-            return function (e, p) {
-                window.app.dialog.confirm("确定删除该应用吗？", "温馨提示", () => {
-                    sys.remove.trigger("publish", ["/apps/remove", {id: p.id}]);
-                    sys.remove.glance("/apps/remove", (m, p) => {
-                        sys.remove.trigger("message", ["msg", p.desc]);
-                        p.code == 0 && e.target.remove();
-                    },1);
-                });
-            };
-        }
+              </div>"
     },
     Guide: {
         xml: "<div id='guide' xmlns:i='guide'>\
@@ -94,95 +61,83 @@ $_().imports({
                 <i:Content id='content'/>\
               </div>",
         fun: function (sys, items, opts) {
-            this.on("show", (e, prev, data) => {
+            this.watch("#/view/ready", (e, prev, data) => {
                 items.content.text(`${data}不存在,请先添加${data}`);
             });
-            this.watch("/apps/areas", (e, data) => {
-                data.length ? this.trigger("publish", "/apps/links") : this.trigger("goto", ["guide", "区域"]);
+            this.watch("/apps/views", (e, views) => {
+				views.length ? this.trigger("publish", "/apps/areas") : this.trigger("goto", ["guide", "视图"]);
             });
-            this.watch("/apps/links", (e, data) => {
-                data.length ? this.trigger("publish", "/apps/views") : this.trigger("goto", ["guide", "网关"]);
+            this.watch("/apps/areas", (e, areas) => {
+                areas.length || this.trigger("goto", ["guide", "区域"]);
             });
-            this.watch("/apps/views", (e, data) => {
-                data.length || this.trigger("goto", ["guide", "视图"]);
-            });
+			this.trigger("publish", "/apps/views");
         }
     }
 });
 
 $_("overview").imports({
     Navbar: {
-        map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar'>\
                  <div id='left'>\
-                    <a id='icon'><Close xmlns='//miot/assets'/></a>\
+                    <a id='icon'><Close xmlns='//xp/assets'/></a>\
                  </div>\
                  <div id='title'>应用管理</div>\
                  <div id='right'/>\
               </div>",
+        map: { extend: { from: "//xp/Navbar" } },
         fun: function (sys, items, opts) { 
-            opts.title && sys.title.text(opts.title);
             sys.icon.on(Click, e => this.trigger("close"));
         }
     },
     Content: {
-        xml: "<div class='page'>\
-                <div id='content' class='page-content' style='padding-top: 44px;'/>\
-              </div>",
+        xml: "<i:Content id='content' xmlns:i='//xp'>\
+		          <ListItem id='item'/>\
+		      </i:Content>",
         fun: function (sys, items, opts) {
-            let areas = {}, links = {}; 
-            this.watch("/apps/areas", (e, data) => {
-                data.map(i => areas[i.id] = i);
-            });
-            this.watch("/apps/links", (e, data) => {
-                let area, list;
-                data.forEach(item => {
-                    if (area != item.area) {
-                        area = item.area;
-                        sys.content.append("Title").text(areas[item.area].name);
-                        list = sys.content.append("LinkList");
-                    }
-                    list.append("LinkItem").val().value = item;
-                });
-                links = {};
-                data.map(i => links[i.id]=i);
-            });
-            this.watch("/list/show", (e, data) => {
-                xp.extend(data, links[data.id]);
-                data.area = areas[data.area];
-            });
-            this.trigger("publish", "/apps/areas");
+			let proxy = sys.item.bind([]);
+            this.watch("/apps/areas", (e, data) => proxy.model = data);
         }
     },
+	ListItem: {
+		css: "#list { margin-top: 10px; }",
+		xml: "<div id='listItem' xmlns:i='//xp/list'>\
+		        <Title id='title'/>\
+				<i:List id='list'>\
+				   <LinkItem id='links'/>\
+				</i:List>\
+		      </div>",
+		map: { bind: { name: "title" } },
+		fun: function (sys, items, opts) {
+			sys.list.on("goto", (e, target, data) => {
+				target == "applist" && (data.area = opts);
+			});
+			this.on("$/before/bind", (e, value) => opts = value);
+		}
+	},
     Title: {
-        xml: "<div class='block-title'/>"
-    },
-    LinkList: {
-        xml: "<div class='list'>\
-                <ul id='list'/>\
-              </div>",
-        map: { appendTo: "list" }
+		css: "#title { position: relative; overflow: hidden; margin: 0; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; line-height: 1; }\
+		      #title { text-transform: uppercase; color: #6d6d72; margin: 35px 15px 10px; }",
+        xml: "<div id='title'/>"
     },
     LinkItem: {
-        css: "#icon { width: 28px; height: 28px; border-radius: 6px; box-sizing: border-box; }",
-        xml: "<li>\
-               <a href='#' class='item-link item-content'>\
-                 <div class='item-media'><i id='icon' class='icon icon-f7'><Icon/></i></div>\
-                 <div class='item-inner'>\
-                   <div id='label' class='item-title'/>\
-                 </div>\
-               </a>\
-              </li>",
+		css: "#footer { color: #8e8e93; font-size: 12px; font-weight: 400; line-height: 1.2; white-space: normal; }",
+		xml: "<i:ListItem id='linkItem' xmlns:i='//xp/list'>\
+		        <i:Content style='link'>\
+				   <i:Media><Icon/></i:Media>\
+				   <i:Inner id='inner' media='true' style='link'>\
+				     <i:Title id='title'>\
+				   	    <label id='label'/>\
+				   	    <div id='footer'/>\
+				     </i:Title>\
+				   </i:Inner>\
+				</i:Content>\
+		      </i:ListItem>",
+		map: { bind: { name: "label", id: "footer" } },
         fun: function (sys, items, opts) {
-            function setValue(link) {
-                opts = link;
-                sys.label.text(link.name);
-            }
-            this.on(Click, (e) => {
-				this.trigger("goto", "applist");
-                this.trigger("/list/show", opts.id);
+            this.on(Click, () => {
+				this.trigger("goto", ["applist", {link: opts}]);
             });
-            return Object.defineProperty({}, "value", {set: setValue});
+			this.on("$/before/bind", (e, value) => opts = value);
         }
     },
     Icon: {
@@ -194,82 +149,80 @@ $_("overview").imports({
 
 $_("applist").imports({
     Navbar: {
-        map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar'>\
                  <div id='left'>\
-                    <a id='icon'><Backward xmlns='//miot/assets'/></a>\
+                    <a id='icon'><Backward xmlns='//xp/assets'/></a>\
                  </div>\
                  <div id='title'/>\
                  <div id='right'>\
                      <a id='menu' href='#'>注册</a>\
                  </div>\
               </div>",
+        map: { extend: { from: "//xp/Navbar" } },
         fun: function (sys, items, opts) { 
             sys.icon.on(Click, e => this.trigger("back"));
             sys.menu.on(Click, e => this.trigger("goto", ["signup", opts]));
-			this.watch("/list/show", (e, p) => {
-				opts = p;
-                sys.title.text(`${p.area.name}/${p.name}`);
+			this.watch("#/view/ready", (e, prev, data) => {
+				if (xp.isPlainObject(data)) {
+					opts = data;
+					sys.title.text(`${data.area.name}/${data.link.name}`);
+				}
 			});
         }
     },
     Content: {
-        xml: "<div class='page'>\
-                <div id='content' class='page-content' style='padding-top: 44px;'>\
-                  <AppList id='list'/>\
-                </div>\
-              </div>",
+        xml: "<i:Content id='content' xmlns:i='//xp' xmlns:k='//xp/list'>\
+		        <k:List id='list'>\
+				  <ListItem id='item'/>\
+				</k:List>\
+              </i:Content>",
         fun: function (sys, items, opts) {
-            this.watch("/apps/list", (e, data) => {
-                sys.list.kids().call("remove");
-                data.forEach(item => {
-                    sys.list.append("AppItem").val().value = item;
-                });
-                data.length ? sys.list.show() : sys.list.hide();
-            });
-            this.on("update", (e, data) => {
-                let item = xp.extend({}, data);
-                item.link = opts;
-                this.trigger("goto", ["update", item]);
-            });
-            this.watch("/apps/remove", (e, p) => {
-                sys.list.kids().length || sys.list.hide();
-            });
-			this.watch("/list/show", (e, p) => {
-				opts = p;
-				sys.content.trigger("publish", ["/apps/list", {link: p.id}]);
+			let proxy = sys.item.bind([]);
+			sys.list.on("remove", (e, p) => {
+				e.stopPropagation();
+                if (confirm("确定删除该应用吗？")) {
+                    this.trigger("publish", ["/apps/remove", {id: p.id}]);
+                    this.glance("/apps/remove", (ev, p) => {
+                        this.trigger("message", ["msg", p.desc]);
+						if (p.code == 0) {
+							let i = sys.list.kids().indexOf(e.target);
+							delete proxy.model[i];
+						}
+                    });
+                }
 			});
+			this.on("goto", (e, target, data) => {
+				target == "update" && (data.area = opts.area.id);
+			});
+			this.watch("#/view/ready", (e, prev, data) => {
+				xp.isPlainObject(data) && (opts = data);
+				data && this.trigger("publish", ["/apps/list", {link: opts.link.id}]);
+			});
+			this.watch("/apps/list", (e, data) => proxy.model = data);
         }
     },
-    AppList: {
-        map: { extend: {'from': '../overview/LinkList'} }
-    },
-    AppItem: {
-        css: "#icon { width: 28px; height: 28px; border-radius: 6px; box-sizing: border-box; }",
-        xml: "<li class='swipeout'>\
-               <div class='item-content swipeout-content'>\
-                 <div class='item-media'><i id='icon' class='icon icon-f7'><Icon/></i></div>\
-                 <div class='item-inner'>\
-                   <div class='item-title'>\
-                     <div id='label'/>\
-                     <div id='app' class='item-footer'/>\
-                   </div>\
-                 </div>\
-               </div>\
-               <div class='swipeout-actions-right'>\
-                 <a id='edit' href='#' class='color-blue'>编辑</a>\
-                 <a id='remove' href='#' class='color-red'>删除</a>\
-               </div>\
-              </li>",
+    ListItem: {
+		css: "#footer { color: #8e8e93; font-size: 12px; font-weight: 400; line-height: 1.2; white-space: normal; }",
+		xml: "<i:Swipeout id='item' xmlns:i='//xp/swipeout' xmlns:k='//xp/list'>\
+		         <k:Content>\
+				    <k:Media><Icon/></k:Media>\
+				    <k:Inner id='inner' media='true'>\
+					  <k:Title id='title'>\
+					    <div id='label'/>\
+					    <div id='footer'/>\
+					  </k:Title>\
+					</k:Inner>\
+				 </k:Content>\
+				 <i:Actions>\
+				   <i:Button id='edit'>编辑</i:Button>\
+				   <i:Button id='remove' color='red'>删除</i:Button>\
+				 </i:Actions>\
+		      </i:Swipeout>",
+		map: { bind: { name: "label", id: "footer" } },
         fun: function (sys, items, opts) {
-            sys.edit.on(Click, () => this.trigger("update", opts));
-            function setValue(app) {
-                opts = app;
-                sys.label.text(app.name);
-                sys.app.text(app.id);
-            }
+            this.on("$/before/bind", (e, value) => opts = value);
+            sys.edit.on(Click, () => this.trigger("goto", ["update", opts]));
             sys.remove.on(Click, () => this.trigger("remove", opts));
-            return Object.defineProperty({}, "value", { set: setValue});
         }
     },
     Icon: {
@@ -281,36 +234,33 @@ $_("applist").imports({
 
 $_("signup").imports({
     Navbar: {
-        map: { extend: { "from": "//miot/widget/Navbar" } },
         xml: "<div id='navbar'>\
                  <div id='left'>\
-                    <a id='icon'><Backward xmlns='//miot/assets'/></a>\
+                    <a id='icon'><Backward xmlns='//xp/assets'/></a>\
                  </div>\
                  <div id='title'/>\
                  <div id='right'/>\
               </div>",
+        map: { extend: { "from": "//xp/Navbar" } },
         fun: function (sys, items, opts) { 
             sys.title.text(opts.title);
             sys.icon.on(Click, e => this.trigger("back"));
         }
     },
     Content: {
-        xml: "<div id='content' class='page'>\
-                <div class='page-content' xmlns:i='form' style='padding-top: 44px;'>\
-                    <i:Form id='signup'>\
-                      <i:Name id='nane'/>\
-                      <i:Area id='area'/>\
-                      <i:Link id='link'/>\
-                      <i:View id='view'/>\
-                      <i:Type id='type'/>\
-                    </i:Form>\
-                    <i:Button id='submit'>注册</i:Button>\
-                </div>\
-              </div>",
+        xml: "<Content id='content' xmlns='//xp' xmlns:i='form'>\
+                 <i:Form id='signup'>\
+                   <i:Name id='nane'/>\
+                   <i:Area id='area'/>\
+                   <i:Link id='link'/>\
+                   <i:View id='view'/>\
+                   <i:Type id='type'/>\
+                 </i:Form>\
+                 <i:Button id='submit'>注册</i:Button>\
+              </Content>",
         fun: function (sys, items, opts) {
-            sys.type.on("next", (e, p) => {
+            sys.type.watch("next", (e, p) => {
                 opts = p;
-                e.stopPropagation();
 				this.trigger("/mask/show");
                 this.trigger("publish", ["/apps/signup", p]);
                 this.glance("/apps/signup", callback);
@@ -318,252 +268,188 @@ $_("signup").imports({
             function callback(e, p) {
 				sys.content.trigger("/mask/hide");
                 sys.content.trigger("message", ["msg", p.desc]);
-				if (p.code == 0) {
-					sys.content.trigger("back");
-					sys.content.trigger("/list/show", opts.link);
-				}
+				p.code || sys.content.trigger("back", true);
             }
-            sys.submit.on(Click, items.signup.start);
-            return function (p) {
-                items.nane.val("").focus();
-                items.area.setValue(p.area);
-                items.link.setValue(p);
-            };
+			sys.area.on("/areas/change", (e, area) => {
+				e.stopPropagation();
+				sys.link.notify(e.type, area);
+			});
+            this.watch("#/view/ready", (e, prev, data) => {
+                items.nane.focus();
+				items.nane.value = "";
+                items.area.value = data.area.id;
+				sys.link.notify("/areas/change", data.area.id);
+				items.link.value = data.link.id;
+				items.view.selectedIndex = 0;
+				items.type.selectedIndex = 0;
+            });
+			sys.submit.on(Click, () => sys.signup.notify("next", {}));
         }
     }
 });
 
 $_("signup/form").imports({
     Form: {
-        xml: "<form id='form' class='list form-store-data'>\
-                <div class='list'>\
-                  <ul id='content'/>\
-                </div>\
-              </form>",
-        map: { "appendTo": "content" },
+        xml: "<List id='form' xmlns='//xp/list'/>",
+        map: { appendTo: "form", msgFilter: /next/ },
         fun: function (sys, items, opts) {
-            let ptr, first = this.first();
-            this.on("next", (e, r) => {
-                e.stopPropagation();
-                ptr = ptr.next();
-                ptr.trigger("start", r);
-            });
-            function start() {
-                ptr = first;
-                ptr.trigger("start", {});
-            }
-            this.on("start", e => e.stopPropagation());
-            return { start: start };
+			this.on("error", (e, el, msg) => {
+				e.stopPropagation();
+				el.stopNotification();
+				el.currentTarget.val().focus();
+				this.trigger("message", ["error", msg]);
+			});
         }
     },
     Name: {
         xml: "<Input id='app' label='名称' placeholder='请输入应用名称' maxlength='32'/>",
         fun: function (sys, items, opts) {
-            function error( msg ) {
-                items.app.focus();
-                sys.app.trigger("message", ["error", msg]);
-            }
-            this.on("start", function (e, o) {
-                o.name = items.app.val();
+            this.watch("next", function (e, o) {
+                o.name = items.app.value;
                 if (o.name === "") {
-                    error("请输入应用名称");
+                    this.trigger("error", [e, "请输入应用名称"]);
                 } else if (o.name.length < 2) {
-                    error("应用名称至少需要2个字符");
-                } else {
-                    sys.app.trigger("next", o);
+                    this.trigger("error", [e, "应用名称至少需要2个字符"]);
                 }
             });
             return items.app;
         }
     },
     Area: {
-        xml: "<Picker id='area' label='区域'/>",
+        xml: "<Select id='area' label='区域'>\
+		        <Option id='option'/>\
+		      </Select>",
         fun: function (sys, items, opts) {
-            this.watch("/apps/areas", (e, data) => {
-                data.length ? sys.area.show().val().init(data) : sys.area.hide();
-            });
-            this.on("value-change", (e, value) => {
-                this.next().trigger("area-change", value);
-            });
-            this.on("start", (e, p) => this.trigger("next", p));
-            return { setValue: items.area.setValue };
+			let proxy = sys.option.bind([]);
+            this.watch("/apps/areas", (e, data) => proxy.model = data);
+			this.on("change", (e) => {
+				e.stopPropagation();
+				this.trigger("/areas/change", items.area.value);
+			});
+			return items.area;
         }
     },
     Link: {
-        xml: "<Picker id='link' label='网关' setid='1'/>",
+        xml: "<Select id='link' label='网关'>\
+		        <Option id='option'/>\
+		      </Select>",
         fun: function (sys, items, opts) {
-            let links = {};
-            this.watch("/apps/links", (e, data) => {
-                data.map(i => {
-                    links[i.area] = links[i.area] || [];
-                    links[i.area].push(i);
-                });
-                this.on("area-change", (e, area) => {
-                    e.stopPropagation();
-                    items.link.init(links[area.id]);
-                });
-            });
-            this.on("start", (e, p) => {
-                p.link = items.link.getValue().id;
-                this.trigger("next", p);
-            });
-            return { setValue: items.link.setValue };
+			let areas = [];
+            let proxy = sys.option.bind([]);
+			this.watch("/areas/change", (e, area) => {
+				proxy.model = areas.find(item => {
+					return item.id == area;
+				}).links;
+				items.link.selectedIndex = 0;
+			});
+			this.watch("/apps/areas", (e, data) => areas = data);
+			this.watch("next", (e, p) => {
+				if (proxy.model.length == 0)
+					return this.trigger("error", [e, "请在当前区域下创建网关"]);
+				p.link = items.link.value;
+			});
+			return items.link;
         }
     },
     PUID: {
-        xml: "<Input id='part' label='配件标识符' placeholder='请输入配件标识符'/>",
+        xml: "<Input id='part' label='配件标识符' placeholder='请输入配件标识符' style='font-size: 14px'/>",
         fun: function (sys, items, opts) {
-            function error( msg ) {
-                items.part.focus();
-                sys.part.trigger("message", ["error", msg]);
-            }
-            this.on("start", (e, o) => {
-                o.part = items.part.val();
+            this.watch("next", (e, o) => {
+                o.part = items.part.value;
                 if (o.part === "") {
-                    error("请输入配件标识符");
+                    this.trigger("error", [e, "请输入配件标识符"]);
                 } else if (o.part.length != 36) {
-                    error("配件标识符需要34个字符");
-                } else {
-                    sys.part.trigger("next", o);
+                    this.trigger("error", [e, "配件标识符需要36个字符"]);
                 }
             });
             return items.part;
         }
     },
     View: {
-        xml: "<Picker id='view' label='视图' setid='1'/>",
+        xml: "<Select id='view' label='视图'>\
+		         <Option id='option'/>\
+		      </Select>",
         fun: function (sys, items, opts) {
-            let table = {}; 
-            this.watch("/apps/views", (e, data) => {
-                data.length && items.view.init(data);
-                data.map(i=>table[i.id]=i);
-            });
-            this.on("start", (e, p) => {
-                p.view = items.view.getValue().id;
-                this.trigger("next", p);
-            });
-            function setValue(viewId) {
-                items.view.setValue(table[viewId]);
-            }
-            return { setValue: setValue };
+			let proxy = sys.option.bind([]);
+            this.watch("next", (e, p) => p.view = items.view.value);
+            this.watch("/apps/views", (e, data) => proxy.model = data);
+            return items.view;
         }
     },
-    Type: {
-        xml: "<Picker id='type' label='类型'/>",
-        fun: function (sys, items, opts) {
-            let table = {}; 
-            let data = [{id: 1, name: "无配件"},{id: 2, name: "有配件"}];
-            items.type.init(data);
-            data.map(i=>table[i.id]=i);
-            this.on("start", (e, p) => {
-                p.type = items.type.getValue().id;
-                this.trigger("next", p);
-            });
-            function setValue(typeId) {
-                items.type.setValue(table[typeId]);
-            }
-            return { setValue: setValue };
-        }
-    },
-    Picker: {
-        css: ".sheet-modal { z-index: 100000; }",
-        xml: "<li id='picker'>\
-                  <div class='item-content item-input'>\
-                    <div class='item-inner'>\
-                      <div id='label' class='item-title item-label'/>\
-                      <div class='item-input-wrap'>\
-                        <input id='input' type='text' readonly='readonly'/>\
-                      </div>\
-                      <div id='id' class='item-footer'/>\
-                    </div>\
-                  </div>\
-              </li>",
-        fun: function (sys, items, opts) {
-            let picker, table = {};
+	Type: {
+        xml: "<Select id='type' label='类型'>\
+		        <option value='1'>无配件</option>\
+				<option value='2'>有配件</option>\
+		      </Select>",
+		fun: function (sys, items, opts) {
+			this.watch("next", (e, p) => p.type = items.type.value);
+            return items.type
+		}
+	},
+	Select: {
+		css: "#inner { flex-direction: column; align-items: flex-start; }\
+		      #picker { margin-bottom: -8px; }",
+        xml: "<i:ListItem id='input' xmlns:i='//xp/list' xmlns:k='//xp/form'>\
+	            <i:Content>\
+                 <i:Inner id='inner'>\
+                    <k:Label id='label'/>\
+                    <k:Select id='picker'/>\
+                 </i:Inner>\
+				</i:Content>\
+              </i:ListItem>",
+		map: { appendTo: "picker", attrs: { picker: "disabled" } },
+		fun: function (sys, items, opts) {
+			sys.label.text(opts.label);
+			return items.picker.elem();
+		}
+	},
+	Option: {
+		xml: "<option id='option'/>",
+		map: { bind: { id: "option" } },
+		fun: function (sys, items, opts) {
+			return { name: sys.option.text };
+		}
+	},
+    Input: {
+		css: "#inner { flex-direction: column; align-items: flex-start; }\
+			  #text { margin-bottom: -8px; }",
+        xml: "<i:ListItem id='input' xmlns:i='//xp/list' xmlns:k='//xp/form'>\
+		        <i:Content>\
+                 <i:Inner id='inner'>\
+                    <k:Label id='label'/>\
+                    <k:Input id='text'/>\
+                 </i:Inner>\
+				</i:Content>\
+              </i:ListItem>",
+        map: { attrs: { text: "maxlength placeholder readonly style" } },
+        fun: function (sys, items, opts) { 
             sys.label.text(opts.label);
-            function init(data) {
-                data.map(i=>table[i.name]=i);
-                let array = Object.keys(table);
-                picker && picker.destroy();
-                picker = window.app.picker.create({
-                    inputEl: sys.input.elem(),
-                    rotateEffect: true,
-                    toolbarCloseText: "确定",
-                    cols: [{values: array, onChange: change}],
-                    value: [array[0]]
-                });
-                setValue(data[0]);
-            }
-            function change(picker, value) {
-                setTimeout(e => setValue(table[value]), 0);
-            }
-            function getValue() {
-                return table[picker.value[0]];
-            }
-            function setValue(value) {
-                opts.setid && sys.id.text(value.id);
-                picker.setValue([value.name]);
-                sys.picker.trigger("value-change", value);
-            }
-            return { init: init, getValue:getValue, setValue: setValue };
+            return items.text.elem();
         }
     },
     Button: {
-        xml: "<div class='list'><ul><li>\
-                <a id='label' href='#' class='item-link list-button'/>\
-              </li></ul></div>",
-        map: { appendTo: "label" },
-    },
-    Input: {
-        xml: "<li id='input'>\
-               <div class='item-content item-input'>\
-                 <div class='item-inner'>\
-                   <div id='label' class='item-title item-label'>Name</div>\
-                   <div class='item-input-wrap'>\
-                     <input id='text' type='text' name='name' style='font-size: 14px;'/>\
-                   </div>\
-                 </div>\
-               </div>\
-              </li>",
-        map: { attrs: { text: "name value type maxlength placeholder disabled style" } },
-        fun: function (sys, items, opts) { 
-            sys.label.text(opts.label);
-            function focus() {
-                sys.text.elem().focus();
-                return this;
-            }
-            function val(value) {
-                if ( value == undefined )
-                    return sys.text.prop("value");
-                sys.text.prop("value", value);
-                return this;
-            }
-            return { val: val, focus: focus };
-        }
+		css: "#button { margin: 35px 0; }",
+        xml: "<Button id='button' xmlns='//xp/form'/>"
     }
 });
 
 $_("update").imports({
     Content: {
-        xml: "<div id='content' class='page'>\
-                <div class='page-content' xmlns:i='../signup/form' style='padding-top: 44px;'>\
-                    <i:Form id='update'>\
-                      <GUID id='guid'/>\
-                      <i:Name id='nane'/>\
-                      <i:Area id='area'/>\
-                      <i:Link id='link'/>\
-                      <i:PUID id='puid'/>\
-                      <i:View id='view'/>\
-                      <i:Type id='type'/>\
-                    </i:Form>\
-                    <i:Button id='submit'>确定更新</i:Button>\
-                </div>\
-              </div>",
+        xml: "<Content id='content' xmlns='//xp' xmlns:i='../signup/form'>\
+                 <i:Form id='update'>\
+                   <i:GUID id='guid' xmlns:i='.'/>\
+                   <i:Name id='nane'/>\
+                   <i:Area id='area'/>\
+                   <i:Link id='link'/>\
+                   <i:PUID id='puid'/>\
+                   <i:View id='view'/>\
+                   <i:Type id='type'/>\
+                 </i:Form>\
+                 <i:Button id='submit'>确定更新</i:Button>\
+              </Content>",
         fun: function (sys, items, opts) {
-            sys.type.on("next", (e, p) => {
+            sys.type.watch("next", (e, p) => {
                 opts = p;
-                p.id = items.guid.val();
-                e.stopPropagation();
 				this.trigger("/mask/show");
                 this.trigger("publish", ["/apps/update", p]);
                 this.glance("/apps/update", callback);
@@ -571,41 +457,30 @@ $_("update").imports({
             function callback(e, p) {
 				sys.content.trigger("/mask/hide");
                 sys.content.trigger("message", ["msg", p.desc]);
-				if (p.code == 0) {
-					sys.content.trigger("back");
-					sys.content.trigger("/list/show", opts.link);
-				}
+				p.code || sys.content.trigger("back", true);
             }
-            sys.submit.on(Click, items.update.start);
-            return function (data) {
-                items.guid.val(data.id);
-                items.nane.val(data.name);
-                items.area.setValue(data.link.area);
-                items.link.setValue(data.link);
-                items.puid.val(data.part);
-                items.view.setValue(data.view);
-                items.type.setValue(data.type);
-            };
+			sys.area.on("/areas/change", (e, area) => {
+				e.stopPropagation();
+				sys.link.notify(e.type, area);
+			});
+            this.watch("#/view/ready", (e, prev, data) => {
+                items.guid.value = data.id;
+                items.nane.value = data.name;
+				items.area.value = data.area;
+				sys.link.notify("/areas/change", data.area);
+                items.link.value = data.link;
+                items.puid.value = data.part;
+                items.view.value = data.view;
+                items.type.value = data.type;
+            });
+			sys.submit.on(Click, () => sys.update.notify("next", {}));
         }
     },
     GUID: {
-        css: "#guid { font-size: 14px; }\
-              #text { height: 44px; line-height: 44px; }",
-        xml: "<li id='guid'>\
-               <div class='item-content item-input'>\
-                 <div class='item-inner'>\
-                   <div id='label' class='item-title item-label'>应用标识符</div>\
-                   <div class='item-input-wrap'>\
-                     <div id='text'/>\
-                   </div>\
-                 </div>\
-               </div>\
-              </li>",
+        xml: "<Input id='id' label='标识符' maxlength='32' readonly='true' style='font-size: 14px' xmlns='../signup/form'/>",
         fun: function (sys, items, opts) {
-            this.on("start", (e, p) => {
-                sys.guid.trigger("next", p);
-            });
-            return {val: sys.text.text};
+            this.watch("next", (e, o) => o.id = items.id.value);
+            return items.id;
         }
     }
 });
@@ -616,9 +491,7 @@ $_("guide").imports({
     },
     Content: {
         css: "#content { text-align: center; margin: 5em 0; }",
-        xml: "<div class='page'>\
-                <div id='content' class='page-content'/>\
-              </div>",
+        xml: "<Content id='content' xmlns='//xp'/>",
         fun: function (sys, items, opts) {
             return { text: sys.content.text };
         }

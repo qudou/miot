@@ -9,58 +9,47 @@ xmlplus("bb891709-2db2-4395-98af-d9af0abccecc", (xp, $_) => { // 系统状态
 
 $_().imports({
     Index: {
-        xml: "<div id='index'>\
+        xml: "<i:Applet id='index' xmlns:i='//xp'>\
                 <Navbar id='navbar'/>\
                 <Content id='content'/>\
-              </div>"
+              </i:Applet>"
     },
     Navbar: {
-        map: { extend: { "from": "//miot/widget/Navbar" } },
-        xml: "<div id='navbar' xmlns:i='//miot/assets'>\
+        xml: "<div id='navbar' xmlns:i='//xp/assets'>\
                  <div id='left'>\
                     <a id='icon'><i:Close/></a>\
                  </div>\
                  <div id='title'>系统状态</div>\
                  <div id='right'>\
-                  <a id='menu' href='#'>刷新</a>\
+                    <a id='menu' href='#'>刷新</a>\
                  </div>\
               </div>",
+        map: { extend: { "from": "//xp/Navbar" } },
         fun: function (sys, items, opts) { 
             sys.icon.on(Click, e => this.trigger("close"));
-            sys.menu.on(Click, ()=>{
-                this.trigger("publish", "/status");
-                this.trigger("publish", "/sessions")
-            });
+            sys.menu.on(Click, ()=> this.trigger("publish", "/status"));
             sys.menu.trigger(Click); 
         }
     },
     Content: {
-        xml: "<div id='content' class='page' xmlns:i='content'>\
-                <div id='detail' class='page-content' style='padding-top: 44px;'>\
-                    <div class='block-title'>当前用户</div>\
-                    <i:Status id='status'/>\
-                </div>\
-              </div>",
-        fun: function (sys, items, opts) {
-            this.watch("/status", items.status.render);
-        }
+        xml: "<i:Content id='content' xmlns:i='//xp'>\
+                 <div class='block-title'>当前用户</div>\
+                 <Status id='status' xmlns='content'/>\
+              </i:Content>"
     }
 });
 
 $_("content").imports({
     Status: {
-        xml: "<div id='table' class='data-table card'>\
-                <table xmlns:i='status'>\
-                   <i:Header id='header'/>\
-                   <tbody id='body'/>\
-                </table>\
-              </div>",
+        xml: "<Table id='table' card='1' xmlns='//xp' xmlns:i='status'>\
+			   <i:Header id='header'/>\
+			   <tbody id='body'>\
+				 <i:Item id='item'/>\
+			   </tbody>\
+              </Table>",
         fun: function (sys, items, opts) {
-            function render(e, data) {
-                sys.body.kids().call("remove");
-                data.forEach(i => sys.body.append("status/Item", i));
-            }
-            return {render: render};
+			let proxy = sys.item.bind([]);
+			this.watch("/status", (e, data) => proxy.model = data);
         }
     }
 });
@@ -78,12 +67,7 @@ $_("content/status").imports({
                 <td id='username' class='label-cell'/>\
                 <td id='client_id' class='label-cell'/>\
                 <td id='login_time' class='label-cell'/>\
-              </tr>",
-        fun: function (sys, items, opts) {
-            sys.username.text(opts.username);
-            sys.client_id.text(opts.client_id);
-            sys.login_time.text(opts.login_time);
-        }
+              </tr>"
     }
 });
 

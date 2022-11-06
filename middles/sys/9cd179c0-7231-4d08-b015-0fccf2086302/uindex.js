@@ -11,43 +11,39 @@ xmlplus("9cd179c0-7231-4d08-b015-0fccf2086302", (xp, $_) => { // 网关管理
 $_().imports({
     Index: {
         xml: "<main id='index'>\
-                <Areas id='areas'/>\
                 <Select id='select'/>\
                 <Signup id='signup'/>\
                 <Remove id='remove'/>\
                 <Update id='update'/>\
               </main>"
     },
-    Areas: {
-        xml: "<Sqlite id='areas' xmlns='//miot'/>",
-        fun: function (sys, items, opts) {
-            this.watch("/links/areas", (e, p) => {
-                let stmt = `SELECT * FROM areas WHERE id<>0`;
-                items.areas.all(stmt, (err, data) => {
-                    if (err) throw err;
-                    p.data = [];
-                    data.forEach(i => {
-                        p.data.push({'id':i.id,'name':i.name,'desc':i.desc});
-                    });
-                    this.trigger("to-users", p);
-                });
-            });
-        }
-    },
     Select: {
-        xml: "<Sqlite id='select' xmlns='//miot'/>",
+        xml: "<Sqlite id='sqlite' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
-            let stmt = `SELECT links.id, links.name, area, areas.name AS areaName
-                        FROM links, areas
-                        WHERE links.area = areas.id AND area <> 0
-                        ORDER BY links.area`;
-            this.watch("/links/select", (e, p) => {
-                items.select.all(stmt, (err, data) => {
-                    if (err) throw err;
-                    p.data = data;
-                    this.trigger("to-users", p);
-                });
+            this.watch("/links/select", async (e, p) => {
+				p.data = await areas();
+				for (let item of p.data)
+					item.links = await links(item.id);
+				this.trigger("to-users", p);
             });
+            function areas() {
+				let stmt = "SELECT * FROM areas WHERE id <> 0";
+                return new Promise((resolve, reject) => {
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data);
+                    });
+                });
+            }
+            function links(areaId) {
+				let stmt = `SELECT * FROM links WHERE area = ${areaId}`;
+                return new Promise((resolve, reject) => {
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data);
+                    });
+                });
+            }
         }
     },
     Signup: {

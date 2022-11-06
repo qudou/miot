@@ -13,7 +13,6 @@ $_().imports({
     Index: {
         xml: "<main id='index'>\
                 <Areas id='areas'/>\
-                <Links id='links'/>\
                 <Apps id='apps'/>\
                 <Views id='views'/>\
                 <Signup id='signup'/>\
@@ -22,29 +21,32 @@ $_().imports({
               </main>"
     },
     Areas: {
-        xml: "<Sqlite id='areas' xmlns='//miot'/>",
+        xml: "<Sqlite id='sqlite' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
-            let stmt = "SELECT id, name FROM areas WHERE id <> 0";
-            this.watch("/apps/areas", (e, p) => {
-                items.areas.all(stmt, (err, data) => {
-                    if (err) throw err;
-                    p.data = data;
-                    this.trigger("to-users", p);
-                });
+            this.watch("/apps/areas", async (e, p) => {
+				p.data = await areas();
+				for (let item of p.data)
+					item.links = await links(item.id);
+				this.trigger("to-users", p);
             });
-        }
-    },
-    Links: {
-        xml: "<Sqlite id='links' xmlns='//miot'/>",
-        fun: function (sys, items, opts) {
-            let stmt = "SELECT id, name, area FROM links WHERE area<>0 ORDER BY area";
-            this.watch("/apps/links", (e, p) => {
-                items.links.all(stmt, (err, data) => {
-                    if (err) throw err;
-                    p.data = data;
-                    this.trigger("to-users", p);
+            function areas() {
+				let stmt = "SELECT * FROM areas WHERE id <> 0";
+                return new Promise((resolve, reject) => {
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data);
+                    });
                 });
-            });
+            }
+            function links(areaId) {
+				let stmt = `SELECT * FROM links WHERE area = ${areaId}`;
+                return new Promise((resolve, reject) => {
+                    items.sqlite.all(stmt, (err, data) => {
+                        if (err) throw err;
+                        resolve(data);
+                    });
+                });
+            }
         }
     },
     Apps: {
