@@ -32,14 +32,19 @@ $_().imports({
         }
     },
     Content: {
-        xml: "<i:Content id='content' xmlns:i='//xp'>\
-                 <div class='block-title'>当前用户</div>\
-                 <Status id='status' xmlns='content'/>\
+        xml: "<i:Content id='content' xmlns:i='//xp' xmlns:j='content'>\
+                 <j:Title>当前用户</j:Title>\
+                 <j:Status id='status'/>\
               </i:Content>"
     }
 });
 
 $_("content").imports({
+    Title: {
+		css: "#title { position: relative; overflow: hidden; margin: 0; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; line-height: 1; }\
+		      #title { text-transform: uppercase; color: #6d6d72; margin: 35px 15px 10px; }",
+        xml: "<div id='title'/>"
+    },
     Status: {
         xml: "<Table id='table' card='1' xmlns='//xp' xmlns:i='status'>\
 			   <i:Header id='header'/>\
