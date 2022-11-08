@@ -46,8 +46,7 @@ $_().imports({
 		      </div>",
 		map: { appendTo: "content" },
 		fun: function (sys, items, opts) {
-			// used by PopupPicker
-			this.on("#/scroll/to", (e, scroll, sheet) => { 
+			this.on("#/scroll/to", (e, input, sheet) => { // used by Picker
 			    e.stopPropagation();
 				let content = sys.content;
 				let paddingTop = parseInt(content.css('padding-top'), 10);
@@ -55,12 +54,11 @@ $_().imports({
 				let pageHeight = content.elem().offsetHeight - paddingTop - parseInt(sheet.height(), 10);
 				let pageScrollHeight = content.elem().scrollHeight - paddingTop - parseInt(sheet.height(), 10);
 				let pageScroll = content.scrollTop();
-				let newPaddingBottom;
-				let scrollElTop = scroll.offset().top - paddingTop + scroll.elem().offsetHeight;
+				let scrollElTop = input.offset().top - paddingTop + input.elem().offsetHeight;
 				if (scrollElTop > pageHeight) {
 					let scrollTop = pageScroll + scrollElTop - pageHeight;
 					if (scrollTop + pageHeight > pageScrollHeight) {
-						newPaddingBottom = scrollTop + pageHeight - pageScrollHeight + paddingBottom;
+						let newPaddingBottom = scrollTop + pageHeight - pageScrollHeight + paddingBottom;
 						if (pageHeight === pageScrollHeight) {
 							newPaddingBottom = sheet.height();
 						}
@@ -69,14 +67,14 @@ $_().imports({
 					content.scrollTop(scrollTop);
 				}
 		    });
-			this.on("$popup/close", (e) => sys.content.css("padding-bottom", ''));
+			this.on("#/popup/close", (e) => sys.content.css("padding-bottom", ''));
 		}
 	},
 	Picker: {
 		css: "#popup > *:last-child { background: #FFF; }",
 		xml: "<div id='picker'>\
 		        <Input id='input' xmlns='picker'/>\
-				<Popup id='popup'/>\
+				<Popup id='popup' modal='false'/>\
 		      </div>",
 		map: { attrs: {input: "placeholder" }, appendTo: "popup" }, 
 		opt: { updateOnTouchmove: true, formatValue: (values, displayValues) => {return displayValues.join(' ')} },
@@ -86,6 +84,8 @@ $_().imports({
 			let scrollValues = [];
 			let scrollDisplayValues = [];
 			sys.input.on(Click, () => {
+				if (sys.popup.css("display") == "block")
+					return;
 				items.popup.show();
 				let picker = this.last().val();
 				for (let i = 0; i < _values.length; i++) 
@@ -111,12 +111,12 @@ $_().imports({
 				sys.input.prop("value", opts.formatValue(_values, _displayValues));
 			});
 			sys.popup.on("#/popup/open", (e, sheet) => {
-				sys.popup.trigger("#/scroll/to", [sys.input, sheet]);
+				setTimeout(()=> sys.picker.trigger("#/scroll/to", [sys.input, sheet]),0);
 			});
 		}
 	},
     Popup: {
-        css: "#popup { display: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; }\
+        css: "#popup { display: none; position: absolute; left: 0; bottom: 0; width: 100%; height: 100%; }\
 			  #mask { position: absolute; width: 100%; height: 100%; z-index: 99; background: rgba(0,0,0,.3); visibility: hidden; opacity: 0; transition-duration: .3s; }\
               #mshow { visibility: visible; opacity: 1; }\
 			  #sheet { position: absolute; left: 0; bottom: 0; width: 100%; max-height: 100%; z-index: 100; overflow: auto; transition-duration: .3s; transform: translate3d(0,100%,0); transition-property: transform; will-change: transform; }\
@@ -127,12 +127,15 @@ $_().imports({
 		      </div>",
 	    map: { appendTo: "sheet" },
         fun: function (sys, items, opts) {
+			let modal = !(opts.modal == "false");
+			modal || sys.mask.hide();
 			function onclick(e, el) {
 				if (sys.popup.css("display") == "block")
 				    sys.sheet.contains(el.target) || hide();
 			}
 			function show() {
 				sys.popup.show().trigger("#/popup/open", sys.sheet);
+				modal || sys.popup.height(sys.sheet.height());
 				setTimeout(() => {
 					sys.mask.addClass("#mshow");
 					sys.sheet.addClass("#modal-in");
@@ -146,7 +149,7 @@ $_().imports({
 				sys.sheet.removeClass("#modal-in");
 				sys.sheet.once("transitionend", () => {
 					parent.appendChild(sys.popup.elem());
-					sys.popup.trigger("$popup/close").hide();
+					sys.popup.trigger("#/popup/close").hide();
 				});
 			}
 			return { show: show, hide: hide };
