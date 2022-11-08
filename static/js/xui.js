@@ -11,34 +11,11 @@ $_().imports({
 	Applet: { 
 		xml: "<div id='applet'/>",
 		fun: function (sys, items, opts) {
-			this.on("$popup/open", (e, target, content, scroll, sheet) => {
+			this.on("#/popup/open", (e) => {
 				e.stopPropagation();
-				let elem = this.elem();
-				e.target.css("z-index", elem.childNodes.length * 1000);
-				elem.appendChild(e.target.elem());
-				// scrollToEl(content, scroll, sheet);
+				this.elem().appendChild(e.target.elem());
 			});
-			function scrollToEl(content, scroll, sheet) {
-				let paddingTop = parseInt(content.css('padding-top'), 10);
-				let paddingBottom = parseInt(content.css('padding-bottom'), 10);
-				let pageHeight = content.elem().offsetHeight - paddingTop - parseInt(sheet.height(), 10);
-				let pageScrollHeight = content.elem().scrollHeight - paddingTop - parseInt(sheet.height(), 10);
-				let pageScroll = content.scrollTop();
-				let newPaddingBottom;
-				let scrollElTop = scroll.offset().top - paddingTop + scroll.elem().offsetHeight;
-				if (scrollElTop > pageHeight) {
-					let scrollTop = pageScroll + scrollElTop - pageHeight;
-					if (scrollTop + pageHeight > pageScrollHeight) {
-						newPaddingBottom = scrollTop + pageHeight - pageScrollHeight + paddingBottom;
-						if (pageHeight === pageScrollHeight) {
-							newPaddingBottom = sheet.height();
-						}
-						content.css("padding-bottom", `${newPaddingBottom}px`);
-					}
-					content.scrollTop(scrollTop);
-				}
-		    }
-			this.on(Click, (e) => this.notify("$/app/click", e));
+			this.on(Click, (e) => this.notify("#/app/click", e));
 		}
 	},
     Navbar: {
@@ -69,59 +46,39 @@ $_().imports({
 		      </div>",
 		map: { appendTo: "content" },
 		fun: function (sys, items, opts) {
-			this.on("$popup/open", (e, scrollEl, sheetEl, no) => {
-				if (no) return;
-				e.stopPropagation();
-				this.trigger(e.type, [e.target, sys.content, scrollEl, sheetEl]);
-			});
-			this.on("$popup/close", (e) => {
-				sys.content.css("padding-bottom", '');
-			});
+			// used by PopupPicker
+			this.on("#/scroll/to", (e, scroll, sheet) => { 
+			    e.stopPropagation();
+				let content = sys.content;
+				let paddingTop = parseInt(content.css('padding-top'), 10);
+				let paddingBottom = parseInt(content.css('padding-bottom'), 10);
+				let pageHeight = content.elem().offsetHeight - paddingTop - parseInt(sheet.height(), 10);
+				let pageScrollHeight = content.elem().scrollHeight - paddingTop - parseInt(sheet.height(), 10);
+				let pageScroll = content.scrollTop();
+				let newPaddingBottom;
+				let scrollElTop = scroll.offset().top - paddingTop + scroll.elem().offsetHeight;
+				if (scrollElTop > pageHeight) {
+					let scrollTop = pageScroll + scrollElTop - pageHeight;
+					if (scrollTop + pageHeight > pageScrollHeight) {
+						newPaddingBottom = scrollTop + pageHeight - pageScrollHeight + paddingBottom;
+						if (pageHeight === pageScrollHeight) {
+							newPaddingBottom = sheet.height();
+						}
+						content.css("padding-bottom", `${newPaddingBottom}px`);
+					}
+					content.scrollTop(scrollTop);
+				}
+		    });
+			this.on("$popup/close", (e) => sys.content.css("padding-bottom", ''));
 		}
 	},
-    Popup: {
-        css: "#popup { display: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; }\
-			  #mask { position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,.3); visibility: hidden; opacity: 0; transition-duration: .4s; }\
-              #mshow { visibility: visible; opacity: 1; }\
-			  #sheet { position: absolute; left: 0; bottom: 0; width: 100%; max-height: 100%; overflow: auto; transition-duration: .3s; transform: translate3d(0,100%,0); transition-property: transform; will-change: transform; }\
-			  #modal-in { transform: translate3d(0,calc(-1 * env(safe-area-inset-bottom)),0); }",
-        xml: "<div id='popup'>\
-		         <div id='mask'/>\
-				 <div id='sheet'/>\
-		      </div>",
-	    map: { appendTo: "sheet" },
-        fun: function (sys, items, opts) {
-			function onclick(e) {
-				if (sys.popup.css("display") == "block")
-				    sys.sheet.contains(e.target.elem()) || hide();
-			}
-			function show() {
-				sys.popup.show().trigger("$popup/open", sys.sheet);
-				setTimeout(() => {
-					sys.mask.addClass("#mshow");
-					sys.sheet.addClass("#modal-in");
-					sys.popup.watch("$/app/click", onclick)
-				},10);
-			}
-			let parent = this.elem().parentNode;
-			function hide() {
-				sys.popup.unwatch("$/app/click");
-				sys.mask.removeClass("#mshow");
-				sys.sheet.removeClass("#modal-in");
-				sys.sheet.once("transitionend", () => {
-					parent.appendChild(sys.popup.elem());
-					sys.popup.trigger("$popup/close").hide();
-				});
-			}
-			return { show: show, hide: hide };
-        } 
-    },
-	PopupPicker: {
+	Picker: {
+		css: "#popup > *:last-child { background: #FFF; }",
 		xml: "<div id='picker'>\
 		        <Input id='input' xmlns='picker'/>\
 				<Popup id='popup'/>\
 		      </div>",
-		map: { attrs: {input: "placeholder" }, appendTo: "popup", msgFilter: /[^]*/ }, 
+		map: { attrs: {input: "placeholder" }, appendTo: "popup" }, 
 		opt: { updateOnTouchmove: true, formatValue: (values, displayValues) => {return displayValues.join(' ')} },
 		fun: function (sys, items, opts) {
 			let _values = [];
@@ -153,13 +110,48 @@ $_().imports({
 				_displayValues = scrollDisplayValues;
 				sys.input.prop("value", opts.formatValue(_values, _displayValues));
 			});
-			sys.popup.on("$popup/open", (e, sheet, no) => {
-				if (no) return;
-				e.stopPropagation();
-				sys.popup.trigger("$popup/open", [sys.input, sheet]);
+			sys.popup.on("#/popup/open", (e, sheet) => {
+				sys.popup.trigger("#/scroll/to", [sys.input, sheet]);
 			});
 		}
 	},
+    Popup: {
+        css: "#popup { display: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; }\
+			  #mask { position: absolute; width: 100%; height: 100%; z-index: 99; background: rgba(0,0,0,.3); visibility: hidden; opacity: 0; transition-duration: .3s; }\
+              #mshow { visibility: visible; opacity: 1; }\
+			  #sheet { position: absolute; left: 0; bottom: 0; width: 100%; max-height: 100%; z-index: 100; overflow: auto; transition-duration: .3s; transform: translate3d(0,100%,0); transition-property: transform; will-change: transform; }\
+			  #modal-in { transform: translate3d(0,calc(-1 * env(safe-area-inset-bottom)),0); }",
+        xml: "<div id='popup'>\
+		         <div id='mask'/>\
+				 <div id='sheet'/>\
+		      </div>",
+	    map: { appendTo: "sheet" },
+        fun: function (sys, items, opts) {
+			function onclick(e, el) {
+				if (sys.popup.css("display") == "block")
+				    sys.sheet.contains(el.target) || hide();
+			}
+			function show() {
+				sys.popup.show().trigger("#/popup/open", sys.sheet);
+				setTimeout(() => {
+					sys.mask.addClass("#mshow");
+					sys.sheet.addClass("#modal-in");
+					sys.popup.watch("#/app/click", onclick)
+				},10);
+			}
+			let parent = this.elem().parentNode;
+			function hide() {
+				sys.popup.unwatch("#/app/click");
+				sys.mask.removeClass("#mshow");
+				sys.sheet.removeClass("#modal-in");
+				sys.sheet.once("transitionend", () => {
+					parent.appendChild(sys.popup.elem());
+					sys.popup.trigger("$popup/close").hide();
+				});
+			}
+			return { show: show, hide: hide };
+        } 
+    },
     ViewStack: {
         css: "#viewstack { position: relative; overflow: hidden; }\
               #viewstack > * { position: absolute; width: 100%; height: 100%; transition-duration: .3s; transform: translate3d(100%,0,0); }",
@@ -419,7 +411,7 @@ $_("picker").imports({
 				let values = [], displayValues = [];
 				for (let i = 0; i < kids.length - 2; i++) {
 					let item = kids[i].val()();
-					values.push(item.value);
+					values.push(item.value());
 					displayValues.push(item.displayValue());
 				}
 				this.trigger("change", [kids.indexOf(this), values, displayValues, onScroll]);
@@ -481,10 +473,10 @@ $_("picker").imports({
 			});
 			function value(newValue) {
 				if (newValue == undefined)
-					return selected && selected.val().value;
+					return selected && selected.val().value();
 				let itemHeight = that.get(0).elem().offsetHeight;
 				xp.each(that.kids(), (index, item) => {
-					if (item.val().value != newValue) return;
+					if (item.val().value() != newValue) return;
 					let scrollTop = index * itemHeight;
 					sys.items.elem().scrollTop = scrollTop;
 					updateItems(index, scrollTop);
@@ -492,7 +484,7 @@ $_("picker").imports({
 				});
 			}
 			function displayValue() {
-				return selected && selected.val().displayValue;
+				return selected && selected.val().display();
 			}
 			function textAlign(value) {
 				if (value == undefined)
@@ -506,7 +498,8 @@ $_("picker").imports({
 		css: "#divider { overflow: visible; position: relative; max-height: 100%; display: flex; align-items: center; color: black; }",
 		xml: "<div id='divider'/>",
 		fun: function (sys, items, opts) {
-			return { value: sys.divider.text };
+			let fn = sys.divider.text;
+			return { value: fn, displayValue: fn };
 		}
 	},
 	Item: {
@@ -515,19 +508,18 @@ $_("picker").imports({
 		xml: "<div id='item'>\
 		        <span id='display'/>\
 		      </div>",
-		map: { bind: { model: "display" } },
 		fun: function (sys, items, opts) {
-			let val, object = {};
+			let val;
 			function value(newValue) {
 				if (newValue == undefined)
 					return val || sys.display.text();
 				val = newValue;
 			}
-			return { value: value, displayValue: sys.display.text };
+			let text = sys.display.text;
+			return { value: value, model: text, display: text };
 		}
 	},
     Navbar: {
-        map: { extend: { "from": "../Navbar" } },
         xml: "<div id='navbar'>\
                  <div id='left'>\
                     <a id='icon'><Close xmlns='//xp/assets'/></a>\
@@ -537,6 +529,7 @@ $_("picker").imports({
                     <a id='menu'>确定</a>\
                  </div>\
               </div>",
+        map: { extend: { "from": "../Navbar" } },
         fun: function (sys, items, opts) { 
 		    sys.title.text(opts.title || "Picker");
             sys.icon.on(Click, e => this.trigger("close"));
@@ -544,9 +537,8 @@ $_("picker").imports({
         }
     },
 	Input: {
-		css: "#input { width: 100%; height: 46px; padding: 0 16px; margin: 0px; display: block; font-size: 17px; box-sizing: border-box; border: 1px solid #E4E3E6; border-left: none; border-right: none;}",
 		xml: "<input id='input' readonly='true'/>",
-		map: { attrs: {input: "placeholder"} }
+		map: { extend: { from: "../form/Input" } }
 	}
 });
 
@@ -648,7 +640,7 @@ $_("swipeout").imports({
 					buttons.forEach(item => item.css("transform", "translate3d(0,0,0)"));
 				}
 			});
-			content.watch("$/app/click", (e, el) => {
+			content.watch("#/app/click", (e, el) => {
 				let opened = sys.swipeout.hasClass("#opened");
 			    if (opened && !sys.swipeout.contains(el.target)) {
 					sys.swipeout.removeClass("#opened");
@@ -677,5 +669,6 @@ $_("swipeout").imports({
 
 });
 
-if ( typeof define === "function" && define.amd )
+if ( typeof define === "function" && define.amd ) {
     define( "xui", [], new Function("return xmlplus;"));
+}
