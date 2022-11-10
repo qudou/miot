@@ -125,9 +125,9 @@ $_("update").imports({
         fun: function (sys, items, opts) {
             this.on("next", (e, p) => {
                 e.stopPropagation();
-                let update = "UPDATE links SET name=?, area=? WHERE id=?";
+                let update = "UPDATE links SET id=?, name=?, area=? WHERE id=?";
                 let stmt = items.update.prepare(update);
-                stmt.run(p.body.name,p.body.area,p.body.id, err => {
+                stmt.run(p.body.new_id,p.body.name,p.body.area,p.body.id, err => {
                     if (err) throw err;
                     p.data = {code: 0, desc: "更新成功"};
                     this.trigger("to-users", p);

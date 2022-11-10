@@ -232,7 +232,8 @@ $_("update").imports({
     Content: {
         xml: "<Content id='content' xmlns='//xp' xmlns:i='../signup/form'>\
                   <i:Form id='update'>\
-                      <i:GUID id='id' xmlns:i='.'/>\
+                      <i:OldId id='oldId' xmlns:i='.'/>\
+                      <i:NewId id='newId' xmlns:i='.'/>\
                       <i:View id='view'/>\
                       <i:Desc id='desc'/>\
                   </i:Form>\
@@ -253,17 +254,30 @@ $_("update").imports({
 				}
             }
 			this.watch("#/view/ready", (e, prev, data) => {
-				items.id.value = data.id;
+				items.oldId.value = data.id;
+				items.newId.value = data.id;
                 items.view.value = data.name;
                 items.desc.value = data.desc;
 			});
 			sys.submit.on(Click, () => sys.update.notify("next", {}));
         }
     },
-    GUID: {
-        xml: "<Input id='id' label='标识符' maxlength='32' readonly='true' style='font-size: 14px' xmlns='../signup/form'/>",
+    OldID: {
+		css: "#id { display: none; }",
+        xml: "<Input id='id' label='标识符' maxlength='36' style='font-size: 14px;' xmlns='../signup/form'/>",
         fun: function (sys, items, opts) {
             this.watch("next", (e, o) => o.id = items.id.value);
+            return items.id;
+        }
+    },
+    NewID: {
+        xml: "<Input id='id' label='标识符' maxlength='36' style='font-size: 14px' xmlns='../signup/form'/>",
+        fun: function (sys, items, opts) {
+            this.watch("next", (e, o) => {
+				o.new_id = items.id.value;
+				if (o.new_id.length != 36)
+					this.trigger("error", [e, "标识符长度必需等于36位"]);
+			});
             return items.id;
         }
     }

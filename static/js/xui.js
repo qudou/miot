@@ -30,11 +30,11 @@ $_().imports({
               #menu { height: 44px; line-height: 44px; margin-right: 4px; outline: 0; color: #007aff; cursor: pointer; text-decoration: none; }",
         xml: "<div id='navbar'>\
                  <div id='left'>\
-                    <a id='icon'>icon</a>\
+                    <a id='icon'/>\
                  </div>\
                  <div id='title'>title</div>\
                  <div id='right'>\
-                    <a id='menu'>menu</a>\
+                    <a id='menu'/>\
                  </div>\
               </div>"
     },
@@ -246,10 +246,10 @@ $_("iframe").imports({
 				this.notify(e.data.topic, [e.data.body]);
 			});
 			this.on("close", (e, topic, body) => {
-				window.postMessage("close", "*");
+				window.top.postMessage("close", "*");
 			});
 			this.on("publish", (e, topic, body) => {
-				window.postMessage({topic: topic, body: body}, "*");
+				window.top.postMessage({topic: topic, body: body}, "*");
 			});
 		}
 	},
@@ -261,13 +261,11 @@ $_("iframe").imports({
 			this.watch("message", (e, data) => {
 				this.elem().contentWindow.postMessage(data, "*");
 			});
-			setTimeout(() => {
-				this.elem().contentWindow.addEventListener("message", (e) => {
-					if (e.data == "close")
-						return this.trigger("close");
-					this.trigger("publish", [e.data.topic, e.data.body]);
-				});
-			}, 0);
+			window.addEventListener("message", (e) => {
+				if (e.data == "close")
+					return this.trigger("close");
+				this.trigger("publish", [e.data.topic, e.data.body]);
+			});
 		}
 	}
 });
@@ -523,6 +521,7 @@ $_("picker").imports({
 		}
 	},
     Navbar: {
+		css: "#navbar:before { content: ''; position: absolute; background-color: #c4c4c4; display: block; z-index: 15; top: 0; right: auto; bottom: auto; left: 0; height: 1px; width: 100%; transform-origin: 50% 100%; }",
         xml: "<div id='navbar'>\
                  <div id='left'>\
                     <a id='icon'><Close xmlns='//xp/assets'/></a>\

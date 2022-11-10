@@ -138,7 +138,7 @@ $_("signup").imports({
                 let b = p.body;
                 let id = uuidv1();
                 let part = uuidv4();
-                let online = b.type > 1 ? 0 : 1;
+                let online = b.type > 1 ? 0 : 1; // 0: sys, 1: usr + part, 2: usr - part
                 let statements = [
                     ["INSERT INTO apps (id,name,link,part,view,type,online) VALUES(?,?,?,?,?,?,?)", id, b.name, b.link, part, b.view, b.type, online],
                     ["INSERT INTO auths (user,app) VALUES(0,?)", id]
@@ -162,13 +162,13 @@ $_("update").imports({
     Update: {
         xml: "<Sqlite id='update' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
-            let update = "UPDATE apps SET name=?,link=?,part=?,view=?,type=?str WHERE id=?";
+            let update = "UPDATE apps SET name=?,link=?,part=?,view=?,type=?,online=? WHERE id=?";
             this.on("next", (e, p) => {
                 e.stopPropagation();
                 let b = p.body;
-                let s = b.type > 1 ? ',online=1' : '';
-                let stmt = items.update.prepare(update.replace("str",s));
-                stmt.run(b.name,b.link,b.part,b.view,b.type,b.id, err => {
+                let online = b.type < 2 ? 1 : 0;
+                let stmt = items.update.prepare(update);
+                stmt.run(b.name,b.link,b.part,b.view,b.type,online,b.id, err => {
                     if (err) throw err;
                     p.data = {code: 0, desc: "更新成功"};
                     this.trigger("to-users", p);

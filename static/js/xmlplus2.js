@@ -1,5 +1,5 @@
 /*!
- * xmlplus.js v1.7.18
+ * xmlplus.js v1.7.17
  * https://xmlplus.cn
  * (c) 2017-2022 qudou
  * Released under the MIT license
@@ -491,10 +491,9 @@ var bd = {
         let proxy = new bd.ObjectProxy(objects, binds);
         function setter(target) {
             let props = Object.getOwnPropertyNames(target);
-			$.each(props, (i,key) => {
-				objects.hasOwnProperty(key) || bind(target[key], key);
-				proxy[key] = objects[key] = target[key];
-			});
+            if (!$.isEmptyObject(objects))
+                return $.each(props, (i,key) => proxy[key] = target[key]);
+            $.each(props, (i,key) => bind(target, key));
         }
         function delter() {
             for (let k in proxy)
@@ -510,11 +509,15 @@ var bd = {
                 delete binds[key];
             });
         }
-        function bind(value, key) {
+        function bind(target, key) {
+            let value = target[key];
             binds[key] = binds[key] || [];
+            objects[key] = value;
             let views = view.fdr.sys[view.map.bind[key] || key];
-            if (!views || typeof views == "string")
-                return binds[key].push(bd.BindNormal(view, key));
+            if (!views || typeof views == "string") {
+                binds[key].push(bd.BindNormal(view, key));
+                return proxy[key] = value;
+            }
             if ($.isSystemObject(views))
                 views = [views];
             views = views.map(v => {return Store[v.guid()]});
@@ -533,6 +536,7 @@ var bd = {
             } else {
                 $.error(`Type error: ${value}`);
             }
+            proxy[key] = value;
         }
         return {get: ()=>{return proxy}, set: setter, del: delter, unbind: unbind};
     },
