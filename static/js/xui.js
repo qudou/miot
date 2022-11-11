@@ -13,8 +13,19 @@ $_().imports({
 		fun: function (sys, items, opts) {
 			this.on("#/popup/open", (e) => {
 				e.stopPropagation();
-				this.elem().appendChild(e.target.elem());
+				let elem = this.elem();
+				let kids = elem.childNodes;
+				let i, zIndex = 0;
+				for (i = 0; i < kids.length; i++) {
+					let index = _zIndex(kids[i]);
+				    index > zIndex && (zIndex = ++index);
+				}
+				elem.appendChild(e.target.elem());
+				e.target.css("z-index", zIndex);
 			});
+			function _zIndex(elem) {
+				return elem.style["z-index"] || getComputedStyle(elem, "").getPropertyValue("z-index");
+			}
 			this.on(Click, (e) => this.notify("#/app/click", e));
 		}
 	},
@@ -119,7 +130,7 @@ $_().imports({
         css: "#popup { display: none; position: absolute; left: 0; bottom: 0; width: 100%; height: 100%; }\
 			  #mask { position: absolute; width: 100%; height: 100%; z-index: 99; background: rgba(0,0,0,.3); visibility: hidden; opacity: 0; transition-duration: .3s; }\
               #mshow { visibility: visible; opacity: 1; }\
-			  #sheet { position: absolute; left: 0; bottom: 0; width: 100%; max-height: 100%; z-index: 100; overflow: auto; transition-duration: .3s; transform: translate3d(0,100%,0); transition-property: transform; will-change: transform; }\
+			  #sheet { position: absolute; left: 0; bottom: 0; width: 100%; max-height: 100%; overflow: auto; transition-duration: .3s; transform: translate3d(0,100%,0); transition-property: transform; will-change: transform; }\
 			  #modal-in { transform: translate3d(0,calc(-1 * env(safe-area-inset-bottom)),0); }",
         xml: "<div id='popup'>\
 		         <div id='mask'/>\
