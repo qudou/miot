@@ -834,7 +834,7 @@ var MessageModuleAPI = (function () {
             } else {
 				var cancel;
                 var targets = table[uid] && table[uid] || {};
-				xp.each(targets[type], (key, item) => {
+				$.each(targets[type], (key, item) => {
                     var e = {type: type, target: that.api, currentTarget: item.watcher.api};
 					e.stopImmediateNotification = ()=> e.cancelImmediate = true;
 					e.stopNotification = ()=> e.cancel = true;
@@ -995,7 +995,7 @@ var EventModuleAPI = (function () {
                 }
                 e.cancelBubble && (cancelBubble = true);
             }
-            if (cancelBubble || !event.bubbles || event.bubble_ == false) 
+            if (cancelBubble || event.bubbles === false || event.bubble_ === false) 
                 break;
             target = target.parentNode;
         }

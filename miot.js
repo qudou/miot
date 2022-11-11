@@ -20,7 +20,18 @@ $_().imports({
                 <Proxy id='proxy'/>\
               </main>",
         cfg: { logger: config.logger },
-        map: { share: "Logger Crypto Sqlite Common mosca/Middle" }
+        map: { share: "Logger Crypto Sqlite Common mosca/Middle" },
+		fun: function (sys, items, opts) {
+			sys.mosca.on("to-user", function (e) {
+				sys.proxy.notify(e.type, [].slice.call(arguments).slice(1));
+			});
+			sys.mosca.on("to-users", function (e) {
+				sys.proxy.notify(e.type, [].slice.call(arguments).slice(1));
+			});
+			sys.proxy.on("to-local", function (e) {
+				sys.mosca.notify(e.type, [].slice.call(arguments).slice(1));
+			});
+		}
     },
     Mosca: { // 连接内网网关
         xml: "<main id='mosca' xmlns:i='mosca'>\
@@ -40,24 +51,22 @@ $_().imports({
             });
             server.on("subscribed", async (topic, client) => {
                 await items.links.update(topic, 1);
-                this.notify("to-users", {mid: uid, topic: "/stat/link", data: {mid: topic, data: 1}});
+                this.trigger("to-users", {mid: uid, topic: "/stat/link", data: {mid: topic, data: 1}});
             });
             server.on("unsubscribed", async (topic, client) => {
                 await items.links.update(topic, 0);
                 await items.apps.update(topic, 0);
-                this.notify("to-users", {mid: uid, topic: "/stat/link", data: {mid: topic, data: 0}});
+                this.trigger("to-users", {mid: uid, topic: "/stat/link", data: {mid: topic, data: 0}});
             });
             server.on("published", async (packet, client) => {
                 if (packet.topic !== uid) return;
                 let p = JSON.parse(packet.payload + '');
                 let m = await items.apps.getAppByLink(client.id, p.pid);
                 if (!m) return;
-                if (!p.topic) 
+                if (!p.topic)
                     await items.apps.cache(m.id, p);
                 p.mid = m.id;
-                items.middle.then((middle) => {
-                    middle.notify(m.view, "pindex", p)
-                });
+                items.middle.then(middle => middle.notify(m.view, "pindex", p));
             });
             this.watch("to-local", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
@@ -97,9 +106,7 @@ $_().imports({
                 p.cid = client.id;
                 p.mid = packet.topic;
                 p.user = u.name;
-                items.middle.then((middle) => {
-                    middle.notify(m.view, "uindex", p)
-                });
+                items.middle.then(middle => middle.notify(m.view, "uindex", p));
             });
             this.watch("to-user", (e, topic, p) => {
                 p = (p.mid == uid) ? p : {topic: p.topic ? "/ui/app" : "/stat/app", data: p};
@@ -210,25 +217,27 @@ $_("mosca").imports({
         }
     },
     Middle: {
-        xml: "<Common id='middle' xmlns='/'/>",
+        xml: "<main id='middle'>\
+		        <Common id='common' xmlns='/'/>\
+			  </main>",
         fun: async function (sys, items, opts) {
             let table = {};
             let viewId = "c258080a-d635-4e1b-a61f-48ff552c146a";
             let sdir = `${__dirname}/middles/sys`;
             let mids = fs.readdirSync(sdir);
             for (let mid of mids)
-                if (await items.middle.exists(`${sdir}/${mid}/uindex.js`))
-                    table[mid] = sys.middle.append("System", { mid: mid });
-            this.on("to-users", (e, p) => {
+                if (await items.common.exists(`${sdir}/${mid}/uindex.js`))
+                    table[mid] = sys.common.append("System", { mid: mid });
+            sys.common.on("to-users", (e, p) => {
                 e.stopPropagation();
                 let payload = {mid: p.mid, topic: p.topic, data: p.data};
-                p.cid ? this.notify("to-user", [p.cid, payload]) : this.notify("to-users", payload);
+                p.cid ? this.trigger("to-user", [p.cid, payload]) : this.trigger("to-users", payload);
             });
-            this.on("to-local", async (e, p) => {
+            sys.common.on("to-local", async (e, p) => {
                 e.stopPropagation();
-                let m = await items.middle.getAppById(p.mid);
+                let m = await items.common.getAppById(p.mid);
                 let body = { topic: p.topic, body: p.body };
-                this.notify("to-local", [m.link, {pid: m.part, body: body}]);
+                this.trigger("to-local", [m.link, {pid: m.part, body: body}]);
             });
             function notify(mid, type, p) {
                 table[mid] ? table[mid].val().notify(p) : table[viewId].notify(type, [mid, p]);
@@ -238,12 +247,12 @@ $_("mosca").imports({
     },
     System: {
         xml: "<main id='system'/>",
-        map: { msgscope: true },
+        map: { msgFilter: /[^]*/ },
         fun: function (sys, items, opts) {
             require(`${__dirname}/middles/sys/${opts.mid}/uindex.js`);
             sys.system.append(`//${opts.mid}/Index`);
             function notify(p) {
-                let msgs = xp.messages(sys.system);
+                let msgs = sys.system.messages();
                 if(msgs.indexOf(p.topic) == -1)
                     return sys.system.trigger("to-users", p);
                 sys.system.notify(p.topic, p);
@@ -363,7 +372,7 @@ $_("proxy").imports({
         xml: "<Sqlite id='sqlite' xmlns='/'/>",
         fun: function (sys, items, opts) {
             // check sessions once an hour
-            let schedule = require("node-schedule");
+            let schedule = require("node-schedule"); // setInterval ?
             schedule.scheduleJob(`0 1 * * *`, e => {
                 let stmt = `SELECT * FROM users`;
                 items.sqlite.all(stmt, (err, users) => {
