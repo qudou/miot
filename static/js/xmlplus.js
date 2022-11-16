@@ -895,8 +895,10 @@ var EventModuleAPI = (function () {
 		var listener = this.api;
 		function handler(event) {
 			var e = createProxy(event, listener);
-			if (!selector)
-				return fn.apply(listener, [e].concat(event.data)), e;
+			if (!selector) {
+				fn.apply(listener, [e].concat(event.data));
+				return e;
+			}
 			listener.find(selector).forEach(function(item) {
 				if (item.contains(e.target))
 					fn.apply(item, [e].concat(event.data));

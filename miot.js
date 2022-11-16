@@ -28,9 +28,6 @@ $_().imports({
             sys.mosca.on("to-users", function (e) {
                 sys.proxy.notify(e.type, [].slice.call(arguments).slice(1));
             });
-            sys.proxy.on("to-local", function (e) {
-                sys.mosca.notify(e.type, [].slice.call(arguments).slice(1));
-            });
         }
     },
     Mosca: { // 连接内网网关
@@ -68,7 +65,7 @@ $_().imports({
                 p.mid = m.id;
                 items.middle.then(middle => middle.notify(m.view, "pindex", p));
             });
-            this.watch("to-local", (e, topic, payload) => {
+            this.on("to-local", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
                 server.publish({topic: topic, payload: payload, qos: 1, retain: false});
             });

@@ -37,7 +37,7 @@ $_().imports({
                     client.subscribe(client.options.clientId, err => {
                         if (err) throw err;
                         let p = {topic: "/ui/spa", body: {id: query.app}};
-                        sys.applet.trigger("publish", [p, uid])
+                        sys.applet.trigger("#/publish", [p, uid])
                         items.mask.hide();
                     });
                     sys.applet.notify("/stat/ui/1").trigger("goto", "applet");
@@ -55,7 +55,7 @@ $_().imports({
                 });
                 client.on("close", () => sys.applet.notify("/stat/ui/0"));
             });
-            sys.applet.on("publish", (e, p = {}, topic = uid) => {
+            sys.applet.on("#/publish", (e, p = {}, topic = uid) => {
                 client.publish(topic, JSON.stringify(p));
             });
             sys.applet.on("/ui/logout", (e) => {
@@ -103,13 +103,12 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             this.on("publish", (e, topic, body) => {
-                if (e.target == this) return;
                 e.stopPropagation();
-                this.trigger("publish", [{topic: topic, body: body}, opts.mid]);
+                this.trigger("#/publish", [{topic: topic, body: body}, opts.mid]);
             });
-            this.watch("/ui/app", (e, p) => {
-                let app = sys.mask.prev();
-                if (app && opts.mid == p.mid)
+            this.watch("/ui/app", (e, app) => {
+                let view = sys.mask.prev();
+                if (view && opts.mid == app.mid)
                     view.elem().nodeName == "IFRAME" ? view.notify("message", app) : view.notify(app.topic, [app.data]);
             });
             function load(app) {
