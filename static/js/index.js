@@ -17,67 +17,67 @@ $_().imports({
               input { user-select: text; } \
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
               #index { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
-			  #stack, #mask { width: 100%; height: 100%; }\
+              #stack, #mask { width: 100%; height: 100%; }\
               #stack > * { transition-duration: 0s; }\
               .dialog { border: 1px solid #CACDD1; }",
         xml: "<i:Applet id='index' xmlns:i='//xp'>\
-				  <i:ViewStack id='stack'>\
-					<Content id='content'/>\
-					<Login id='login'/>\
-				  </i:ViewStack>\
-				  <Preload id='mask' xmlns='//xp/preload'/>\
-				  <Toast id='toast' xmlns='//xp'/>\
-			  </i:Applet>",
+                  <i:ViewStack id='stack'>\
+                    <Content id='content'/>\
+                    <Login id='login'/>\
+                  </i:ViewStack>\
+                  <Preload id='mask' xmlns='//xp/preload'/>\
+                  <Toast id='toast' xmlns='//xp'/>\
+              </i:Applet>",
         fun: function(sys, items, opts) {
             let client;
-			this.on("connect", function (e, cfg) {
-				items.mask.show();
+            this.on("connect", function (e, cfg) {
+                items.mask.show();
                 client = mqtt.connect(Server, cfg);
                 client.on("connect", function (e) {
                     client.subscribe(client.options.clientId, err => {
                         if (err) throw err;
                         sys.content.trigger("publish", {topic: "/ui/areas"});
-						items.mask.hide();
+                        items.mask.hide();
                     });
-					sys.content.notify("/stat/ui/1");
-					localStorage.setItem("online", 1);
+                    sys.content.notify("/stat/ui/1");
+                    localStorage.setItem("online", 1);
                     sys.stack.trigger("goto", "content");
                     console.log("connected to " + Server);
                 });
                 client.on("message", function (topic, p) {
-					p = JSON.parse(p.toString());
-					sys.content.notify(p.topic, [p.data]);
+                    p = JSON.parse(p.toString());
+                    sys.content.notify(p.topic, [p.data]);
                 });
                 client.on("close", function (e) {
-					sys.content.notify("/stat/ui/0");
-					localStorage.setItem("online", 0);
-				});
+                    sys.content.notify("/stat/ui/0");
+                    localStorage.setItem("online", 0);
+                });
                 client.on("error", function (e) {
-					items.mask.hide();
+                    items.mask.hide();
                     sys.index.trigger("message", ["error", e.message]);
                     if (e.message == "Connection refused: Bad username or password") {
-						 sys.content.trigger("/ui/logout");
-					}
+                         sys.content.trigger("/ui/logout");
+                    }
                 });
-			});
+            });
             sys.content.on("publish", (e, p = {}, topic = uid) => {
                 client.publish(topic, JSON.stringify(p));
             });
-			sys.content.on("/ui/logout", (e) => {
-				client.end();
+            sys.content.on("/ui/logout", (e) => {
+                client.end();
                 localStorage.clear();
                 sys.stack.trigger("goto", "login");
-			});
-			let session = localStorage.getItem("session");
-			setTimeout(() => {
-				session ? this.trigger("connect", {username: session}) : sys.stack.trigger("goto", "login");
-			}, 0);
-			this.on("message", (e, t, msg) => items.toast.open(msg));
+            });
+            let session = localStorage.getItem("session");
+            setTimeout(() => {
+                session ? this.trigger("connect", {username: session}) : sys.stack.trigger("goto", "login");
+            }, 0);
+            this.on("message", (e, t, msg) => items.toast.open(msg));
         }
     },
     Login: {
         css: "#logo { margin: 60px auto 25px; display: block; width: 50%; height: auto; background: white; }\
-		      #button { margin: 35px 0; }",
+              #button { margin: 35px 0; }",
         xml: "<Content xmlns='//xp' xmlns:i='login'>\
                 <i:Logo id='logo'/>\
                 <i:Form id='login'>\
@@ -92,10 +92,10 @@ $_().imports({
             }
             sys.user.on("keypress", keypress);
             sys.pass.on("keypress", keypress);
-			sys.pass.watch("next", (e, o) => {
+            sys.pass.watch("next", (e, o) => {
                 this.trigger("connect", {username: o.name, password: o.pass});
             });
-			this.watch("#/view/ready", () => items.user.focus());
+            this.watch("#/view/ready", () => items.user.focus());
             sys.submit.on(Click, () => sys.login.notify("next", {}));
         }
     },
@@ -111,11 +111,11 @@ $_().imports({
                 <i:Applet id='applet'/>\
               </div>",
         fun: function (sys, items, opts) {
-			this.on("/popup/open", (e, key, values) => {
-				e.stopPropagation();
-				if (localStorage.getItem("online") == 1)
-				    sys.popup.notify(e.type, [key, values]);
-			});
+            this.on("/popup/open", (e, key, values) => {
+                e.stopPropagation();
+                if (localStorage.getItem("online") == 1)
+                    sys.popup.notify(e.type, [key, values]);
+            });
             sys.home.on("/applet/open", (e, p) => {
                 e.stopPropagation();
                 sys.applet.notify("/applet/open", p);
@@ -124,15 +124,15 @@ $_().imports({
                 e.stopPropagation();
                 sys.stack.trigger(page == "home" ? "back" : "goto", page);
             });
-			sys.popup.on("/area/open", (e, p) => {
-				e.stopPropagation();
-				sys.home.notify(e.type, p);
-			});
-			sys.popup.on("/link/open", (e, p) => {
-				e.stopPropagation();
-				sys.home.notify(e.type, p);
-			});
-			this.watch("/ui/session", (e, p) => {
+            sys.popup.on("/area/open", (e, p) => {
+                e.stopPropagation();
+                sys.home.notify(e.type, p);
+            });
+            sys.popup.on("/link/open", (e, p) => {
+                e.stopPropagation();
+                sys.home.notify(e.type, p);
+            });
+            this.watch("/ui/session", (e, p) => {
                 localStorage.setItem("session", p.session);
                 localStorage.setItem("username", p.username);
             });
@@ -146,12 +146,12 @@ $_("login").imports({
         xml: "<List id='form' xmlns='//xp/list'/>",
         map: { msgFilter: /next/ },
         fun: function (sys, items, opts) {
-			this.on("error", (e, el, msg) => {
-				e.stopPropagation();
-				el.stopImmediateNotification();
-				el.currentTarget.val().focus();
-				this.trigger("message", ["error", msg]);
-			});
+            this.on("error", (e, el, msg) => {
+                e.stopPropagation();
+                el.stopImmediateNotification();
+                el.currentTarget.val().focus();
+                this.trigger("message", ["error", msg]);
+            });
         }
     },
     Logo: {
@@ -194,15 +194,15 @@ $_("login").imports({
     },
     Input: {
         css: ".ios .list .item-inner:after {width: calc(100% - 15px);}",
-		xml: "<i:ListItem id='input' xmlns:i='//xp/list'>\
-		        <i:Content>\
-				   <i:Media><i id='icon'/></i:Media>\
-				   <i:Inner id='inner' media='true'>\
-				      <i:Title id='label'/>\
-					  <Input id='input' xmlns='//xp/form'/>\
-				   </i:Inner>\
-				</i:Content>\
-		      </i:ListItem>",
+        xml: "<i:ListItem id='input' xmlns:i='//xp/list'>\
+                <i:Content>\
+                   <i:Media><i id='icon'/></i:Media>\
+                   <i:Inner id='inner' media='true'>\
+                      <i:Title id='label'/>\
+                      <Input id='input' xmlns='//xp/form'/>\
+                   </i:Inner>\
+                </i:Content>\
+              </i:ListItem>",
         map: { attrs: { input: "name value type maxlength placeholder" } },
         fun: function (sys, items, opts) {
             sys.icon.replace(`//xp/assets/${opts.icon}`);
@@ -220,12 +220,12 @@ $_("content").imports({
                 <i:Title id='title'/>\
                 <i:Apps id='apps'/>\
               </div>",
-		fun: function (sys, items, opts) {
-			this.on("/ui/links", (e, p) => {
-				e.stopPropagation();
-				sys.index.notify(e.type, [p]);
-			});
-		}
+        fun: function (sys, items, opts) {
+            this.on("/ui/links", (e, p) => {
+                e.stopPropagation();
+                sys.index.notify(e.type, [p]);
+            });
+        }
     },
     About: {
         css: "#content { height: calc(100% - 88px); }",
@@ -242,19 +242,19 @@ $_("content").imports({
             sys.footer.on(Click, "*", function (e) {
                 this.trigger("switch", this.toString());
             });
-			function changePage(page) {
-				sys[page].trigger(Click);
+            function changePage(page) {
+                sys[page].trigger(Click);
                 items[page].prop("checked", "true");
-			}
-			return { changePage: changePage };
+            }
+            return { changePage: changePage };
         }
     },
     Popup: {
         xml: `<Popup id='popup' xmlns='//xp'>
-		        <i:List id='list' xmlns:i='popup'>\
+                <i:List id='list' xmlns:i='popup'>\
                    <i:Item id='render' key='${xp.guid()}'/>\
                 </i:List>
-			  </Popup>`,
+              </Popup>`,
         fun: function (sys, items, opts) {
             let key, buf = [];
                 list = sys.render.bind([]);
@@ -270,9 +270,9 @@ $_("content").imports({
                 let i = sys.list.kids().indexOf(this);
                 localStorage.setItem(key, buf[i].id);
                 items.popup.hide();
-				this.trigger(`/${key}/open`, buf[i]);
+                this.trigger(`/${key}/open`, buf[i]);
             });
-			sys.list.on("hide", items.popup.hide);
+            sys.list.on("hide", items.popup.hide);
         }
     },
     Applet: {
@@ -285,20 +285,20 @@ $_("content").imports({
               </div>",
         fun: function (sys, items, opts) {
             this.on("publish", (e, topic, body) => {
-				if (e.target == this) return;
+                if (e.target == this) return;
                 e.stopPropagation();
                 this.trigger("publish", [{topic: topic, body: body}, opts.mid]);
             });
             this.watch("/ui/app", (e, app) => {
                 let view = sys.mask.prev();
                 if (view && opts.mid == app.mid)
-					view.elem().nodeName == "IFRAME" ? view.notify("message", app) : view.notify(app.topic, [app.data]);
+                    view.elem().nodeName == "IFRAME" ? view.notify("message", app) : view.notify(app.topic, [app.data]);
             });
             function load(app) {
                 let applet = `//${app.view}/Index`;
                 let c = xp.hasComponent(applet);
                 if (!c) return setTimeout(i=>load(app), 10);
-				c.map.msgFilter = /[^]*/;
+                c.map.msgFilter = /[^]*/;
                 sys.mask.before(applet, app);
                 items.mask.hide();
                 sys.applet.once("close", close);
@@ -367,7 +367,7 @@ $_("content").imports({
         fun: function (sys, items, opts) {
             sys.close.on(Click, () => this.trigger("close")); 
             function show(label) {
-				sys.label.text(label);
+                sys.label.text(label);
                 sys.preload.addClass("#visible");
             }
             function hide() {
@@ -405,9 +405,9 @@ $_("content/index").imports({
                 areas = _areas;
                 let id = localStorage.getItem("area");
                 let area = areas.find(i=>{return i.id == id});
-				this.notify("/area/open", area || areas[0]);
-			});
-			this.watch("/area/open", (e, area) => {
+                this.notify("/area/open", area || areas[0]);
+            });
+            this.watch("/area/open", (e, area) => {
                 sys.label.text(area.name);
                 localStorage.setItem("area", area.id);
                 if (table[area.id])
@@ -437,8 +437,8 @@ $_("content/index").imports({
                 let id = localStorage.getItem("link");
                 let link = links.find(i=>{return i.id == id});
                 this.notify("/link/open", link || links[0]);
-			});
-			this.watch("/link/open", (e, link) => {
+            });
+            this.watch("/link/open", (e, link) => {
                 text(opts = link);
                 this.trigger("publish", {topic: "/ui/apps", body: {link: link.id}});
             });
@@ -520,13 +520,13 @@ $_("content/index/apps").imports({
               </a>",
         map: { bind: {"name": "label"} },
         fun: function (sys, items, opts) {
-			function online(value) {
-				if (value == undefined)
-				    return opts.online;
-				opts.online = value;
-				sys.item[value ? "addClass" : "removeClass"]("#active");
-			}
-			return { online: online };
+            function online(value) {
+                if (value == undefined)
+                    return opts.online;
+                opts.online = value;
+                sys.item[value ? "addClass" : "removeClass"]("#active");
+            }
+            return { online: online };
         }
     },
     Icon: {
@@ -540,16 +540,16 @@ $_("content/index/apps").imports({
             function show(path) {
                 icon = icon.replace(path);
             }
-			function dir(value) {
-				if (value == undefined)
-					return tmp;
-				tmp = value;
-				require([`/views/${tmp}/icon.js`], e => {
-					let path = `//${tmp.split('/')[1]}/Icon`;
-					show(xp.hasComponent(path) ? path : "//xp/assets/Unknow");
-				}, ()=> show("//xp/assets/Unknow"));
-			}
-			return { dir: dir };
+            function dir(value) {
+                if (value == undefined)
+                    return tmp;
+                tmp = value;
+                require([`/views/${tmp}/icon.js`], e => {
+                    let path = `//${tmp.split('/')[1]}/Icon`;
+                    show(xp.hasComponent(path) ? path : "//xp/assets/Unknow");
+                }, ()=> show("//xp/assets/Unknow"));
+            }
+            return { dir: dir };
         }
     }
 });
@@ -581,19 +581,19 @@ $_("content/about").imports({
         map: { extend: {"from": "../footer/icon/About"} }
     },
     Logout: {
-		css: "#logout { margin: 35px 16px; }",
+        css: "#logout { margin: 35px 16px; }",
         xml: "<i:List id='logout' xmlns:i='//xp/list'>\
-		        <i:ListItem>\
+                <i:ListItem>\
                    <Button id='submit' xmlns='//xp/form'>退　出</Button>\
-				</i:ListItem>\
+                </i:ListItem>\
               </i:List>",
         fun: function (sys, items, opts) {
             this.on(Click, e => {
                 if (localStorage.getItem("online") == 0)
                     this.trigger("message", ["msg", "当前系统离线，无法退出！"]);
                 else {
-					confirm("确定退出系统吗？") && this.trigger("/ui/logout");
-				}
+                    confirm("确定退出系统吗？") && this.trigger("/ui/logout");
+                }
             });
         }
     }

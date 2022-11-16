@@ -9,7 +9,7 @@ xmlplus("bb891709-2db2-4395-98af-d9af0abccecc", (xp, $_) => { // 系统状态
 
 $_().imports({
     Index: {
-        xml: "<i:Applet id='index' xmlns:i='//xp'>\
+        xml: "<i:Applet xmlns:i='//xp'>\
                 <Navbar id='navbar'/>\
                 <Content id='content'/>\
               </i:Applet>"
@@ -33,28 +33,23 @@ $_().imports({
     },
     Content: {
         xml: "<i:Content id='content' xmlns:i='//xp' xmlns:j='content'>\
-                 <j:Title>当前用户</j:Title>\
+                 <Title xmlns='//xp/block'>当前用户</Title>\
                  <j:Status id='status'/>\
               </i:Content>"
     }
 });
 
 $_("content").imports({
-    Title: {
-		css: "#title { position: relative; overflow: hidden; margin: 0; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; line-height: 1; }\
-		      #title { text-transform: uppercase; color: #6d6d72; margin: 35px 15px 10px; }",
-        xml: "<div id='title'/>"
-    },
     Status: {
         xml: "<Table id='table' card='1' xmlns='//xp' xmlns:i='status'>\
-			   <i:Header id='header'/>\
-			   <tbody id='body'>\
-				 <i:Item id='item'/>\
-			   </tbody>\
+               <i:Header id='header'/>\
+               <tbody id='body'>\
+                 <i:Item id='item'/>\
+               </tbody>\
               </Table>",
         fun: function (sys, items, opts) {
-			let proxy = sys.item.bind([]);
-			this.watch("/status", (e, data) => proxy.model = data);
+            let proxy = sys.item.bind([]);
+            this.watch("/status", (e, data) => proxy.model = data);
         }
     }
 });

@@ -9,8 +9,8 @@ xmlplus("b414e216-52c5-4b18-8275-588c92a1f38b", (xp, $_) => { // 应用管理
 
 $_().imports({
     Index: {
-		css: "#stack { width: 100%; height: 100%; }",
-		xml: "<i:Applet id='index' xmlns:i='//xp'>\
+        css: "#stack { width: 100%; height: 100%; }",
+        xml: "<i:Applet xmlns:i='//xp'>\
                 <i:ViewStack id='stack'>\
                   <Overview id='overview'/>\
                   <AppList id='applist'/>\
@@ -18,45 +18,45 @@ $_().imports({
                   <Update id='update'/>\
                   <Guide id='guide'/>\
                 </i:ViewStack>\
-				<Preload id='mask' xmlns='//xp/preload'/>\
-			  </i:Applet>",
-		fun: function (sys, items, opts) {
-			sys.stack.on("/mask/show", (e) => {
-				e.stopPropagation();
-				items.mask.show();
-			});
-			sys.stack.on("/mask/hide", (e) => {
-				e.stopPropagation();
-				items.mask.hide();
-			});
-		}
+                <Preload id='mask' xmlns='//xp/preload'/>\
+              </i:Applet>",
+        fun: function (sys, items, opts) {
+            sys.stack.on("/mask/show", (e) => {
+                e.stopPropagation();
+                items.mask.show();
+            });
+            sys.stack.on("/mask/hide", (e) => {
+                e.stopPropagation();
+                items.mask.hide();
+            });
+        }
     },
     Overview: {
-        xml: "<div id='overview' xmlns:i='overview'>\
+        xml: "<div xmlns:i='overview'>\
                 <i:Navbar id='navbar'/>\
                 <i:Content id='content'/>\
               </div>"
     },
     AppList: {
-        xml: "<div id='applist' xmlns:i='applist'>\
+        xml: "<div xmlns:i='applist'>\
                 <i:Navbar id='navbar'/>\
                 <i:Content id='content'/>\
               </div>"
     },
     Signup: {
-        xml: "<div id='signup' xmlns:i='signup'>\
+        xml: "<div xmlns:i='signup'>\
                 <i:Navbar id='navbar' title='应用注册'/>\
                 <i:Content id='content'/>\
               </div>"
     },
     Update: {
-        xml: "<div id='update' xmlns:i='signup'>\
+        xml: "<div xmlns:i='signup'>\
                 <i:Navbar id='navbar' title='应用修改'/>\
                 <Content id='content' xmlns='update'/>\
               </div>"
     },
     Guide: {
-        xml: "<div id='guide' xmlns:i='guide'>\
+        xml: "<div xmlns:i='guide'>\
                 <i:Navbar id='navbar'/>\
                 <i:Content id='content'/>\
               </div>",
@@ -65,12 +65,12 @@ $_().imports({
                 items.content.text(`${data}不存在,请先添加${data}`);
             });
             this.watch("/apps/views", (e, views) => {
-				views.length ? this.trigger("publish", "/apps/areas") : this.trigger("goto", ["guide", "视图"]);
+                views.length ? this.trigger("publish", "/apps/areas") : this.trigger("goto", ["guide", "视图"]);
             });
             this.watch("/apps/areas", (e, areas) => {
                 areas.length || this.trigger("goto", ["guide", "区域"]);
             });
-			this.trigger("publish", "/apps/views");
+            this.trigger("publish", "/apps/views");
         }
     }
 });
@@ -91,53 +91,46 @@ $_("overview").imports({
     },
     Content: {
         xml: "<i:Content id='content' xmlns:i='//xp'>\
-		          <ListItem id='item'/>\
-		      </i:Content>",
+                  <ListItem id='item'/>\
+              </i:Content>",
         fun: function (sys, items, opts) {
-			let proxy = sys.item.bind([]);
+            let proxy = sys.item.bind([]);
             this.watch("/apps/areas", (e, data) => proxy.model = data);
         }
     },
-	ListItem: {
-		css: "#list { margin-top: 10px; }",
-		xml: "<div id='listItem' xmlns:i='//xp/list'>\
-		        <Title id='title'/>\
-				<i:List id='list'>\
-				   <LinkItem id='links'/>\
-				</i:List>\
-		      </div>",
-		map: { bind: { name: "title" } },
-		fun: function (sys, items, opts) {
-			sys.list.on("goto", (e, target, data) => {
-				target == "applist" && (data.area = opts);
-			});
-			this.on("$/before/bind", (e, value) => opts = value);
-		}
-	},
-    Title: {
-		css: "#title { position: relative; overflow: hidden; margin: 0; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; line-height: 1; }\
-		      #title { text-transform: uppercase; color: #6d6d72; margin: 35px 15px 10px; }",
-        xml: "<div id='title'/>"
+    ListItem: {
+        xml: "<div id='listItem' xmlns:i='//xp/list'>\
+                <Title id='title' xmlns='//xp/block'/>\
+                <i:List id='list'>\
+                   <LinkItem id='links'/>\
+                </i:List>\
+              </div>",
+        map: { bind: { name: "title" } },
+        fun: function (sys, items, opts) {
+            sys.list.on("goto", (e, target, data) => {
+                target == "applist" && (data.area = opts);
+            });
+            this.on("$/before/bind", (e, value) => opts = value);
+        }
     },
     LinkItem: {
-		css: "#footer { color: #8e8e93; font-size: 12px; font-weight: 400; line-height: 1.2; white-space: normal; }",
-		xml: "<i:ListItem id='linkItem' xmlns:i='//xp/list'>\
-		        <i:Content style='link'>\
-				   <i:Media><Icon/></i:Media>\
-				   <i:Inner id='inner' media='true' style='link'>\
-				     <i:Title id='title'>\
-				   	    <label id='label'/>\
-				   	    <div id='footer'/>\
-				     </i:Title>\
-				   </i:Inner>\
-				</i:Content>\
-		      </i:ListItem>",
-		map: { bind: { name: "label", id: "footer" } },
+        xml: "<ListItem xmlns='//xp/list'>\
+                <Content style='link'>\
+                   <Media><Icon xmlns='.'/></Media>\
+                   <Inner id='inner' style='link'>\
+                     <Title id='title'>\
+                        <label id='label'/>\
+                        <Footer id='id'/>\
+                     </Title>\
+                   </Inner>\
+                </Content>\
+              </ListItem>",
+        map: { bind: { name: "label" } },
         fun: function (sys, items, opts) {
             this.on(Click, () => {
-				this.trigger("goto", ["applist", {link: opts}]);
+                this.trigger("goto", ["applist", {link: opts}]);
             });
-			this.on("$/before/bind", (e, value) => opts = value);
+            this.on("$/before/bind", (e, value) => opts = value);
         }
     },
     Icon: {
@@ -162,63 +155,62 @@ $_("applist").imports({
         fun: function (sys, items, opts) { 
             sys.icon.on(Click, e => this.trigger("back"));
             sys.menu.on(Click, e => this.trigger("goto", ["signup", opts]));
-			this.watch("#/view/ready", (e, prev, data) => {
-				if (xp.isPlainObject(data)) {
-					opts = data;
-					sys.title.text(`${data.area.name}/${data.link.name}`);
-				}
-			});
+            this.watch("#/view/ready", (e, prev, data) => {
+                if (xp.isPlainObject(data)) {
+                    opts = data;
+                    sys.title.text(`${data.area.name}/${data.link.name}`);
+                }
+            });
         }
     },
     Content: {
         xml: "<i:Content id='content' xmlns:i='//xp' xmlns:k='//xp/list'>\
-		        <k:List id='list'>\
-				  <ListItem id='item'/>\
-				</k:List>\
+                <k:List id='list'>\
+                  <ListItem id='item'/>\
+                </k:List>\
               </i:Content>",
         fun: function (sys, items, opts) {
-			let proxy = sys.item.bind([]);
-			sys.list.on("remove", (e, p) => {
-				e.stopPropagation();
+            let proxy = sys.item.bind([]);
+            sys.list.on("remove", (e, p) => {
+                e.stopPropagation();
                 if (confirm("确定删除该应用吗？")) {
                     this.trigger("publish", ["/apps/remove", {id: p.id}]);
                     this.glance("/apps/remove", (ev, p) => {
                         this.trigger("message", ["msg", p.desc]);
-						if (p.code == 0) {
-							let i = sys.list.kids().indexOf(e.target);
-							delete proxy.model[i];
-						}
+                        if (p.code == 0) {
+                            let i = sys.list.kids().indexOf(e.target);
+                            delete proxy.model[i];
+                        }
                     });
                 }
-			});
-			this.on("goto", (e, target, data) => {
-				target == "update" && (data.area = opts.area.id);
-			});
-			this.watch("#/view/ready", (e, prev, data) => {
-				xp.isPlainObject(data) && (opts = data);
-				data && this.trigger("publish", ["/apps/list", {link: opts.link.id}]);
-			});
-			this.watch("/apps/list", (e, data) => proxy.model = data);
+            });
+            this.on("goto", (e, target, data) => {
+                target == "update" && (data.area = opts.area.id);
+            });
+            this.watch("#/view/ready", (e, prev, data) => {
+                xp.isPlainObject(data) && (opts = data);
+                data && this.trigger("publish", ["/apps/list", {link: opts.link.id}]);
+            });
+            this.watch("/apps/list", (e, data) => proxy.model = data);
         }
     },
     ListItem: {
-		css: "#footer { color: #8e8e93; font-size: 12px; font-weight: 400; line-height: 1.2; white-space: normal; }",
-		xml: "<i:Swipeout id='item' xmlns:i='//xp/swipeout' xmlns:k='//xp/list'>\
-		         <k:Content>\
-				    <k:Media><Icon/></k:Media>\
-				    <k:Inner id='inner' media='true'>\
-					  <k:Title id='title'>\
-					    <div id='label'/>\
-					    <div id='footer'/>\
-					  </k:Title>\
-					</k:Inner>\
-				 </k:Content>\
-				 <i:Actions>\
-				   <i:Button id='edit'>编辑</i:Button>\
-				   <i:Button id='remove' color='red'>删除</i:Button>\
-				 </i:Actions>\
-		      </i:Swipeout>",
-		map: { bind: { name: "label", id: "footer" } },
+        xml: "<i:Swipeout xmlns:i='//xp/swipeout'>\
+                 <Content xmlns='//xp/list'>\
+                    <Media><Icon xmlns='.'/></Media>\
+                    <Inner id='inner'>\
+                      <Title id='title'>\
+                        <div id='label'/>\
+                        <Footer id='id'/>\
+                      </Title>\
+                    </Inner>\
+                 </Content>\
+                 <i:Actions>\
+                   <i:Button id='edit'>编辑</i:Button>\
+                   <i:Button id='remove' color='red'>删除</i:Button>\
+                 </i:Actions>\
+              </i:Swipeout>",
+        map: { bind: { name: "label" } },
         fun: function (sys, items, opts) {
             this.on("$/before/bind", (e, value) => opts = value);
             sys.edit.on(Click, () => this.trigger("goto", ["update", opts]));
@@ -261,29 +253,29 @@ $_("signup").imports({
         fun: function (sys, items, opts) {
             sys.type.watch("next", (e, p) => {
                 opts = p;
-				this.trigger("/mask/show");
+                this.trigger("/mask/show");
                 this.trigger("publish", ["/apps/signup", p]);
                 this.glance("/apps/signup", callback);
             });
             function callback(e, p) {
-				sys.content.trigger("/mask/hide");
+                sys.content.trigger("/mask/hide");
                 sys.content.trigger("message", ["msg", p.desc]);
-				p.code || sys.content.trigger("back", true);
+                p.code || sys.content.trigger("back", true);
             }
-			sys.area.on("/areas/change", (e, area) => {
-				e.stopPropagation();
-				sys.link.notify(e.type, area);
-			});
+            sys.area.on("/areas/change", (e, area) => {
+                e.stopPropagation();
+                sys.link.notify(e.type, area);
+            });
             this.watch("#/view/ready", (e, prev, data) => {
                 items.nane.focus();
-				items.nane.value = "";
+                items.nane.value = "";
                 items.area.value = data.area.id;
-				sys.link.notify("/areas/change", data.area.id);
-				items.link.value = data.link.id;
-				items.view.selectedIndex = 0;
-				items.type.selectedIndex = 0;
+                sys.link.notify("/areas/change", data.area.id);
+                items.link.value = data.link.id;
+                items.view.selectedIndex = 0;
+                items.type.selectedIndex = 0;
             });
-			sys.submit.on(Click, () => sys.signup.notify("next", {}));
+            sys.submit.on(Click, () => sys.signup.notify("next", {}));
         }
     }
 });
@@ -293,12 +285,12 @@ $_("signup/form").imports({
         xml: "<List id='form' xmlns='//xp/list'/>",
         map: { appendTo: "form", msgFilter: /next/ },
         fun: function (sys, items, opts) {
-			this.on("error", (e, el, msg) => {
-				e.stopPropagation();
-				el.stopNotification();
-				el.currentTarget.val().focus();
-				this.trigger("message", ["error", msg]);
-			});
+            this.on("error", (e, el, msg) => {
+                e.stopPropagation();
+                el.stopNotification();
+                el.currentTarget.val().focus();
+                this.trigger("message", ["error", msg]);
+            });
         }
     },
     Name: {
@@ -317,38 +309,38 @@ $_("signup/form").imports({
     },
     Area: {
         xml: "<Select id='area' label='区域'>\
-		        <Option id='option'/>\
-		      </Select>",
+                <Option id='option'/>\
+              </Select>",
         fun: function (sys, items, opts) {
-			let proxy = sys.option.bind([]);
+            let proxy = sys.option.bind([]);
             this.watch("/apps/areas", (e, data) => proxy.model = data);
-			this.on("change", (e) => {
-				e.stopPropagation();
-				this.trigger("/areas/change", items.area.value);
-			});
-			return items.area;
+            this.on("change", (e) => {
+                e.stopPropagation();
+                this.trigger("/areas/change", items.area.value);
+            });
+            return items.area;
         }
     },
     Link: {
         xml: "<Select id='link' label='网关'>\
-		        <Option id='option'/>\
-		      </Select>",
+                <Option id='option'/>\
+              </Select>",
         fun: function (sys, items, opts) {
-			let areas = [];
+            let areas = [];
             let proxy = sys.option.bind([]);
-			this.watch("/areas/change", (e, area) => {
-				proxy.model = areas.find(item => {
-					return item.id == area;
-				}).links;
-				items.link.selectedIndex = 0;
-			});
-			this.watch("/apps/areas", (e, data) => areas = data);
-			this.watch("next", (e, p) => {
-				if (proxy.model.length == 0)
-					return this.trigger("error", [e, "请在当前区域下创建网关"]);
-				p.link = items.link.value;
-			});
-			return items.link;
+            this.watch("/areas/change", (e, area) => {
+                proxy.model = areas.find(item => {
+                    return item.id == area;
+                }).links;
+                items.link.selectedIndex = 0;
+            });
+            this.watch("/apps/areas", (e, data) => areas = data);
+            this.watch("next", (e, p) => {
+                if (proxy.model.length == 0)
+                    return this.trigger("error", [e, "请在当前区域下创建网关"]);
+                p.link = items.link.value;
+            });
+            return items.link;
         }
     },
     PUID: {
@@ -367,68 +359,64 @@ $_("signup/form").imports({
     },
     View: {
         xml: "<Select id='view' label='视图'>\
-		         <Option id='option'/>\
-		      </Select>",
+                 <Option id='option'/>\
+              </Select>",
         fun: function (sys, items, opts) {
-			let proxy = sys.option.bind([]);
+            let proxy = sys.option.bind([]);
             this.watch("next", (e, p) => p.view = items.view.value);
             this.watch("/apps/views", (e, data) => proxy.model = data);
             return items.view;
         }
     },
-	Type: {
+    Type: {
         xml: "<Select id='type' label='类型'>\
-		        <option value='1'>无配件</option>\
-				<option value='2'>有配件</option>\
-		      </Select>",
-		fun: function (sys, items, opts) {
-			this.watch("next", (e, p) => p.type = items.type.value);
+                <option value='1'>无配件</option>\
+                <option value='2'>有配件</option>\
+              </Select>",
+        fun: function (sys, items, opts) {
+            this.watch("next", (e, p) => p.type = items.type.value);
             return items.type
-		}
-	},
-	Select: {
-		css: "#inner { flex-direction: column; align-items: flex-start; }\
-		      #picker { margin-bottom: -8px; }",
-        xml: "<i:ListItem id='input' xmlns:i='//xp/list' xmlns:k='//xp/form'>\
-	            <i:Content>\
-                 <i:Inner id='inner'>\
-                    <k:Label id='label'/>\
-                    <k:Select id='picker'/>\
-                 </i:Inner>\
-				</i:Content>\
-              </i:ListItem>",
-		map: { appendTo: "picker", attrs: { picker: "disabled" } },
-		fun: function (sys, items, opts) {
-			sys.label.text(opts.label);
-			return items.picker.elem();
-		}
-	},
-	Option: {
-		xml: "<option id='option'/>",
-		map: { bind: { id: "option" } },
-		fun: function (sys, items, opts) {
-			return { name: sys.option.text };
-		}
-	},
+        }
+    },
+    Select: {
+        xml: "<ListItem xmlns='//xp/list'>\
+                <Content>\
+                  <Inner id='inner' xmlns='//xp/form'>\
+                    <Label id='label'/>\
+                    <Select id='picker'/>\
+                  </Inner>\
+                </Content>\
+              </ListItem>",
+        map: { appendTo: "picker", attrs: { picker: "disabled" } },
+        fun: function (sys, items, opts) {
+            sys.label.text(opts.label);
+            return items.picker.elem();
+        }
+    },
+    Option: {
+        xml: "<option id='option'/>",
+        map: { bind: { id: "option" } },
+        fun: function (sys, items, opts) {
+            return { name: sys.option.text };
+        }
+    },
     Input: {
-		css: "#inner { flex-direction: column; align-items: flex-start; }\
-			  #text { margin-bottom: -8px; }",
-        xml: "<i:ListItem id='input' xmlns:i='//xp/list' xmlns:k='//xp/form'>\
-		        <i:Content>\
-                 <i:Inner id='inner'>\
-                    <k:Label id='label'/>\
-                    <k:Input id='text'/>\
-                 </i:Inner>\
-				</i:Content>\
-              </i:ListItem>",
-        map: { attrs: { text: "maxlength placeholder readonly style" } },
+        xml: "<ListItem xmlns='//xp/list'>\
+                <Content>\
+                  <Inner id='inner' xmlns='//xp/form'>\
+                    <Label id='label'/>\
+                    <Input id='input'/>\
+                  </Inner>\
+                </Content>\
+              </ListItem>",
+        map: { attrs: { input: "maxlength placeholder readonly style" } },
         fun: function (sys, items, opts) { 
             sys.label.text(opts.label);
-            return items.text.elem();
+            return items.input.elem();
         }
     },
     Button: {
-		css: "#button { margin: 35px 0; }",
+        css: "#button { margin: 35px 0; }",
         xml: "<Button id='button' xmlns='//xp/form'/>"
     }
 });
@@ -450,30 +438,30 @@ $_("update").imports({
         fun: function (sys, items, opts) {
             sys.type.watch("next", (e, p) => {
                 opts = p;
-				this.trigger("/mask/show");
+                this.trigger("/mask/show");
                 this.trigger("publish", ["/apps/update", p]);
                 this.glance("/apps/update", callback);
             });
             function callback(e, p) {
-				sys.content.trigger("/mask/hide");
+                sys.content.trigger("/mask/hide");
                 sys.content.trigger("message", ["msg", p.desc]);
-				p.code || sys.content.trigger("back", true);
+                p.code || sys.content.trigger("back", true);
             }
-			sys.area.on("/areas/change", (e, area) => {
-				e.stopPropagation();
-				sys.link.notify(e.type, area);
-			});
+            sys.area.on("/areas/change", (e, area) => {
+                e.stopPropagation();
+                sys.link.notify(e.type, area);
+            });
             this.watch("#/view/ready", (e, prev, data) => {
                 items.guid.value = data.id;
                 items.nane.value = data.name;
-				items.area.value = data.area;
-				sys.link.notify("/areas/change", data.area);
+                items.area.value = data.area;
+                sys.link.notify("/areas/change", data.area);
                 items.link.value = data.link;
                 items.puid.value = data.part;
                 items.view.value = data.view;
                 items.type.value = data.type;
             });
-			sys.submit.on(Click, () => sys.update.notify("next", {}));
+            sys.submit.on(Click, () => sys.update.notify("next", {}));
         }
     },
     GUID: {

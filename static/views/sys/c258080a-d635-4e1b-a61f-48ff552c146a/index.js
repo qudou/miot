@@ -9,41 +9,41 @@ xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => { // 视图管理
 
 $_().imports({
     Index: {
-		css: "#stack { width: 100%; height: 100%; }",
-		xml: "<i:Applet id='index' xmlns:i='//xp'>\
+        css: "#stack { width: 100%; height: 100%; }",
+        xml: "<i:Applet xmlns:i='//xp'>\
                 <i:ViewStack id='stack'>\
                   <Overview id='overview'/>\
                   <Signup id='signup'/>\
                   <Update id='update'/>\
                 </i:ViewStack>\
-				<Preload id='mask' xmlns='//xp/preload'/>\
-			  </i:Applet>",
+                <Preload id='mask' xmlns='//xp/preload'/>\
+              </i:Applet>",
         fun: function (sys, items, opts) {
-			sys.stack.on("/mask/show", (e) => {
-				e.stopPropagation();
-				items.mask.show();
-			});
-			sys.stack.on("/mask/hide", (e) => {
-				e.stopPropagation();
-				items.mask.hide();
-			});
+            sys.stack.on("/mask/show", (e) => {
+                e.stopPropagation();
+                items.mask.show();
+            });
+            sys.stack.on("/mask/hide", (e) => {
+                e.stopPropagation();
+                items.mask.hide();
+            });
             this.trigger("publish", "/views/select");
         }
     },
     Overview: {
-        xml: "<div id='overview' xmlns:i='overview'>\
+        xml: "<div xmlns:i='overview'>\
                 <i:Navbar id='navbar'/>\
                 <i:Content id='content'/>\
               </div>"
     },
     Signup: {
-        xml: "<div id='signup' xmlns:i='signup'>\
+        xml: "<div xmlns:i='signup'>\
                 <i:Navbar id='navbar' title='视图注册'/>\
                 <i:Content id='content'/>\
               </div>"
     },
     Update: {
-        xml: "<div id='update' xmlns:i='signup'>\
+        xml: "<div xmlns:i='signup'>\
                 <i:Navbar id='navbar' title='视图修改'/>\
                 <Content id='content' xmlns='update'/>\
               </div>"
@@ -69,48 +69,47 @@ $_("overview").imports({
     },
     Content: {
         xml: "<i:Content id='content' xmlns:i='//xp' xmlns:k='//xp/list'>\
-		        <k:List id='list'>\
-				  <ListItem id='item'/>\
-				</k:List>\
+                <k:List id='list'>\
+                  <ListItem id='item'/>\
+                </k:List>\
               </i:Content>",
         fun: function (sys, items, opts) {
-			let proxy = sys.item.bind([]);
-			sys.list.on("remove", (e, p) => {
-				e.stopPropagation();
+            let proxy = sys.item.bind([]);
+            sys.list.on("remove", (e, p) => {
+                e.stopPropagation();
                 if (confirm("确定删除该视图吗？")) {
                     this.trigger("publish", ["/views/remove", {id: p.id}]);
                     this.glance("/views/remove", (ev, p) => {
                         this.trigger("message", ["msg", p.desc]);
-						if (p.code == 0) {
-							let i = sys.list.kids().indexOf(e.target);
-							delete proxy.model[i];
-						}
+                        if (p.code == 0) {
+                            let i = sys.list.kids().indexOf(e.target);
+                            delete proxy.model[i];
+                        }
                     });
                 }
-			});
-			this.watch("/views/select", (e, data) => proxy.model = data);
+            });
+            this.watch("/views/select", (e, data) => proxy.model = data);
         }
     },
     ListItem: {
-		css: "#footer { color: #8e8e93; font-size: 12px; font-weight: 400; line-height: 1.2; white-space: normal; }",
-		xml: "<i:Swipeout id='item' xmlns:i='//xp/swipeout' xmlns:k='//xp/list'>\
-		         <k:Content>\
-				    <k:Media><Icon/></k:Media>\
-				    <k:Inner id='inner' media='true'>\
-					  <k:Title id='title'>\
-					    <div id='label'/>\
-					    <div id='footer'/>\
-					  </k:Title>\
-					</k:Inner>\
-				 </k:Content>\
-				 <i:Actions>\
-				   <i:Button id='edit'>编辑</i:Button>\
-				   <i:Button id='remove' color='red'>删除</i:Button>\
-				 </i:Actions>\
-		      </i:Swipeout>",
-		map: { bind: { name: "label", id: "footer" } },
+        xml: "<i:Swipeout id='item' xmlns:i='//xp/swipeout'>\
+                 <Content xmlns='//xp/list'>\
+                    <Media><Icon xmlns='.'/></Media>\
+                    <Inner id='inner'>\
+                      <Title id='title'>\
+                        <div id='label'/>\
+                        <Footer id='id'/>\
+                      </Title>\
+                    </Inner>\
+                 </Content>\
+                 <i:Actions>\
+                   <i:Button id='edit'>编辑</i:Button>\
+                   <i:Button id='remove' color='red'>删除</i:Button>\
+                 </i:Actions>\
+              </i:Swipeout>",
+        map: { bind: { name: "label" } },
         fun: function (sys, items, opts) {
-			this.on("$/before/bind", (e, value) => opts = value);
+            this.on("$/before/bind", (e, value) => opts = value);
             sys.edit.on(Click, () => this.trigger("goto", ["update", opts]));
             sys.remove.on(Click, () => this.trigger("remove", opts));
         }
@@ -154,19 +153,19 @@ $_("signup").imports({
                 this.glance("/views/signup", callback);
             });
             function callback(e, p) {
-				sys.content.trigger("/mask/hide");
+                sys.content.trigger("/mask/hide");
                 sys.content.trigger("message", ["msg", p.desc]);
-				if (p.code == 0) {
-					sys.content.trigger("back");
-					sys.content.trigger("publish", "/views/select");
-				}
+                if (p.code == 0) {
+                    sys.content.trigger("back");
+                    sys.content.trigger("publish", "/views/select");
+                }
             }
             this.watch("#/view/ready", (e, prev) => {
                 items.view.value = ""
-				items.view.focus();
+                items.view.focus();
                 items.desc.value = "";
             });
-			sys.submit.on(Click, () => sys.signup.notify("next", {}));
+            sys.submit.on(Click, () => sys.signup.notify("next", {}));
         }
     }
 });
@@ -176,12 +175,12 @@ $_("signup/form").imports({
         xml: "<List id='form' xmlns='//xp/list'/>",
         map: { appendTo: "form", msgFilter: /next/ },
         fun: function (sys, items, opts) {
-			this.on("error", (e, el, msg) => {
-				e.stopPropagation();
-				el.stopNotification();
-				el.currentTarget.val().focus();
-				this.trigger("message", ["error", msg]);
-			});
+            this.on("error", (e, el, msg) => {
+                e.stopPropagation();
+                el.stopNotification();
+                el.currentTarget.val().focus();
+                this.trigger("message", ["error", msg]);
+            });
         }
     },
     View: {
@@ -206,24 +205,22 @@ $_("signup/form").imports({
         }
     },
     Input: {
-		css: "#inner { flex-direction: column; align-items: flex-start; }\
-		      #text { margin-bottom: -8px; }",
-        xml: "<i:ListItem id='input' xmlns:i='//xp/list' xmlns:k='//xp/form'>\
-		        <i:Content>\
-                 <i:Inner id='inner'>\
-                    <k:Label id='label'/>\
-                    <k:Input id='text'/>\
-                 </i:Inner>\
-				</i:Content>\
-              </i:ListItem>",
-        map: { attrs: { text: "maxlength placeholder readonly style" } },
+        xml: "<ListItem xmlns='//xp/list'>\
+                <Content>\
+                 <Inner id='inner' xmlns='//xp/form'>\
+                    <Label id='label'/>\
+                    <Input id='input'/>\
+                 </Inner>\
+                </Content>\
+              </ListItem>",
+        map: { attrs: { input: "maxlength placeholder readonly style" } },
         fun: function (sys, items, opts) { 
             sys.label.text(opts.label);
-            return items.text.elem();
+            return items.input.elem();
         }
     },
     Button: {
-		css: "#button { margin: 35px 0; }",
+        css: "#button { margin: 35px 0; }",
         xml: "<Button id='button' xmlns='//xp/form'/>"
     }
 });
@@ -246,24 +243,24 @@ $_("update").imports({
                 this.glance("/views/update", callback);
             });
             function callback(e, p) {
-				sys.content.trigger("/mask/hide");
+                sys.content.trigger("/mask/hide");
                 sys.content.trigger("message", ["msg", p.desc]);
-				if (p.code == 0) {
+                if (p.code == 0) {
                     sys.content.trigger("back");
                     sys.content.trigger("publish", "/views/select");
-				}
+                }
             }
-			this.watch("#/view/ready", (e, prev, data) => {
-				items.oldId.value = data.id;
-				items.newId.value = data.id;
+            this.watch("#/view/ready", (e, prev, data) => {
+                items.oldId.value = data.id;
+                items.newId.value = data.id;
                 items.view.value = data.name;
                 items.desc.value = data.desc;
-			});
-			sys.submit.on(Click, () => sys.update.notify("next", {}));
+            });
+            sys.submit.on(Click, () => sys.update.notify("next", {}));
         }
     },
     OldID: {
-		css: "#id { display: none; }",
+        css: "#id { display: none; }",
         xml: "<Input id='id' label='标识符' maxlength='36' style='font-size: 14px;' xmlns='../signup/form'/>",
         fun: function (sys, items, opts) {
             this.watch("next", (e, o) => o.id = items.id.value);
@@ -274,10 +271,10 @@ $_("update").imports({
         xml: "<Input id='id' label='标识符' maxlength='36' style='font-size: 14px' xmlns='../signup/form'/>",
         fun: function (sys, items, opts) {
             this.watch("next", (e, o) => {
-				o.new_id = items.id.value;
-				if (o.new_id.length != 36)
-					this.trigger("error", [e, "标识符长度必需等于36位"]);
-			});
+                o.new_id = items.id.value;
+                if (o.new_id.length != 36)
+                    this.trigger("error", [e, "标识符长度必需等于36位"]);
+            });
             return items.id;
         }
     }

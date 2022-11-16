@@ -1,5 +1,5 @@
 /*!
- * miot.js v1.1.19
+ * miot.js v1.2.02
  * https://github.com/qudou/miot
  * (c) 2017-2022 qudou
  * Released under the MIT license
@@ -21,17 +21,17 @@ $_().imports({
               </main>",
         cfg: { logger: config.logger },
         map: { share: "Logger Crypto Sqlite Common mosca/Middle" },
-		fun: function (sys, items, opts) {
-			sys.mosca.on("to-user", function (e) {
-				sys.proxy.notify(e.type, [].slice.call(arguments).slice(1));
-			});
-			sys.mosca.on("to-users", function (e) {
-				sys.proxy.notify(e.type, [].slice.call(arguments).slice(1));
-			});
-			sys.proxy.on("to-local", function (e) {
-				sys.mosca.notify(e.type, [].slice.call(arguments).slice(1));
-			});
-		}
+        fun: function (sys, items, opts) {
+            sys.mosca.on("to-user", function (e) {
+                sys.proxy.notify(e.type, [].slice.call(arguments).slice(1));
+            });
+            sys.mosca.on("to-users", function (e) {
+                sys.proxy.notify(e.type, [].slice.call(arguments).slice(1));
+            });
+            sys.proxy.on("to-local", function (e) {
+                sys.mosca.notify(e.type, [].slice.call(arguments).slice(1));
+            });
+        }
     },
     Mosca: { // 连接内网网关
         xml: "<main id='mosca' xmlns:i='mosca'>\
@@ -218,8 +218,8 @@ $_("mosca").imports({
     },
     Middle: {
         xml: "<main id='middle'>\
-		        <Common id='common' xmlns='/'/>\
-			  </main>",
+                <Common id='common' xmlns='/'/>\
+              </main>",
         fun: async function (sys, items, opts) {
             let table = {};
             let viewId = "c258080a-d635-4e1b-a61f-48ff552c146a";

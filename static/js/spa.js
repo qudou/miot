@@ -17,62 +17,62 @@ $_().imports({
               input { user-select: text; } \
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
               #index { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
-			  #stack, #mask { width: 100%; height: 100%; }\
+              #stack, #mask { width: 100%; height: 100%; }\
               #stack > * { transition-duration: 0s; }",
         xml: "<div id='index' xmlns:i='//xp'>\
-				  <i:ViewStack id='stack'>\
-					<Applet id='applet'/>\
-					<Login id='login'/>\
-				  </i:ViewStack>\
-				  <Preload id='mask' xmlns='//xp/preload'/>\
-				  <i:Toast id='toast'/>\
-			  </div>",
+                  <i:ViewStack id='stack'>\
+                    <Applet id='applet'/>\
+                    <Login id='login'/>\
+                  </i:ViewStack>\
+                  <Preload id='mask' xmlns='//xp/preload'/>\
+                  <i:Toast id='toast'/>\
+              </div>",
         fun: function(sys, items, opts) {
             let client;
-			let query = xp.create("//miot/Query");
-			this.on("connect", function (e, cfg) {
-				items.mask.show();
+            let query = xp.create("//miot/Query");
+            this.on("connect", function (e, cfg) {
+                items.mask.show();
                 client = mqtt.connect(Server, cfg);
                 client.on("connect", function (e) {
                     client.subscribe(client.options.clientId, err => {
                         if (err) throw err;
-						let p = {topic: "/ui/spa", body: {id: query.app}};
+                        let p = {topic: "/ui/spa", body: {id: query.app}};
                         sys.applet.trigger("publish", [p, uid])
-						items.mask.hide();
+                        items.mask.hide();
                     });
-					sys.applet.notify("/stat/ui/1").trigger("goto", "applet");
+                    sys.applet.notify("/stat/ui/1").trigger("goto", "applet");
                     console.log("connected to " + Server);
                 });
                 client.on("message", (topic, p) => {
-					p = JSON.parse(p.toString());
-					sys.applet.notify(p.topic, [p.data]);
+                    p = JSON.parse(p.toString());
+                    sys.applet.notify(p.topic, [p.data]);
                 });
                 client.on("error", (e) => {
-					items.mask.hide();
+                    items.mask.hide();
                     sys.index.trigger("message", ["error", e.message]);
                     if (e.message == "Connection refused: Bad username or password")
-						 sys.applet.trigger("/ui/logout");
+                         sys.applet.trigger("/ui/logout");
                 });
                 client.on("close", () => sys.applet.notify("/stat/ui/0"));
-			});
+            });
             sys.applet.on("publish", (e, p = {}, topic = uid) => {
                 client.publish(topic, JSON.stringify(p));
             });
-			sys.applet.on("/ui/logout", (e) => {
-				client.end();
+            sys.applet.on("/ui/logout", (e) => {
+                client.end();
                 localStorage.clear();
                 sys.stack.trigger("goto", "login");
-			});
-			let sid = query.sid || localStorage.getItem("session");
-			setTimeout(() => {
-				sid ? this.trigger("connect", {username: sid}) : sys.stack.trigger("goto", "login");
-			}, 0);
-			this.on("message", (e, t, msg) => items.toast.open(msg));
+            });
+            let sid = query.sid || localStorage.getItem("session");
+            setTimeout(() => {
+                sid ? this.trigger("connect", {username: sid}) : sys.stack.trigger("goto", "login");
+            }, 0);
+            this.on("message", (e, t, msg) => items.toast.open(msg));
         }
     },
     Login: {
         css: "#logo { margin: 60px auto 25px; display: block; width: 50%; height: auto; background: white; }\
-		      #button { margin: 35px 0; }",
+              #button { margin: 35px 0; }",
         xml: "<Content xmlns='//xp' xmlns:i='login'>\
                 <i:Logo id='logo'/>\
                 <i:Form id='login'>\
@@ -87,10 +87,10 @@ $_().imports({
             }
             sys.user.on("keypress", keypress);
             sys.pass.on("keypress", keypress);
-			sys.pass.watch("next", (e, o) => {
+            sys.pass.watch("next", (e, o) => {
                 this.trigger("connect", {username: o.name, password: o.pass});
             });
-			this.watch("#/view/ready", () => items.user.focus());
+            this.watch("#/view/ready", () => items.user.focus());
             sys.submit.on(Click, () => sys.login.notify("next", {}));
         }
     },
@@ -103,20 +103,20 @@ $_().imports({
               </div>",
         fun: function (sys, items, opts) {
             this.on("publish", (e, topic, body) => {
-				if (e.target == this) return;
-			    e.stopPropagation();
-			    this.trigger("publish", [{topic: topic, body: body}, opts.mid]);
+                if (e.target == this) return;
+                e.stopPropagation();
+                this.trigger("publish", [{topic: topic, body: body}, opts.mid]);
             });
             this.watch("/ui/app", (e, p) => {
                 let app = sys.mask.prev();
-				if (app && opts.mid == p.mid)
-					view.elem().nodeName == "IFRAME" ? view.notify("message", app) : view.notify(app.topic, [app.data]);
+                if (app && opts.mid == p.mid)
+                    view.elem().nodeName == "IFRAME" ? view.notify("message", app) : view.notify(app.topic, [app.data]);
             });
             function load(app) {
                 let applet = `//${app.view}/Index`;
                 let c = xp.hasComponent(applet);
                 if (!c) return setTimeout(i=>load(app), 10);
-				c.map.msgFilter = /[^]*/;
+                c.map.msgFilter = /[^]*/;
                 sys.mask.before(applet, app);
                 items.mask.hide();
                 sys.mask.prev().notify(`//${opts.view}`);
@@ -128,13 +128,13 @@ $_().imports({
                 page.notify(`//${opts.view}`);          
             }
             this.watch("/ui/spa", (e, app) => {
-				if (app == null)
+                if (app == null)
                     return items.info.show("应用不存在或未授权！");
                 opts = app;
-				let page = sys.mask.prev();
+                let page = sys.mask.prev();
                 if (page) return loaded(page);
                 items.mask.show();
-				let dir = app.type ? "usr" : "sys";
+                let dir = app.type ? "usr" : "sys";
                 require([`/views/${dir}/${app.view}/index.js`], () => load(app), () => {
                     items.mask.hide();
                     this.trigger("message", ["error", "应用打开失败，请稍后再试！"]);
@@ -160,12 +160,12 @@ $_().imports({
             });
             this.on("close", (e) => {
                 e.stopPropagation();
-				if (confirm("确定退出系统吗？")) {
-					items.info.hide();
-					sys.mask.trigger("/ui/logout").prev().remove();
+                if (confirm("确定退出系统吗？")) {
+                    items.info.hide();
+                    sys.mask.trigger("/ui/logout").prev().remove();
                 }
             });
-			this.watch("/ui/session", (e, p) => {
+            this.watch("/ui/session", (e, p) => {
                 localStorage.setItem("session", p.session);
                 localStorage.setItem("username", p.username);
             });
@@ -186,7 +186,7 @@ $_().imports({
         fun: function (sys, items, opts) {
             sys.close.on(Click, () => this.trigger("close")); 
             function show(label) {
-				sys.label.text(label);
+                sys.label.text(label);
                 sys.preload.addClass("#visible");
             }
             function hide() {
@@ -214,12 +214,12 @@ $_("login").imports({
         xml: "<List id='form' xmlns='//xp/list'/>",
         map: { msgFilter: /next/ },
         fun: function (sys, items, opts) {
-			this.on("error", (e, el, msg) => {
-				e.stopPropagation();
-				el.stopImmediateNotification();
-				el.currentTarget.val().focus();
-				this.trigger("message", ["error", msg]);
-			});
+            this.on("error", (e, el, msg) => {
+                e.stopPropagation();
+                el.stopImmediateNotification();
+                el.currentTarget.val().focus();
+                this.trigger("message", ["error", msg]);
+            });
         }
     },
     Logo: {
@@ -262,15 +262,15 @@ $_("login").imports({
     },
     Input: {
         css: ".ios .list .item-inner:after {width: calc(100% - 15px);}",
-		xml: "<i:ListItem id='input' xmlns:i='//xp/list'>\
-		        <i:Content>\
-				   <i:Media><i id='icon'/></i:Media>\
-				   <i:Inner id='inner' media='true'>\
-				      <i:Title id='label'/>\
-					  <Input id='input' xmlns='//xp/form'/>\
-				   </i:Inner>\
-				</i:Content>\
-		      </i:ListItem>",
+        xml: "<i:ListItem id='input' xmlns:i='//xp/list'>\
+                <i:Content>\
+                   <i:Media><i id='icon'/></i:Media>\
+                   <i:Inner id='inner' media='true'>\
+                      <i:Title id='label'/>\
+                      <Input id='input' xmlns='//xp/form'/>\
+                   </i:Inner>\
+                </i:Content>\
+              </i:ListItem>",
         map: { attrs: { input: "name value type maxlength placeholder" } },
         fun: function (sys, items, opts) {
             sys.icon.replace(`//xp/assets/${opts.icon}`);
