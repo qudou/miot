@@ -372,8 +372,7 @@ $_("proxy").imports({
         xml: "<Sqlite id='sqlite' xmlns='/'/>",
         fun: function (sys, items, opts) {
             // check sessions once an hour
-            let schedule = require("node-schedule"); // setInterval ?
-            schedule.scheduleJob(`0 1 * * *`, e => {
+            setInterval(() => {
                 let stmt = `SELECT * FROM users`;
                 items.sqlite.all(stmt, (err, users) => {
                     if (err) throw err;
@@ -382,7 +381,7 @@ $_("proxy").imports({
                             replace(user.id, Math.random().toString(16).substr(2, 8));
                     });
                 });
-            });
+            }, 3600 * 1000);
             function replace(user_id, session) {
                 let stmt = items.sqlite.prepare("UPDATE users SET session=? WHERE id=?");
                 stmt.run(session, user_id, err => {

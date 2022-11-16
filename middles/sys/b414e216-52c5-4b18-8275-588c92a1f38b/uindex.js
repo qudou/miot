@@ -24,13 +24,13 @@ $_().imports({
         xml: "<Sqlite id='sqlite' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.watch("/apps/areas", async (e, p) => {
-				p.data = await areas();
-				for (let item of p.data)
-					item.links = await links(item.id);
-				this.trigger("to-users", p);
+                p.data = await areas();
+                for (let item of p.data)
+                    item.links = await links(item.id);
+                this.trigger("to-users", p);
             });
             function areas() {
-				let stmt = "SELECT * FROM areas WHERE id <> 0";
+                let stmt = "SELECT * FROM areas WHERE id <> 0";
                 return new Promise((resolve, reject) => {
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
@@ -39,7 +39,7 @@ $_().imports({
                 });
             }
             function links(areaId) {
-				let stmt = `SELECT * FROM links WHERE area = ${areaId}`;
+                let stmt = `SELECT * FROM links WHERE area = ${areaId}`;
                 return new Promise((resolve, reject) => {
                     items.sqlite.all(stmt, (err, data) => {
                         if (err) throw err;
