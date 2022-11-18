@@ -283,7 +283,7 @@ $_("signup").imports({
 $_("signup/form").imports({
     Form: {
         xml: "<List id='form' xmlns='//xp/list'/>",
-        map: { appendTo: "form", msgFilter: /next/ },
+        map: { msgFilter: /next/ },
         fun: function (sys, items, opts) {
             this.on("error", (e, el, msg) => {
                 e.stopPropagation();
