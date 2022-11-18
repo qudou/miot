@@ -353,7 +353,10 @@ $_("form").imports({
         xml: "<a id='button' href='#'/>",
         fun: function (sys, items, opts) {
             this.on("touchstart", () => sys.button.addClass("#active"));
-            this.on("touchend", () => sys.button.removeClass("#active"));
+            this.on("touchend", (e) => {
+				e.preventDefault();
+				sys.button.removeClass("#active");
+			});
         }
     }
 });
@@ -628,6 +631,7 @@ $_("swipeout").imports({
         xml: "<li id='swipeout'/>",
         fun: function (sys, items, opts) {
             let touchesStart = {};
+			let isTouched;
             let isMoved;
             let isScrolling;
             let touchStartTime;
@@ -635,26 +639,35 @@ $_("swipeout").imports({
             let content = this.first();
             let actions = this.last();
             let translate;
-            content.on("touchstart", (e) => {
+			let [touchstart,touchmove,touchend] = ['mousedown','mousemove','mouseup'];
+			if ('ontouchend' in document.documentElement)
+				[touchstart,touchmove,touchend] = ['touchstart','touchmove','touchend'];
+            content.on(touchstart, (e) => {
                 isMoved = false;
+				isTouched = true;
                 isScrolling = false;
                 touchesStart.x = e.type === 'touchstart' ? e.targetTouches[0].pageX : e.pageX;
                 touchesStart.y = e.type === 'touchstart' ? e.targetTouches[0].pageY : e.pageY;
                 touchStartTime = new Date().getTime();
             });
-            content.on("touchmove", (e) => {
-                if (isScrolling) return;
+            content.on(touchmove, (e) => {
+				if (!isTouched) return;
                 let pageX = e.type === 'touchmove' ? e.targetTouches[0].pageX : e.pageX;
                 let pageY = e.type === 'touchmove' ? e.targetTouches[0].pageY : e.pageY;
                 if (!isMoved) {
                     isScrolling = isScrolling || Math.abs(pageY - touchesStart.y) > Math.abs(pageX - touchesStart.x);
-                    if (isScrolling) return;
+                    if (isScrolling) {
+						isTouched = false;
+						return;
+					}
                 }
                 touchesDiff = pageX - touchesStart.x;
                 translate = touchesDiff;
                 let opened = sys.swipeout.hasClass('#opened');
-                if (translate > 0 && !opened)
+                if (translate > 0 && !opened) {
+					isTouched = false;
                     return isMoved = false;
+				}
                 isMoved = true;
                 let actionsWidth = actions.outerWidth();
                 if (opened)
@@ -671,8 +684,8 @@ $_("swipeout").imports({
                 });
                 content.css("transform",  `translate3d(${translate}px,0,0)`);
             });
-            content.on("touchend", (e) => {
-                if (isScrolling || !isMoved) return;
+            content.on(touchend, (e) => {
+                if (!isTouched || !isMoved) return;
                 let actionsWidth = actions.outerWidth();
                 let timeDiff = new Date().getTime() - touchStartTime;
                 let action = (timeDiff < 300 && touchesDiff < -10) || (timeDiff >= 300 && Math.abs(translate) > actionsWidth / 2) ? "open" : "close";
@@ -690,6 +703,8 @@ $_("swipeout").imports({
                     content.css("transform", "");
                     buttons.forEach(item => item.css("transform", "translate3d(0,0,0)"));
                 }
+				isTouched = false;
+				isMoved = false;
             });
             content.watch("#/app/click", (e, el) => {
                 let opened = sys.swipeout.hasClass("#opened");

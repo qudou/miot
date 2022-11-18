@@ -461,7 +461,7 @@ $_("update").imports({
                 items.view.value = data.view;
                 items.type.value = data.type;
             });
-            sys.submit.on(Click, () => sys.update.notify("next", {}));
+            sys.submit.on(Click, (e) => sys.update.notify("next", {}));
         }
     },
     GUID: {
