@@ -425,7 +425,7 @@ $_("content/index").imports({
         }
     },
     Title: {
-        css: "#title { letter-spacing: 0.1em; margin: 16px 4px 12px; font-weight: bold; color: white; }",
+        css: "#title { letter-spacing: 0.1em; margin: 16px 4px 12px; font-weight: bold; color: white; text-align: center; }",
         xml: "<h3 id='title'/>",
         fun: function (sys, items, opts) {
             let links = [];

@@ -445,7 +445,11 @@ $_("list").imports({
     Footer: {
         css: "#text { color: #8e8e93; }",
         map: { extend: { from: "Header" } }
-    }
+    },
+	After: {
+		css: "#after { padding-left: 5px; white-space: nowrap; flex-shrink: 0; display: flex; font-size: inherit; font-weight: 400; color: rgba(0, 0, 0, 0.45); line-height: inherit; margin-left: auto; }",
+		xml: "<div id='after'/>"
+	}
 });
 
 $_("picker").imports({
