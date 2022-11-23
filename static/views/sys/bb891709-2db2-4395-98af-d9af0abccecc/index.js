@@ -10,25 +10,13 @@ xmlplus("bb891709-2db2-4395-98af-d9af0abccecc", (xp, $_) => { // 系统状态
 $_().imports({
     Index: {
         xml: "<i:Applet xmlns:i='//xp'>\
-                <Navbar id='navbar'/>\
+                <i:Navbar id='navbar' title='系统状态' menu='刷新'/>\
                 <Content id='content'/>\
-              </i:Applet>"
-    },
-    Navbar: {
-        xml: "<div id='navbar' xmlns:i='//xp/assets'>\
-                 <div id='left'>\
-                    <a id='icon'><i:Close/></a>\
-                 </div>\
-                 <div id='title'>系统状态</div>\
-                 <div id='right'>\
-                    <a id='menu' href='#'>刷新</a>\
-                 </div>\
-              </div>",
-        map: { extend: { "from": "//xp/Navbar" } },
+              </i:Applet>",
         fun: function (sys, items, opts) { 
-            sys.icon.on(Click, e => this.trigger("close"));
-            sys.menu.on(Click, ()=> this.trigger("publish", "/status"));
-            sys.menu.trigger(Click); 
+            sys.navbar.on("iconClick", e => this.trigger("close"));
+            sys.navbar.on("menuClick", ()=> this.trigger("publish", "/status"));
+            sys.navbar.trigger("menuClick"); 
         }
     },
     Content: {

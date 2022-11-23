@@ -31,30 +31,41 @@ $_().imports({
         }
     },
     Overview: {
-        xml: "<div xmlns:i='overview'>\
-                <i:Navbar id='navbar'/>\
-                <i:Content id='content'/>\
-              </div>"
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' title='网关管理' menu='注册'/>\
+                <Content xmlns='overview'/>\
+              </div>",
+        fun: function (sys, items, opts) { 
+            sys.navbar.on("iconClick", e => this.trigger("close"));
+            sys.navbar.on("menuClick", e => this.trigger("goto", "signup"));
+        }
     },
     Signup: {
-        xml: "<div xmlns:i='signup'>\
-                <i:Navbar id='navbar' title='网关注册'/>\
-                <i:Content id='content'/>\
-              </div>"
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' icon='Backward' title='网关注册'/>\
+                <Content xmlns='signup'/>\
+              </div>",
+        fun: function (sys, items, opts) { 
+            this.on("iconClick", e => this.trigger("back"));
+        }
     },
     Update: {
-        xml: "<div xmlns:i='signup'>\
-                <i:Navbar id='navbar' title='网关修改'/>\
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' icon='Backward' title='网关修改'/>\
                 <Content id='content' xmlns='update'/>\
-              </div>"
+              </div>",
+        fun: function (sys, items, opts) { 
+            sys.navbar.on("iconClick", e => this.trigger("back"));
+        }
     },
     Guide: {
-        xml: "<div xmlns:i='guide'>\
-                <i:Navbar id='navbar'/>\
-                <i:Content id='content'/>\
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' title='网关管理'/>\
+                <Content id='content' xmlns='guide'/>\
               </div>",
         fun: function (sys, items, opts) {
-             this.watch("#/view/ready", (e, prev, data) => {
+			sys.navbar.on("iconClick", e => this.trigger("close"));
+            this.watch("#/view/ready", (e, prev, data) => {
                 items.content.text(`${data}不存在,请先添加${data}`);
             });
             this.watch("/links/select", (e, data) => {
@@ -66,22 +77,6 @@ $_().imports({
 });
 
 $_("overview").imports({
-    Navbar: {
-        xml: "<div id='navbar'>\
-                 <div id='left'>\
-                    <a id='icon'><Close xmlns='//xp/assets'/></a>\
-                 </div>\
-                 <div id='title'>网关管理</div>\
-                 <div id='right'>\
-                    <a id='menu'>注册</a>\
-                 </div>\
-              </div>",
-        map: { extend: { "from": "//xp/Navbar" } },
-        fun: function (sys, items, opts) { 
-            sys.icon.on(Click, e => this.trigger("close"));
-            sys.menu.on(Click, () => this.trigger("goto", "signup"));
-        }
-    },
     Content: {
         xml: "<i:Content id='content' xmlns:i='//xp'>\
                   <ListItem id='item'/>\
@@ -147,20 +142,6 @@ $_("overview").imports({
 });
 
 $_("signup").imports({
-    Navbar: {
-        xml: "<div id='navbar'>\
-                 <div id='left'>\
-                    <a id='icon'><Backward xmlns='//xp/assets'/></a>\
-                 </div>\
-                 <div id='title'/>\
-                 <div id='right'/>\
-              </div>",
-        map: { extend: { "from": "//xp/Navbar" } },
-        fun: function (sys, items, opts) { 
-            sys.title.text(opts.title);
-            sys.icon.on(Click, e => this.trigger("back"));
-        }
-    },
     Content: {
         xml: "<Content id='content' xmlns='//xp' xmlns:i='form'>\
                   <i:Form id='signup'>\
@@ -322,19 +303,6 @@ $_("update").imports({
 });
 
 $_("guide").imports({
-    Navbar: {
-        xml: "<div id='navbar'>\
-                 <div id='left'>\
-                    <a id='icon'><Close xmlns='//xp/assets'/></a>\
-                 </div>\
-                 <div id='title'>网关管理</div>\
-                 <div id='right'/>\
-              </div>",
-        map: { extend: { "from": "//xp/Navbar" } },
-        fun: function (sys, items, opts) { 
-            sys.icon.on(Click, e => this.trigger("close"));
-        }
-    },
     Content: {
         css: "#content { text-align: center; margin: 5em 0; }",
         xml: "<Content id='content' xmlns='//xp'/>",

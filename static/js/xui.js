@@ -49,7 +49,15 @@ $_().imports({
                  <div id='right'>\
                     <a id='menu'/>\
                  </div>\
-              </div>"
+              </div>",
+		fun: function (sys, items, opts) {
+			sys.icon.append(`//xp/assets/${opts.icon || 'Close'}`);
+			sys.title.text(opts.title);
+			opts.menu && sys.menu.text(opts.menu);
+			sys.icon.on(Click, () => this.trigger("iconClick"));
+			sys.menu.on(Click, () => this.trigger("menuClick"));
+			return { title: sys.title.text };
+		}
     },
     Content: {
         css: "#page { background: #efeff4; box-sizing: border-box; position: absolute; left: 0; top: 0; width: 100%; height: 100%; contain: layout size style; }\

@@ -88,7 +88,7 @@ $_("signup").imports({
         }
     },
     Signup: {
-       xml: "<Sqlite id='signup' xmlns='//miot'/>",
+        xml: "<Sqlite id='signup' xmlns='//miot'/>",
         fun: function (sys, items, opts) {
             this.on("next", (e, p) => {
                 e.stopPropagation();

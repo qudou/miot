@@ -32,35 +32,55 @@ $_().imports({
         }
     },
     Overview: {
-        xml: "<div xmlns:i='overview'>\
-                <i:Navbar id='navbar'/>\
-                <i:Content id='content'/>\
-              </div>"
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' title='应用管理'/>\
+                <Content xmlns='overview'/>\
+              </div>",
+        fun: function (sys, items, opts) { 
+            sys.navbar.on("iconClick", e => this.trigger("close"));
+        }
     },
     AppList: {
-        xml: "<div xmlns:i='applist'>\
-                <i:Navbar id='navbar'/>\
-                <i:Content id='content'/>\
-              </div>"
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' icon='Backward' menu='注册'/>\
+                <Content xmlns='applist'/>\
+              </div>",
+        fun: function (sys, items, opts) { 
+            sys.navbar.on("iconClick", e => this.trigger("back"));
+            sys.navbar.on("menuClick", e => this.trigger("goto", ["signup", opts]));
+            this.watch("#/view/ready", (e, prev, data) => {
+                if (xp.isPlainObject(data)) {
+                    opts = data;
+                    items.navbar.title(`${data.area.name}/${data.link.name}`);
+                }
+            });
+        }
     },
     Signup: {
-        xml: "<div xmlns:i='signup'>\
-                <i:Navbar id='navbar' title='应用注册'/>\
-                <i:Content id='content'/>\
-              </div>"
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' icon='Backward' title='应用注册'/>\
+                <Content xmlns='signup'/>\
+              </div>",
+        fun: function (sys, items, opts) { 
+            sys.navbar.on("iconClick", e => this.trigger("back"));
+        }
     },
     Update: {
-        xml: "<div xmlns:i='signup'>\
-                <i:Navbar id='navbar' title='应用修改'/>\
-                <Content id='content' xmlns='update'/>\
-              </div>"
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' icon='Backward' title='应用修改'/>\
+                <Content xmlns='update'/>\
+              </div>",
+        fun: function (sys, items, opts) { 
+            sys.navbar.on("iconClick", e => this.trigger("back"));
+        }
     },
     Guide: {
-        xml: "<div xmlns:i='guide'>\
-                <i:Navbar id='navbar'/>\
-                <i:Content id='content'/>\
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' title='应用管理'/>\
+                <Content id='content' xmlns='guide'/>\
               </div>",
         fun: function (sys, items, opts) {
+            sys.navbar.on("iconClick", e => this.trigger("close"));
             this.watch("#/view/ready", (e, prev, data) => {
                 items.content.text(`${data}不存在,请先添加${data}`);
             });
@@ -76,19 +96,6 @@ $_().imports({
 });
 
 $_("overview").imports({
-    Navbar: {
-        xml: "<div id='navbar'>\
-                 <div id='left'>\
-                    <a id='icon'><Close xmlns='//xp/assets'/></a>\
-                 </div>\
-                 <div id='title'>应用管理</div>\
-                 <div id='right'/>\
-              </div>",
-        map: { extend: { from: "//xp/Navbar" } },
-        fun: function (sys, items, opts) { 
-            sys.icon.on(Click, e => this.trigger("close"));
-        }
-    },
     Content: {
         xml: "<i:Content id='content' xmlns:i='//xp'>\
                   <ListItem id='item'/>\
@@ -141,28 +148,6 @@ $_("overview").imports({
 });
 
 $_("applist").imports({
-    Navbar: {
-        xml: "<div id='navbar'>\
-                 <div id='left'>\
-                    <a id='icon'><Backward xmlns='//xp/assets'/></a>\
-                 </div>\
-                 <div id='title'/>\
-                 <div id='right'>\
-                     <a id='menu' href='#'>注册</a>\
-                 </div>\
-              </div>",
-        map: { extend: { from: "//xp/Navbar" } },
-        fun: function (sys, items, opts) { 
-            sys.icon.on(Click, e => this.trigger("back"));
-            sys.menu.on(Click, e => this.trigger("goto", ["signup", opts]));
-            this.watch("#/view/ready", (e, prev, data) => {
-                if (xp.isPlainObject(data)) {
-                    opts = data;
-                    sys.title.text(`${data.area.name}/${data.link.name}`);
-                }
-            });
-        }
-    },
     Content: {
         xml: "<i:Content id='content' xmlns:i='//xp' xmlns:k='//xp/list'>\
                 <k:List id='list'>\
@@ -225,20 +210,6 @@ $_("applist").imports({
 });
 
 $_("signup").imports({
-    Navbar: {
-        xml: "<div id='navbar'>\
-                 <div id='left'>\
-                    <a id='icon'><Backward xmlns='//xp/assets'/></a>\
-                 </div>\
-                 <div id='title'/>\
-                 <div id='right'/>\
-              </div>",
-        map: { extend: { "from": "//xp/Navbar" } },
-        fun: function (sys, items, opts) { 
-            sys.title.text(opts.title);
-            sys.icon.on(Click, e => this.trigger("back"));
-        }
-    },
     Content: {
         xml: "<Content id='content' xmlns='//xp' xmlns:i='form'>\
                  <i:Form id='signup'>\
@@ -474,9 +445,6 @@ $_("update").imports({
 });
 
 $_("guide").imports({
-    Navbar: {
-        map: { extend: {from: "../overview/Navbar"} }
-    },
     Content: {
         css: "#content { text-align: center; margin: 5em 0; }",
         xml: "<Content id='content' xmlns='//xp'/>",

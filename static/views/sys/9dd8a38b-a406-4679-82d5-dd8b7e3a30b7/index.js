@@ -16,23 +16,33 @@ $_().imports({
               </i:ViewStack>"
     },
     Overview: {
-        xml: "<div xmlns:i='overview'>\
-                <i:Navbar id='navbar'/>\
-                <i:Content id='content'/>\
-              </div>"
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' title='授权管理'/>\
+                <Content id='content' xmlns='overview'/>\
+              </div>",
+        fun: function (sys, items, opts) { 
+            sys.navbar.on("iconClick", e => this.trigger("close"));
+        }
     },
     AppList: {
-        xml: "<div xmlns:i='applist'>\
-                <i:Navbar id='navbar'/>\
-                <i:Content id='content'/>\
-              </div>"
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' icon='Backward'/>\
+                <Content id='content' xmlns='applist'/>\
+              </div>",
+        fun: function (sys, items, opts) { 
+            sys.navbar.on("iconClick", e => this.trigger("back"));
+            this.watch("#/view/ready", (e, prev, data) => {
+                items.navbar.title(`${data.area.name}/${data.link.name}`);
+            });
+        }
     },
     Guide: {
-        xml: "<div xmlns:i='guide'>\
-                <i:Navbar id='navbar'/>\
-                <i:Content id='content'/>\
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' title='授权管理'/>\
+                <Content id='content' xmlns='guide'/>\
               </div>",
         fun: function (sys, items, opts) {
+			sys.navbar.on("iconClick", e => this.trigger("close"));
             this.on("show", (e, to, p) => {
                 items.content(`${p}不存在,请先添加${p}`);
             });
@@ -48,19 +58,6 @@ $_().imports({
 });
 
 $_("overview").imports({
-    Navbar: {
-        xml: "<div id='navbar'>\
-                 <div id='left'>\
-                    <a id='icon'><Close xmlns='//xp/assets'/></a>\
-                 </div>\
-                 <div id='title'>授权管理</div>\
-                 <div id='right'/>\
-              </div>",
-        map: { extend: { from: "//xp/Navbar" } },
-        fun: function (sys, items, opts) { 
-            sys.icon.on(Click, e => this.trigger("close"));
-        }
-    },
     Content: {
         xml: "<i:Content id='content' xmlns:i='//xp'>\
                   <UserList id='user'/>\
@@ -162,22 +159,6 @@ $_("overview/users").imports({
 });
 
 $_("applist").imports({
-    Navbar: {
-        xml: "<div id='navbar'>\
-                 <div id='left'>\
-                    <a id='icon'><Backward xmlns='//xp/assets'/></a>\
-                 </div>\
-                 <div id='title'/>\
-                 <div id='right'/>\
-              </div>",
-        map: { extend: { from: "//xp/Navbar" } },
-        fun: function (sys, items, opts) { 
-            sys.icon.on(Click, e => this.trigger("back"));
-            this.watch("#/view/ready", (e, prev, data) => {
-                sys.title.text(`${data.area.name}/${data.link.name}`);
-            });
-        }
-    },
     Content: {
         xml: "<i:Content id='content' xmlns:i='//xp' xmlns:k='//xp/list'>\
                 <k:List id='list'>\
@@ -232,9 +213,6 @@ $_("applist/li").imports({
 });
 
 $_("guide").imports({
-    Navbar: {
-        map: { extend: {from: "../overview/Navbar"} }
-    },
     Content: {
         css: "#content { text-align: center; margin: 5em 0; }",
         xml: "<Content id='content' xmlns='//xp'/>",

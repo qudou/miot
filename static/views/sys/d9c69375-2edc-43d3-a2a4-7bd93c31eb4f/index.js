@@ -32,48 +32,45 @@ $_().imports({
         }
     },
     Overview: {
-        xml: "<div xmlns:i='overview'>\
-                <i:Navbar id='navbar'/>\
-                <i:Content id='content'/>\
-              </div>"
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' title='用户管理' menu='注册'/>\
+                <Content xmlns='overview'/>\
+              </div>",
+        fun: function (sys, items, opts) { 
+            sys.navbar.on("iconClick", e => this.trigger("close"));
+            sys.navbar.on("menuClick", () => this.trigger("goto", "signup"));
+        }
     },
     Signup: {
-        xml: "<div xmlns:i='signup'>\
-                <i:Navbar id='navbar' title='用户注册'/>\
-                <i:Content id='content'/>\
-              </div>"
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' icon='Backward' title='用户注册'/>\
+                <Content xmlns='signup'/>\
+              </div>",
+        fun: function (sys, items, opts) { 
+            sys.navbar.on("iconClick", e => this.trigger("back"));
+        }
     },
     Update: {
-        xml: "<div xmlns:i='signup'>\
-                <i:Navbar id='navbar' title='用户修改'/>\
-                <Content id='content' xmlns='update'/>\
-              </div>"
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' icon='Backward' title='用户修改'/>\
+                <Content xmlns='update'/>\
+              </div>",
+        fun: function (sys, items, opts) { 
+            sys.navbar.on("iconClick", e => this.trigger("back"));
+        }
     },
     Chpasswd: {
-        xml: "<div xmlns:i='signup'>\
-                <i:Navbar id='navbar' title='密码修改'/>\
-                <Content id='content' xmlns='chpasswd'/>\
-              </div>"
+        xml: "<div xmlns:i='//xp'>\
+                <i:Navbar id='navbar' icon='Backward' title='密码修改'/>\
+                <Content xmlns='chpasswd'/>\
+              </div>",
+        fun: function (sys, items, opts) { 
+            sys.navbar.on("iconClick", e => this.trigger("back"));
+        }
     }
 });
 
 $_("overview").imports({
-    Navbar: {
-        xml: "<div id='navbar'>\
-                 <div id='left'>\
-                    <a id='icon'><Close xmlns='//xp/assets'/></a>\
-                 </div>\
-                 <div id='title'>用户管理</div>\
-                 <div id='right'>\
-                    <a id='menu'>注册</a>\
-                 </div>\
-              </div>",
-        map: { extend: { "from": "//xp/Navbar" } },
-        fun: function (sys, items, opts) { 
-            sys.icon.on(Click, e => this.trigger("close"));
-            sys.menu.on(Click, () => this.trigger("goto", "signup"));
-        }
-    },
     Content: {
         xml: "<i:Content id='content' xmlns:i='//xp' xmlns:k='//xp/list'>\
                 <k:List id='list'>\
@@ -132,20 +129,6 @@ $_("overview").imports({
 });
 
 $_("signup").imports({
-    Navbar: {
-        xml: "<div id='navbar' xmlns:i='//xp/assets'>\
-                 <div id='left'>\
-                    <a id='icon'><i:Backward/></a>\
-                 </div>\
-                 <div id='title'/>\
-                 <div id='right'/>\
-              </div>",
-        map: { extend: { "from": "//xp/Navbar" } },
-        fun: function (sys, items, opts) { 
-            sys.title.text(opts.title);
-            sys.icon.on(Click, e => this.trigger("back"));
-        }
-    },
     Content: {
         xml: "<Content id='content' xmlns='//xp' xmlns:i='form'>\
                   <i:Form id='signup'>\
