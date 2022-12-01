@@ -4,13 +4,11 @@ require.config({
 　　　　"mqtt": "mqtt",
 　　　　"xmlplus": "xmlplus",
         "xui": "xui",
-　　　　"index": "index",
-　　　　"crypto": "crypto-js/crypto-js"
+　　　　"index": "index"
 　　}
 });
 
-require(['mqtt','xmlplus','crypto'], (mqtt,xmlplus,crypto) => {
+require(['mqtt','xmlplus'], (mqtt,xmlplus) => {
     window.mqtt = mqtt;
-    window.CryptoJS = crypto;
     require(['xui','index'], () => xmlplus.startup("//miot/Index"));
 });

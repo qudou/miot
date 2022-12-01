@@ -9,6 +9,8 @@ const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
 const Click = 'ontouchend' in document.documentElement === true ? "touchend" : "click";
 const Server = document.querySelector("meta[name='mqtt-server']").getAttribute("content");
 
+xmlplus.debug = false;
+
 xmlplus("miot", (xp, $_) => {
 
 $_().imports({

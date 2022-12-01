@@ -329,7 +329,7 @@ $_("block").imports({
 $_("form").imports({
     Inner: {
         css: "#inner { flex-direction: column; align-items: flex-start; }",
-        map: { extend: { from: "../list/Inner", fn: "r" } }
+        map: { extend: { from: "../list/Inner", fun: "r" } }
     },
     Label: {
         css: "#label { min-width: 0; white-space: nowrap; position: relative; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }\
@@ -348,12 +348,51 @@ $_("form").imports({
             return sys.input;
         }
     },
+    Range: {
+		css: "#input { width: 100%; }\
+			  #input {appearance: none; margin: 0; width: 100%; height: 7px; background: #b7b8b7; border-radius: 5px; background-image: linear-gradient(#007AFF, #007AFF); background-size: 70% 100%; background-repeat: no-repeat;}\
+			  input[type='range']::-webkit-slider-thumb { appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #FFF; cursor: ew-resize; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); transition: background .3s ease-in-out; }\
+			  input[type='range']::-webkit-slider-runnable-track  { -webkit-appearance: none; box-shadow: none; border: none; background: transparent; }\
+			  #wrap { height: 28px; display: flex; align-items: center; }",
+		xml: "<div id='wrap'>\
+                <input id='input' type='range' min='0' max='100' step='1' value='50'/>\
+			  </div>",
+        fun: function (sys, items, opts) {
+			sys.input.on("input", (e) => {
+			    let el = e.target.elem();
+			    e.target.css("background-size", (el.value - el.min) * 100 / (el.max - el.min) + '% 100%');
+			}).trigger("input");
+            return sys.input;
+        }
+    },
     Select: {
         xml: "<div id='wrap'>\
                 <select id='input'/>\
               </div>",
         map: { extend: { from: "Input" }, appendTo: "input" }
     },
+	Toggle: {
+		css: ":root { --toggle-width: 52px; --toggle-height: 32px; }\
+		      #toggle { display: inline-block; vertical-align: middle; position: relative; box-sizing: border-box; align-self: center; user-select: none }\
+			  #toggle, #icon { width: var(--toggle-width); height: var(--toggle-height); border-radius: var(--toggle-height); }\
+			  #checkbox { display: none }\
+			  #checkbox[disabled]~#icon { pointer-events: none }\
+			  #checkbox:checked+#icon { background: #007aff; }\
+			  #checkbox:checked+#icon:before { transform: scale(0) }\
+			  #checkbox:checked+#icon:after { transform: translateX(calc(var(--toggle-width) - var(--toggle-height))) }\
+			  #icon { z-index: 0; margin: 0; padding: 0; appearance: none; border: none; position: relative; transition: .3s; box-sizing: border-box; display: block; cursor: pointer; background: #e5e5e5; }\
+			  #icon:before { content: ''; position: absolute; left: 2px; top: 2px; width: calc(var(--toggle-width) - 4px); height: calc(var(--toggle-height) - 4px); border-radius: var(--toggle-height); box-sizing: border-box; background: #fff; z-index: 1; transition-duration: .3s; transform: scale(1) }\
+			  #icon:after { content: ''; background: #fff; position: absolute; z-index: 2; transform: translateX(0px); transition-duration: .3s}\
+			  #icon:after { height: calc(var(--toggle-height) - 4px); width: calc(var(--toggle-height) - 4px); top: 2px; left: 2px; box-shadow: 0 2px 4px rgb(0 0 0 / 30%); border-radius: calc(var(--toggle-height) - 4px) }",
+		xml: "<label id='toggle'>\
+				  <input id='checkbox' type='checkbox'/>\
+				  <span id='icon'/>\
+			  </label>",
+		map: { attrs: { toggle: "class", checkbox: "checked disabled" } },
+		fun: function (sys, items, opts) {
+			return sys.checkbox.elem();
+		}
+	},
     Button: {
         css: "#button { padding: 0 15px; text-align: center; color: #007aff; line-height: 44px; display: block; border: 1px solid #E4E3E6; border-style: solid none; background: #FFF; outline: 0; cursor: pointer; text-decoration: none; }\
               #button { transition-duration: .3s; transition-property: background-color,color; }\
@@ -595,7 +634,7 @@ $_("picker").imports({
                     <a id='menu'>确定</a>\
                  </div>\
               </div>",
-        map: { extend: { "from": "../Navbar" } },
+        map: { extend: { "from": "../Navbar", fun: "r" } },
         fun: function (sys, items, opts) { 
             sys.title.text(opts.title || "Picker");
             sys.icon.on(Click, e => this.trigger("close"));
