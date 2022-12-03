@@ -97,8 +97,16 @@ $_().imports({
             sys.pass.watch("next", (e, o) => {
                 this.trigger("connect", {username: o.name, password: o.pass});
             });
-            this.watch("#/view/ready", () => items.user.focus());
-            sys.submit.on(Click, () => sys.login.notify("next", {}));
+            this.watch("#/view/ready", () => {
+                items.user.value = "";
+                items.pass.value = "";
+                items.user.focus();
+            });
+            sys.submit.on(Click, () => {
+                items.user.blur();
+                items.pass.blur();
+                sys.login.notify("next", {});
+            });
         }
     },
     Content: {
@@ -195,7 +203,6 @@ $_("login").imports({
         }
     },
     Input: {
-        css: ".ios .list .item-inner:after {width: calc(100% - 15px);}",
         xml: "<i:ListItem id='input' xmlns:i='//xp/list'>\
                 <i:Content>\
                    <i:Media><i id='icon'/></i:Media>\

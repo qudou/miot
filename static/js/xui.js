@@ -50,14 +50,14 @@ $_().imports({
                     <a id='menu'/>\
                  </div>\
               </div>",
-		fun: function (sys, items, opts) {
-			sys.icon.append(`//xp/assets/${opts.icon || 'Close'}`);
-			sys.title.text(opts.title);
-			opts.menu && sys.menu.text(opts.menu);
-			sys.icon.on(Click, () => this.trigger("iconClick"));
-			sys.menu.on(Click, () => this.trigger("menuClick"));
-			return { title: sys.title.text };
-		}
+        fun: function (sys, items, opts) {
+            sys.icon.append(`//xp/assets/${opts.icon || 'Close'}`);
+            sys.title.text(opts.title);
+            opts.menu && sys.menu.text(opts.menu);
+            sys.icon.on(Click, () => this.trigger("iconClick"));
+            sys.menu.on(Click, () => this.trigger("menuClick"));
+            return { title: sys.title.text };
+        }
     },
     Content: {
         css: "#page { background: #efeff4; box-sizing: border-box; position: absolute; left: 0; top: 0; width: 100%; height: 100%; contain: layout size style; }\
@@ -349,19 +349,19 @@ $_("form").imports({
         }
     },
     Range: {
-		css: "#input { width: 100%; }\
-			  #input {appearance: none; margin: 0; width: 100%; height: 7px; background: #b7b8b7; border-radius: 5px; background-image: linear-gradient(#007AFF, #007AFF); background-size: 70% 100%; background-repeat: no-repeat;}\
-			  input[type='range']::-webkit-slider-thumb { appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #FFF; cursor: ew-resize; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); transition: background .3s ease-in-out; }\
-			  input[type='range']::-webkit-slider-runnable-track  { -webkit-appearance: none; box-shadow: none; border: none; background: transparent; }\
-			  #wrap { height: 28px; display: flex; align-items: center; }",
-		xml: "<div id='wrap'>\
+        css: "#input { width: 100%; }\
+              #input {appearance: none; margin: 0; width: 100%; height: 7px; background: #b7b8b7; border-radius: 5px; background-image: linear-gradient(#007AFF, #007AFF); background-size: 70% 100%; background-repeat: no-repeat;}\
+              input[type='range']::-webkit-slider-thumb { appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #FFF; cursor: ew-resize; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); transition: background .3s ease-in-out; }\
+              input[type='range']::-webkit-slider-runnable-track  { -webkit-appearance: none; box-shadow: none; border: none; background: transparent; }\
+              #wrap { height: 28px; display: flex; align-items: center; }",
+        xml: "<div id='wrap'>\
                 <input id='input' type='range' min='0' max='100' step='1' value='50'/>\
-			  </div>",
+              </div>",
         fun: function (sys, items, opts) {
-			sys.input.on("input", (e) => {
-			    let el = e.target.elem();
-			    e.target.css("background-size", (el.value - el.min) * 100 / (el.max - el.min) + '% 100%');
-			}).trigger("input");
+            sys.input.on("input", (e) => {
+                let el = e.target.elem();
+                e.target.css("background-size", (el.value - el.min) * 100 / (el.max - el.min) + '% 100%');
+            }).trigger("input");
             return sys.input;
         }
     },
@@ -371,28 +371,28 @@ $_("form").imports({
               </div>",
         map: { extend: { from: "Input" }, appendTo: "input" }
     },
-	Toggle: {
-		css: ":root { --toggle-width: 52px; --toggle-height: 32px; }\
-		      #toggle { display: inline-block; vertical-align: middle; position: relative; box-sizing: border-box; align-self: center; user-select: none }\
-			  #toggle, #icon { width: var(--toggle-width); height: var(--toggle-height); border-radius: var(--toggle-height); }\
-			  #checkbox { display: none }\
-			  #checkbox[disabled]~#icon { pointer-events: none }\
-			  #checkbox:checked+#icon { background: #007aff; }\
-			  #checkbox:checked+#icon:before { transform: scale(0) }\
-			  #checkbox:checked+#icon:after { transform: translateX(calc(var(--toggle-width) - var(--toggle-height))) }\
-			  #icon { z-index: 0; margin: 0; padding: 0; appearance: none; border: none; position: relative; transition: .3s; box-sizing: border-box; display: block; cursor: pointer; background: #e5e5e5; }\
-			  #icon:before { content: ''; position: absolute; left: 2px; top: 2px; width: calc(var(--toggle-width) - 4px); height: calc(var(--toggle-height) - 4px); border-radius: var(--toggle-height); box-sizing: border-box; background: #fff; z-index: 1; transition-duration: .3s; transform: scale(1) }\
-			  #icon:after { content: ''; background: #fff; position: absolute; z-index: 2; transform: translateX(0px); transition-duration: .3s}\
-			  #icon:after { height: calc(var(--toggle-height) - 4px); width: calc(var(--toggle-height) - 4px); top: 2px; left: 2px; box-shadow: 0 2px 4px rgb(0 0 0 / 30%); border-radius: calc(var(--toggle-height) - 4px) }",
-		xml: "<label id='toggle'>\
-				  <input id='checkbox' type='checkbox'/>\
-				  <span id='icon'/>\
-			  </label>",
-		map: { attrs: { toggle: "class", checkbox: "checked disabled" } },
-		fun: function (sys, items, opts) {
-			return sys.checkbox.elem();
-		}
-	},
+    Toggle: {
+        css: ":root { --toggle-width: 52px; --toggle-height: 32px; }\
+              #toggle { display: inline-block; vertical-align: middle; position: relative; box-sizing: border-box; align-self: center; user-select: none }\
+              #toggle, #icon { width: var(--toggle-width); height: var(--toggle-height); border-radius: var(--toggle-height); }\
+              #checkbox { display: none }\
+              #checkbox[disabled]~#icon { pointer-events: none }\
+              #checkbox:checked+#icon { background: #007aff; }\
+              #checkbox:checked+#icon:before { transform: scale(0) }\
+              #checkbox:checked+#icon:after { transform: translateX(calc(var(--toggle-width) - var(--toggle-height))) }\
+              #icon { z-index: 0; margin: 0; padding: 0; appearance: none; border: none; position: relative; transition: .3s; box-sizing: border-box; display: block; cursor: pointer; background: #e5e5e5; }\
+              #icon:before { content: ''; position: absolute; left: 2px; top: 2px; width: calc(var(--toggle-width) - 4px); height: calc(var(--toggle-height) - 4px); border-radius: var(--toggle-height); box-sizing: border-box; background: #fff; z-index: 1; transition-duration: .3s; transform: scale(1) }\
+              #icon:after { content: ''; background: #fff; position: absolute; z-index: 2; transform: translateX(0px); transition-duration: .3s}\
+              #icon:after { height: calc(var(--toggle-height) - 4px); width: calc(var(--toggle-height) - 4px); top: 2px; left: 2px; box-shadow: 0 2px 4px rgb(0 0 0 / 30%); border-radius: calc(var(--toggle-height) - 4px) }",
+        xml: "<label id='toggle'>\
+                  <input id='checkbox' type='checkbox'/>\
+                  <span id='icon'/>\
+              </label>",
+        map: { attrs: { toggle: "class", checkbox: "checked disabled" } },
+        fun: function (sys, items, opts) {
+            return sys.checkbox.elem();
+        }
+    },
     Button: {
         css: "#button { padding: 0 15px; text-align: center; color: #007aff; line-height: 44px; display: block; border: 1px solid #E4E3E6; border-style: solid none; background: #FFF; outline: 0; cursor: pointer; text-decoration: none; }\
               #button { transition-duration: .3s; transition-property: background-color,color; }\
@@ -401,9 +401,9 @@ $_("form").imports({
         fun: function (sys, items, opts) {
             this.on("touchstart", () => sys.button.addClass("#active"));
             this.on("touchend", (e) => {
-				e.preventDefault();
-				sys.button.removeClass("#active");
-			});
+                e.preventDefault();
+                sys.button.removeClass("#active");
+            });
         }
     }
 });
@@ -493,10 +493,10 @@ $_("list").imports({
         css: "#text { color: #8e8e93; }",
         map: { extend: { from: "Header" } }
     },
-	After: {
-		css: "#after { padding-left: 5px; white-space: nowrap; flex-shrink: 0; display: flex; font-size: inherit; font-weight: 400; color: rgba(0, 0, 0, 0.45); line-height: inherit; margin-left: auto; }",
-		xml: "<div id='after'/>"
-	}
+    After: {
+        css: "#after { padding-left: 5px; white-space: nowrap; flex-shrink: 0; display: flex; font-size: inherit; font-weight: 400; color: rgba(0, 0, 0, 0.45); line-height: inherit; margin-left: auto; }",
+        xml: "<div id='after'/>"
+    }
 });
 
 $_("picker").imports({
@@ -682,7 +682,7 @@ $_("swipeout").imports({
         xml: "<li id='swipeout'/>",
         fun: function (sys, items, opts) {
             let touchesStart = {};
-			let isTouched;
+            let isTouched;
             let isMoved;
             let isScrolling;
             let touchStartTime;
@@ -690,35 +690,35 @@ $_("swipeout").imports({
             let content = this.first();
             let actions = this.last();
             let translate;
-			let [touchstart,touchmove,touchend] = ['mousedown','mousemove','mouseup'];
-			if ('ontouchend' in document.documentElement)
-				[touchstart,touchmove,touchend] = ['touchstart','touchmove','touchend'];
+            let [touchstart,touchmove,touchend] = ['mousedown','mousemove','mouseup'];
+            if ('ontouchend' in document.documentElement)
+                [touchstart,touchmove,touchend] = ['touchstart','touchmove','touchend'];
             content.on(touchstart, (e) => {
                 isMoved = false;
-				isTouched = true;
+                isTouched = true;
                 isScrolling = false;
                 touchesStart.x = e.type === 'touchstart' ? e.targetTouches[0].pageX : e.pageX;
                 touchesStart.y = e.type === 'touchstart' ? e.targetTouches[0].pageY : e.pageY;
                 touchStartTime = new Date().getTime();
             });
             content.on(touchmove, (e) => {
-				if (!isTouched) return;
+                if (!isTouched) return;
                 let pageX = e.type === 'touchmove' ? e.targetTouches[0].pageX : e.pageX;
                 let pageY = e.type === 'touchmove' ? e.targetTouches[0].pageY : e.pageY;
                 if (!isMoved) {
                     isScrolling = isScrolling || Math.abs(pageY - touchesStart.y) > Math.abs(pageX - touchesStart.x);
                     if (isScrolling) {
-						isTouched = false;
-						return;
-					}
+                        isTouched = false;
+                        return;
+                    }
                 }
                 touchesDiff = pageX - touchesStart.x;
                 translate = touchesDiff;
                 let opened = sys.swipeout.hasClass('#opened');
                 if (translate > 0 && !opened) {
-					isTouched = false;
+                    isTouched = false;
                     return isMoved = false;
-				}
+                }
                 isMoved = true;
                 let actionsWidth = actions.outerWidth();
                 if (opened)
@@ -754,8 +754,8 @@ $_("swipeout").imports({
                     content.css("transform", "");
                     buttons.forEach(item => item.css("transform", "translate3d(0,0,0)"));
                 }
-				isTouched = false;
-				isMoved = false;
+                isTouched = false;
+                isMoved = false;
             });
             content.watch("#/app/click", (e, el) => {
                 let opened = sys.swipeout.hasClass("#opened");
