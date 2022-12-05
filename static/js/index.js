@@ -452,7 +452,7 @@ $_("content/index").imports({
                 this.trigger("publish", {topic: "/ui/apps", body: {link: link.id}});
             });
             function text(p) { 
-                sys.title.text(p.online ? opts.name : opts.name + "*")
+                sys.title.text(p.data || p.online ? opts.name : opts.name + "*")
             }
             this.watch("/stat/link", (e, p) => {
                 opts.id == p.mid && text(p)
