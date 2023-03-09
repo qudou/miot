@@ -6,7 +6,7 @@
  */
 
 const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
-const Click = 'ontouchend' in document.documentElement === true ? "touchend" : "click";
+const ev = xmlplus.events;
 const Server = document.querySelector("meta[name='mqtt-server']").getAttribute("content");
 
 xmlplus("miot", (xp, $_) => {
@@ -30,7 +30,7 @@ $_().imports({
         fun: function(sys, items, opts) {
             let client;
             let q = xp.create("//miot/Query");
-			q.mw && sys.index.css("max-width", q.mw);
+            q.mw && sys.index.css("max-width", q.mw);
             this.on("connect", function (e, cfg) {
                 items.mask.show();
                 client = mqtt.connect(Server, cfg);
@@ -84,7 +84,7 @@ $_().imports({
               </Content>",
         fun: function (sys, items, opts) {
             function keypress(e) {
-                e.which == 13 && sys.submit.trigger(Click);
+                e.which == 13 && sys.submit.trigger(ev.click);
             }
             sys.user.on("keypress", keypress);
             sys.pass.on("keypress", keypress);
@@ -92,7 +92,7 @@ $_().imports({
                 this.trigger("connect", {username: o.name, password: o.pass});
             });
             this.watch("#/view/ready", () => items.user.focus());
-            sys.submit.on(Click, () => sys.login.notify("next", {}));
+            sys.submit.on(ev.click, () => sys.login.notify("next", {}));
         }
     },
     Applet: {
@@ -184,7 +184,7 @@ $_().imports({
               </div>",
         map: { extend: { from: "//xp/preload/Preload", fun: 'r' } },
         fun: function (sys, items, opts) {
-            sys.close.on(Click, () => this.trigger("close")); 
+            sys.close.on(ev.click, () => this.trigger("close")); 
             function show(label) {
                 sys.label.text(label);
                 sys.preload.addClass("#visible");

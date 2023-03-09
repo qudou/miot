@@ -1,6 +1,6 @@
 {
   "name": "miot",
-  "version": "1.2.03",
+  "version": "1.2.04",
   "dependencies": {
     "xmlplus": "^1.5.12",
     "mosca": "^2.7.0",

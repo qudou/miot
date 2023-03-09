@@ -42,7 +42,7 @@ $_().imports({
                 <Content id='content' xmlns='guide'/>\
               </div>",
         fun: function (sys, items, opts) {
-			sys.navbar.on("iconClick", e => this.trigger("close"));
+            sys.navbar.on("iconClick", e => this.trigger("close"));
             this.on("show", (e, to, p) => {
                 items.content(`${p}不存在,请先添加${p}`);
             });
@@ -115,7 +115,7 @@ $_("overview").imports({
               </ListItem>",
         map: { bind: { name: "label" } },
         fun: function (sys, items, opts) {
-            this.on(Click, () => {
+            this.on(ev.click, () => {
                 this.trigger("goto", ["applist", {link: opts}]);
             });
             this.on("$/before/bind", (e, value) => opts = value);

@@ -134,7 +134,7 @@ $_("overview").imports({
               </ListItem>",
         map: { bind: { name: "label" } },
         fun: function (sys, items, opts) {
-            this.on(Click, () => {
+            this.on(ev.click, () => {
                 this.trigger("goto", ["applist", {link: opts}]);
             });
             this.on("$/before/bind", (e, value) => opts = value);
@@ -198,8 +198,8 @@ $_("applist").imports({
         map: { bind: { name: "label" } },
         fun: function (sys, items, opts) {
             this.on("$/before/bind", (e, value) => opts = value);
-            sys.edit.on(Click, () => this.trigger("goto", ["update", opts]));
-            sys.remove.on(Click, () => this.trigger("remove", opts));
+            sys.edit.on(ev.click, () => this.trigger("goto", ["update", opts]));
+            sys.remove.on(ev.click, () => this.trigger("remove", opts));
         }
     },
     Icon: {
@@ -246,7 +246,7 @@ $_("signup").imports({
                 items.view.selectedIndex = 0;
                 items.type.selectedIndex = 0;
             });
-            sys.submit.on(Click, () => sys.signup.notify("next", {}));
+            sys.submit.on(ev.click, () => sys.signup.notify("next", {}));
         }
     }
 });
@@ -432,7 +432,7 @@ $_("update").imports({
                 items.view.value = data.view;
                 items.type.value = data.type;
             });
-            sys.submit.on(Click, (e) => sys.update.notify("next", {}));
+            sys.submit.on(ev.click, (e) => sys.update.notify("next", {}));
         }
     },
     GUID: {

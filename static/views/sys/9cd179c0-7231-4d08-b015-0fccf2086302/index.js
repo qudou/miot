@@ -64,7 +64,7 @@ $_().imports({
                 <Content id='content' xmlns='guide'/>\
               </div>",
         fun: function (sys, items, opts) {
-			sys.navbar.on("iconClick", e => this.trigger("close"));
+            sys.navbar.on("iconClick", e => this.trigger("close"));
             this.watch("#/view/ready", (e, prev, data) => {
                 items.content.text(`${data}不存在,请先添加${data}`);
             });
@@ -130,8 +130,8 @@ $_("overview").imports({
         map: { bind: { name: "label" } },
         fun: function (sys, items, opts) {
             this.on("$/before/bind", (e, value) => opts = value);
-            sys.edit.on(Click, () => this.trigger("goto", ["update", opts]));
-            sys.remove.on(Click, () => this.trigger("remove", opts));
+            sys.edit.on(ev.click, () => this.trigger("goto", ["update", opts]));
+            sys.remove.on(ev.click, () => this.trigger("remove", opts));
         }
     },
     Icon: {
@@ -169,7 +169,7 @@ $_("signup").imports({
                 items.link.focus();
                 items.area.selectedIndex = 0;
             });
-            sys.submit.on(Click, () => sys.signup.notify("next", {}));
+            sys.submit.on(ev.click, () => sys.signup.notify("next", {}));
         }
     }
 });
@@ -278,7 +278,7 @@ $_("update").imports({
                 items.link.value = data.name;
                 items.area.value = data.area;
             });
-            sys.submit.on(Click, () => sys.update.notify("next", {}));
+            sys.submit.on(ev.click, () => sys.update.notify("next", {}));
         }
     },
     OldID: {

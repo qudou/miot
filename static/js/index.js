@@ -6,7 +6,7 @@
  */
 
 const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
-const Click = 'ontouchend' in document.documentElement === true ? "touchend" : "click";
+const ev = xmlplus.events;
 const Server = document.querySelector("meta[name='mqtt-server']").getAttribute("content");
 
 xmlplus.debug = false;
@@ -32,8 +32,8 @@ $_().imports({
               </i:Applet>",
         fun: function(sys, items, opts) {
             let client;
-			let q = xp.create("//miot/Query");
-			q.mw && sys.index.css("max-width", q.mw);
+            let q = xp.create("//miot/Query");
+            q.mw && sys.index.css("max-width", q.mw);
             this.on("connect", function (e, cfg) {
                 items.mask.show();
                 client = mqtt.connect(Server, cfg);
@@ -92,7 +92,7 @@ $_().imports({
               </Content>",
         fun: function (sys, items, opts) {
             function keypress(e) {
-                e.which == 13 && sys.submit.trigger(Click);
+                e.which == 13 && sys.submit.trigger(ev.click);
             }
             sys.user.on("keypress", keypress);
             sys.pass.on("keypress", keypress);
@@ -104,7 +104,7 @@ $_().imports({
                 items.pass.value = "";
                 items.user.focus();
             });
-            sys.submit.on(Click, () => {
+            sys.submit.on(ev.click, () => {
                 items.user.blur();
                 items.pass.blur();
                 sys.login.notify("next", {});
@@ -217,9 +217,10 @@ $_("login").imports({
         }
     },
     Input: {
+        css: "#media svg { width: 28px; height: 28px; }",
         xml: "<i:ListItem id='input' xmlns:i='//xp/list'>\
                 <i:Content>\
-                   <i:Media><i id='icon'/></i:Media>\
+                   <i:Media id='media'><i id='icon'/></i:Media>\
                    <i:Inner id='inner' media='true'>\
                       <i:Title id='label'/>\
                       <Input id='input' xmlns='//xp/form'/>\
@@ -263,12 +264,12 @@ $_("content").imports({
                 <i:TabItem id='about' label='关于'/>\
               </i:Tabbar>",
         fun: function (sys, items, opts) {
-            sys.footer.on(Click, "*", function (e) {
-				let id = this.toString();
+            sys.footer.on(ev.click, "*", function (e) {
+                let id = this.toString();
                 id == 'auto' || this.trigger("switch", id);
             });
             function changePage(page) {
-                sys[page].trigger(Click);
+                sys[page].trigger(ev.click);
                 items[page].prop("checked", "true");
             }
             return { changePage: changePage };
@@ -291,7 +292,7 @@ $_("content").imports({
                 i.val().checked = true;
                 items.popup.show();
             });
-            sys.list.on(Click, "child::*", function (e) { 
+            sys.list.on(ev.click, "./child::*", function (e) { 
                 let i = sys.list.kids().indexOf(this);
                 localStorage.setItem(key, buf[i].id);  
                 items.popup.hide();
@@ -390,7 +391,7 @@ $_("content").imports({
               </div>",
         map: { extend: { from: "//xp/preload/Preload", fun: 'r' } },
         fun: function (sys, items, opts) {
-            sys.close.on(Click, () => this.trigger("close")); 
+            sys.close.on(ev.click, () => this.trigger("close")); 
             function show(label) {
                 sys.label.text(label);
                 sys.preload.addClass("#visible");
@@ -416,7 +417,7 @@ $_("content/index").imports({
               </header>",
         fun: function (sys, items, opts) {
             let areas = [], table = {};
-            sys.label.on(Click, () => {
+            sys.label.on(ev.click, () => {
                 this.trigger("/popup/open", ["area", areas]);
             });
             this.watch("/ui/areas", (e, _areas) => {
@@ -454,7 +455,7 @@ $_("content/index").imports({
         xml: "<h3 id='title'/>",
         fun: function (sys, items, opts) {
             let links = [];
-            this.on(Click, () => {
+            this.on(ev.click, () => {
                 this.trigger("/popup/open", ["link", links]);
             });
             this.watch("/ui/links", (e, p) => {
@@ -493,7 +494,7 @@ $_("content/index").imports({
                 let i = _apps.findIndex(i=>{return i.mid == p.mid});
                 i > -1 && (apps.model[i].online = _apps[i].online = p.data);
             });
-            sys.apps.on(Click, "*", function (e) {
+            sys.apps.on(ev.click, "*", function (e) {
                 let i = sys.apps.kids().indexOf(this);
                 _apps[i].online && this.trigger("/applet/open", _apps[i]);
             });
@@ -536,7 +537,7 @@ $_("content/index/apps").imports({
     Item: {
         css: "a#item { -webkit-transition: transform 0.3s; padding-top: 4px; padding-bottom: 4px; height: 100%; -webkit-box-pack: justify; -ms-flex-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%; box-sizing: border-box; display: -webkit-box; display: -ms-flexbox; display: -webkit-flex; display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-box-align: center; -ms-flex-align: center; -webkit-align-items: center; align-items: center; overflow: visible; -webkit-box-flex: 1; -ms-flex: 1; -webkit-box-orient: vertical; -moz-box-orient: vertical; -ms-flex-direction: column; -webkit-flex-direction: column; flex-direction: column; color: #929292; -webkit-flex-shrink: 1; -ms-flex: 0 1 auto; flex-shrink: 1; position: relative; white-space: nowrap; text-overflow: ellipsis; text-decoration: none; outline: 0; color: #8C8185; cursor: pointer; }\
               a#item { width: calc((100% - 32px) / 4); height: calc((100vw - 56px) / 4); max-height: 100px; border-radius: 16px; background:rgba(255,255,255,0.8) none repeat scroll; }\
-			  a#item:active { transform: scale(1.1); }\
+              a#item:active { transform: scale(1.1); }\
               #label { margin: 4px 0 0; line-height: 1; display: block; letter-spacing: .01em; font-size: 11px; position: relative; text-overflow: ellipsis; white-space: nowrap; }\
               a#active { color: #FF6A00; }",
         xml: "<a id='item'>\
@@ -551,12 +552,12 @@ $_("content/index/apps").imports({
                 opts.online = value;
                 sys.item[value ? "addClass" : "removeClass"]("#active");
             }
-			function type(value) {
-				if (value == undefined)
+            function type(value) {
+                if (value == undefined)
                     return opts.type;
-				opts.type = value;
-				value == 1 && sys.label.text(`#${sys.label.text()}`);
-			}
+                opts.type = value;
+                value == 1 && sys.label.text(`#${sys.label.text()}`);
+            }
             return { online: online, type: type };
         }
     },
@@ -619,7 +620,7 @@ $_("content/about").imports({
                 </i:ListItem>\
               </i:List>",
         fun: function (sys, items, opts) {
-            this.on(Click, e => {
+            this.on(ev.click, e => {
                 if (localStorage.getItem("online") == 0)
                     this.trigger("message", ["msg", "当前系统离线，无法退出！"]);
                 else {
@@ -659,27 +660,27 @@ $_("content/footer").imports({
             return sys.radio;
         }
     },
-	AutoBtn: {
-		css: "#tabitem div:active { color: #FF9501; }",
+    AutoBtn: {
+        css: "#tabitem div:active { color: #FF9501; }",
         xml: "<label id='tabitem'>\
                 <div>\
                   <TabIcon id='icon'/>\
                   <span id='label'/>\
                 </div>\
               </label>",
-		map: { extend: {from: "TabItem"} },
-		fun: function (sys, items, opts) {
-			let app;
-			this.watch("/ui/apps", (e, p) => {
-				let i = p.apps.findIndex(i=>{return i.part == p.link});
-				app = p.apps[i];
-			});
-			this.on(Click, () => {
-				if (app && app.online)
-					this.trigger("/applet/open", app);
-			});
-		}
-	},
+        map: { extend: {from: "TabItem"} },
+        fun: function (sys, items, opts) {
+            let app;
+            this.watch("/ui/apps", (e, p) => {
+                let i = p.apps.findIndex(i=>{return i.part == p.link});
+                app = p.apps[i];
+            });
+            this.on(ev.click, () => {
+                if (app && app.online)
+                    this.trigger("/applet/open", app);
+            });
+        }
+    },
     TabIcon: {
         css: "#icon { fill: currentColor; height: 30px; display: block; width: 30px; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
         xml: "<span id='icon'/>",
@@ -699,14 +700,14 @@ $_("content/popup").imports({
               </div>",
         map: { appendTo: "group" },
         fun: function (sys, items, opts) {
-            sys.cancel.on(Click, () => sys.list.trigger("hide", {}, false));
+            sys.cancel.on(ev.click, () => sys.list.trigger("hide", {}, false));
         }
     },
     Item: {
         css: "#item { height: 57px; line-height: 57px; font-size: 20px; color: #007aff; white-space: normal; text-overflow: ellipsis; }\
               #item { width: 100%; text-align: center; font-weight: 400; margin: 0; background: rgba(255,255,255,.95); box-sizing: border-box; display: block; position: relative; overflow: hidden; }\
               #item:after { content: ''; position: absolute; left: 0; bottom: 0; right: auto; top: auto; height: 1px; width: 100%; background-color: rgba(0,0,0,.2); display: block; z-index: 15; -webkit-transform-origin: 50% 100%; transform-origin: 50% 100%;}\
-			  #item label, #icon { cursor: pointer; display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }\
+              #item label, #icon { cursor: pointer; display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }\
               #radio { display: none; } #radio:checked ~ div { background: no-repeat center; background-image: url(\"data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2013%2010'%3E%3Cpolygon%20fill%3D'%23007aff'%20points%3D'11.6%2C0%204.4%2C7.2%201.4%2C4.2%200%2C5.6%204.4%2C10%204.4%2C10%204.4%2C10%2013%2C1.4%20'%2F%3E%3C%2Fsvg%3E\"); -webkit-background-size: 13px 10px; background-size: 13px 10px; background-position: calc(100% - 15px) center; }",
         xml: "<div id='item'>\
                 <span id='label'/>\
@@ -717,8 +718,8 @@ $_("content/popup").imports({
               </div>",
         map: { bind: {name: "label"} },
         fun: function (sys, items, opts) {
-			// 这里用于修补 click 事件调用两次的奇怪 bug
-			sys.radio.on("click", (e) => e.stopPropagation());
+            // 这里用于修补 click 事件调用两次的奇怪 bug
+            sys.radio.on("click", (e) => e.stopPropagation());
             return sys.radio.attr("name", opts.key).elem();
         }
     },

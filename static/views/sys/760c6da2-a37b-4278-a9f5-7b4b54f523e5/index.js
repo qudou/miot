@@ -101,8 +101,8 @@ $_("overview").imports({
         map: { bind: { name: "title" } },
         fun: function (sys, items, opts) {
             this.on("$/before/bind", (e, value) => opts = value);
-            sys.edit.on(Click, e => this.trigger("goto", ["update", opts]));
-            sys.remove.on(Click, () => this.trigger("remove", opts));
+            sys.edit.on(ev.click, e => this.trigger("goto", ["update", opts]));
+            sys.remove.on(ev.click, () => this.trigger("remove", opts));
         }
     },
     Icon: {
@@ -140,7 +140,7 @@ $_("signup").imports({
                 items.area.focus();
                 items.desc.value = "";
             });
-            sys.submit.on(Click, () => sys.signup.notify("next", {}));
+            sys.submit.on(ev.click, () => sys.signup.notify("next", {}));
         }
     }
 });
@@ -229,7 +229,7 @@ $_("update").imports({
                 items.area.value = data.name;
                 items.desc.value = data.desc;
             });
-            sys.submit.on(Click, () => sys.update.notify("next", {}));
+            sys.submit.on(ev.click, () => sys.update.notify("next", {}));
         }
     },
     GUID: {

@@ -56,6 +56,19 @@ let Global = {};
 
 let $ = {
     debug: true,
+    events: (function() {
+        let ev = {};
+        if ("ontouchend" in document.documentElement) {
+            ev.touchstart = "touchstart";
+            ev.touchmove = "touchmove";
+            ev.touchend = ev.click = "touchend";
+        } else {
+            ev.touchstart = "mousedown";
+            ev.touchmove = "mousemove";
+            ev.touchend = ev.click = "mouseup";
+        }
+        return ev;
+    }()),
     startup: startup,
     create: function (path, options) {
         let widget = $.hasComponent(path);
@@ -234,7 +247,7 @@ let $ = {
             return typeof target == "object" ? fromObject(target) : target;
         };
     }()),
-	delay: ms => new Promise((resolve, reject) => setTimeout(resolve, ms))
+    delay: ms => new Promise((resolve, reject) => setTimeout(resolve, ms))
 };
 
 let ph = (function () {
@@ -720,7 +733,7 @@ let MessageModuleAPI = (function () {
                     let e = {type: type, target: that.api, currentTarget: item.watcher.api};
                     e.stopImmediateNotification = ()=> e.cancelImmediate = true;
                     e.stopNotification = ()=> e.cancel = true;
-                    item.fn.apply(e.currentTarget, [e,...data]);
+                    item.fn.apply(e.currentTarget, [e].concat(data));
                     if (e.cancelImmediate)
                         return !(cancel = true);
                     e.cancel && (cancel = e.cancel);
@@ -1872,9 +1885,10 @@ function startup(xml, parent, param) {
         });
     } else {
         delete $.ready;
+        let xmldom = require("./lib/dom-parser");
         XPath = require("xpath");
-        DOMParser_ = require("exmldom").DOMParser;
-        XMLSerializer_ = require("exmldom").XMLSerializer;
+        DOMParser_ = xmldom.DOMParser;
+        XMLSerializer_ = xmldom.XMLSerializer;
         vdoc = $.parseXML("<body/>");
         rdoc = $.parseXML("<body/>");
         NodeElementAPI = $.extend(ServerElementAPI, EventModuleAPI, MessageModuleAPI, CommonElementAPI);

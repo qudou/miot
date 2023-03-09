@@ -96,9 +96,10 @@ $_("overview").imports({
         }
     },
     ListItem: {
+        css: "#icon { width: 28px; height: 28px; }",
         xml: "<i:Swipeout id='item' xmlns:i='//xp/swipeout'>\
                  <Content xmlns='//xp/list'>\
-                    <Media><Person xmlns='//xp/assets'/></Media>\
+                    <Media><Person id='icon' xmlns='//xp/assets'/></Media>\
                     <Inner id='inner'>\
                       <Title id='title'>\
                         <Header id='header'>普通用户</Header>\
@@ -115,8 +116,8 @@ $_("overview").imports({
         map: { bind: { name: "label" } },
         fun: function (sys, items, opts) {
             this.on("$/before/bind", (e, value) => opts = value);
-            sys.edit.on(Click, () => this.trigger("goto", ["update", opts]));
-            sys.remove.on(Click, () => this.trigger("remove", opts));
+            sys.edit.on(ev.click, () => this.trigger("goto", ["update", opts]));
+            sys.remove.on(ev.click, () => this.trigger("remove", opts));
             function id(value) {
                 if (value == undefined)
                     return opts.id;
@@ -163,7 +164,7 @@ $_("signup").imports({
                 items.user.value = "";
                 items.user.focus();
             });
-            sys.submit.on(Click, () => sys.signup.notify("next", {}));
+            sys.submit.on(ev.click, () => sys.signup.notify("next", {}));
         }
     }
 });
@@ -334,8 +335,8 @@ $_("update").imports({
                 items.livetime.value = data.livetime;
                 items.relogin.value = data.relogin;
             });
-            sys.submit.on(Click, () => sys.update.notify("next", {}));
-            sys.chpasswd.on(Click, () => this.trigger("goto", ["chpasswd", opts]));
+            sys.submit.on(ev.click, () => sys.update.notify("next", {}));
+            sys.chpasswd.on(ev.click, () => this.trigger("goto", ["chpasswd", opts]));
         }
     },
     GUID: {
@@ -376,7 +377,7 @@ $_("chpasswd").imports({
                 items.pass.value = '';
                 items.new_pass.value = '';
             });
-            sys.submit.on(Click, () => sys.chpasswd.notify("next", {}));
+            sys.submit.on(ev.click, () => sys.chpasswd.notify("next", {}));
         }
     },
     NewPass: {
