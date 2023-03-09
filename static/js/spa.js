@@ -14,9 +14,9 @@ xmlplus("miot", (xp, $_) => {
 $_().imports({
     Index: {
         css: "* { user-select: none; -webkit-tap-highlight-color: transparent; }\
-              input { user-select: text; } \
+              input { user-select: text; }\
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
-              #index { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
+              #index { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; margin: 0 auto; max-width: 480px; }\
               #stack, #mask { width: 100%; height: 100%; }\
               #stack > * { transition-duration: 0s; }",
         xml: "<div id='index' xmlns:i='//xp'>\
@@ -29,14 +29,15 @@ $_().imports({
               </div>",
         fun: function(sys, items, opts) {
             let client;
-            let query = xp.create("//miot/Query");
+            let q = xp.create("//miot/Query");
+			q.mw && sys.index.css("max-width", q.mw);
             this.on("connect", function (e, cfg) {
                 items.mask.show();
                 client = mqtt.connect(Server, cfg);
                 client.on("connect", function (e) {
                     client.subscribe(client.options.clientId, err => {
                         if (err) throw err;
-                        let p = {topic: "/ui/spa", body: {id: query.app}};
+                        let p = {topic: "/ui/spa", body: {id: q.app}};
                         sys.applet.trigger("#/publish", [p, uid])
                         items.mask.hide();
                     });
@@ -63,7 +64,7 @@ $_().imports({
                 localStorage.clear();
                 sys.stack.trigger("goto", "login");
             });
-            let sid = query.sid || localStorage.getItem("session");
+            let sid = q.sid || localStorage.getItem("session");
             setTimeout(() => {
                 sid ? this.trigger("connect", {username: sid}) : sys.stack.trigger("goto", "login");
             }, 0);
@@ -231,7 +232,7 @@ $_("login").imports({
     User: {
         xml: "<Input id='user' icon='person' placeholder='用户名' maxlength='32'/>",
         fun: function (sys, items, opts) {
-            var patt = /^[a-z0-9_]{4,31}$/i;
+            var patt = /^[a-z0-9_]{4,32}$/i;
             this.watch("next", (e, p) => {
                 p.name = items.user.value;
                 if (p.name === "") {
@@ -252,8 +253,8 @@ $_("login").imports({
                 o.pass = items.pass.value;
                 if ( o.pass === "" ) {
                     this.trigger("error", [e, "请输入密码"]);
-                } else if ( o.pass.length < 6 ) {
-                    this.trigger("error", [e, "密码至少需要6个字符"]);
+                } else if ( o.pass.length < 5 ) {
+                    this.trigger("error", [e, "密码至少需要5个字符"]);
                 }
             });
             return items.pass;

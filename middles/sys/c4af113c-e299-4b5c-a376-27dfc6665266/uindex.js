@@ -67,12 +67,13 @@ $_().imports({
                             AND apps.id = auths.app
                             AND auths.user=users.id
                             AND users.name='${p.user}'
-                            AND apps.id <> '${UID}'`;
+                            AND apps.id <> '${UID}'
+							ORDER BY type`;
                 items.sqlite.all(stmt, (err, data) => {
                     if (err) throw err;
                     p.data = {link: p.body.link, apps: []};
                     data.forEach(i => {
-                        p.data.apps.push({'mid':i.id,'name':i.name,'link':i.link,'view':i.view,'type':i.type,'online':i.online});
+						p.data.apps.push({'mid':i.id,'name':i.name,'link':i.link,'part':i.part,'view':i.view,'type':i.type,'online':i.online});
                     });
                     this.trigger("to-users", p);
                 });

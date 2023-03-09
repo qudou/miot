@@ -185,7 +185,7 @@ $_("signup/form").imports({
         xml: "<Input id='user' label='用户名' placeholder='请输入用户名' maxlength='32'/>",
         map: { attrs: { user: "readonly" } },
         fun: function (sys, items, opts) {
-            var patt = /^[a-z0-9_]{4,31}$/i;
+            var patt = /^[a-z0-9_]{4,32}$/i;
             this.watch("next", (e, o) => {
                 o.name = items.user.value;
                 if (o.name === "") {
@@ -223,8 +223,8 @@ $_("signup/form").imports({
                 o.pass = items.pass.value;
                 if (o.pass === "") {
                     this.trigger("error", [e, "请输入密码"]);
-                } else if (o.pass.length < 6) {
-                    this.trigger("error", [e, "密码至少需要6个字符"]);
+                } else if (o.pass.length < 5) {
+                    this.trigger("error", [e, "密码至少需要5个字符"]);
                 }
             });
             return items.pass;
@@ -386,8 +386,8 @@ $_("chpasswd").imports({
                 o.new_pass = items.pass.value;
                 if (o.new_pass === "") {
                     this.trigger("error", [e, "请输入新密码"]);
-                } else if (o.new_pass.length < 6) {
-                    this.trigger("error", [e, "新密码至少需要6个字符"]);
+                } else if (o.new_pass.length < 5) {
+                    this.trigger("error", [e, "新密码至少需要5个字符"]);
                 }
             });
             return items.pass;

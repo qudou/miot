@@ -18,7 +18,7 @@ $_().imports({
         css: "* { user-select: none; -webkit-tap-highlight-color: transparent; }\
               input { user-select: text; } \
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
-              #index { background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; }\
+              #index { position: relative; background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; margin: 0 auto; max-width: 480px; }\
               #stack, #mask { width: 100%; height: 100%; }\
               #stack > * { transition-duration: 0s; }\
               .dialog { border: 1px solid #CACDD1; }",
@@ -32,6 +32,8 @@ $_().imports({
               </i:Applet>",
         fun: function(sys, items, opts) {
             let client;
+			let q = xp.create("//miot/Query");
+			q.mw && sys.index.css("max-width", q.mw);
             this.on("connect", function (e, cfg) {
                 items.mask.show();
                 client = mqtt.connect(Server, cfg);
@@ -126,7 +128,7 @@ $_().imports({
                 if (localStorage.getItem("online") == 1)
                     sys.popup.notify(e.type, [key, values]);
             });
-            sys.home.on("/applet/open", (e, p) => {
+            sys.content.on("/applet/open", (e, p) => { // home, footer
                 e.stopPropagation();
                 sys.applet.notify("/applet/open", p);
             });
@@ -147,6 +149,18 @@ $_().imports({
                 localStorage.setItem("username", p.username);
             });
             this.watch("#/view/ready", () => items.footer.changePage("home"));
+        }
+    },
+    Query: {
+        xml: "<div id='query'/>",
+        fun: function (sys, items, opts) {
+            let str = location.search.substr(1).split('&');
+            let query = {};
+            str.forEach(pair => {
+                let p = pair.split('=');
+                query[p[0]] = p[1]; 
+            });
+            return query;
         }
     }
 });
@@ -174,7 +188,7 @@ $_("login").imports({
     User: {
         xml: "<Input id='user' icon='person' placeholder='用户名' maxlength='32'/>",
         fun: function (sys, items, opts) {
-            var patt = /^[a-z0-9_]{4,31}$/i;
+            var patt = /^[a-z0-9_]{4,32}$/i;
             this.watch("next", (e, p) => {
                 p.name = items.user.value;
                 if (p.name === "") {
@@ -195,8 +209,8 @@ $_("login").imports({
                 o.pass = items.pass.value;
                 if ( o.pass === "" ) {
                     this.trigger("error", [e, "请输入密码"]);
-                } else if ( o.pass.length < 6 ) {
-                    this.trigger("error", [e, "密码至少需要6个字符"]);
+                } else if ( o.pass.length < 5 ) {
+                    this.trigger("error", [e, "密码至少需要5个字符"]);
                 }
             });
             return items.pass;
@@ -245,11 +259,13 @@ $_("content").imports({
     Footer: {
         xml: "<i:Tabbar id='footer' xmlns:i='footer'>\
                 <i:TabItem id='home' label='首页' checked='true'/>\
+                <i:AutoBtn id='auto' label='自动化'/>\
                 <i:TabItem id='about' label='关于'/>\
               </i:Tabbar>",
         fun: function (sys, items, opts) {
             sys.footer.on(Click, "*", function (e) {
-                this.trigger("switch", this.toString());
+				let id = this.toString();
+                id == 'auto' || this.trigger("switch", id);
             });
             function changePage(page) {
                 sys[page].trigger(Click);
@@ -275,12 +291,12 @@ $_("content").imports({
                 i.val().checked = true;
                 items.popup.show();
             });
-            sys.list.on(Click, "*", function () {
+            sys.list.on(Click, "child::*", function (e) { 
                 let i = sys.list.kids().indexOf(this);
-                localStorage.setItem(key, buf[i].id);
+                localStorage.setItem(key, buf[i].id);  
                 items.popup.hide();
                 this.trigger(`/${key}/open`, buf[i]);
-            });
+            }); 
             sys.list.on("hide", items.popup.hide);
         }
     },
@@ -390,7 +406,7 @@ $_("content").imports({
 $_("content/index").imports({
     Head: {
         css: "#head { margin: 0 4px; height: 26px; line-height: 26px; color: white; }\
-              #label { float: left; background: none; padding: 0; }\
+              #label { float: left; background: none; padding: 0; cursor: pointer; }\
               #area { float: left; margin-right: 8px; }\
               #stat { float: right; }",
         xml: "<header id='head' xmlns:i='head'>\
@@ -434,7 +450,7 @@ $_("content/index").imports({
         }
     },
     Title: {
-        css: "#title { letter-spacing: 0.1em; margin: 16px 4px 12px; font-weight: bold; color: white; text-align: center; }",
+        css: "#title { letter-spacing: 0.1em; margin: 16px 4px 12px; font-weight: bold; color: white; text-align: center; cursor: pointer; }",
         xml: "<h3 id='title'/>",
         fun: function (sys, items, opts) {
             let links = [];
@@ -518,9 +534,9 @@ $_("content/index/head").imports({
 
 $_("content/index/apps").imports({
     Item: {
-        css: "a#item { -webkit-transition: transform 0.3s; padding-top: 4px; padding-bottom: 4px; height: 100%; -webkit-box-pack: justify; -ms-flex-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%; box-sizing: border-box; display: -webkit-box; display: -ms-flexbox; display: -webkit-flex; display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-box-align: center; -ms-flex-align: center; -webkit-align-items: center; align-items: center; overflow: visible; -webkit-box-flex: 1; -ms-flex: 1; -webkit-box-orient: vertical; -moz-box-orient: vertical; -ms-flex-direction: column; -webkit-flex-direction: column; flex-direction: column; color: #929292; -webkit-flex-shrink: 1; -ms-flex: 0 1 auto; flex-shrink: 1; position: relative; white-space: nowrap; text-overflow: ellipsis; text-decoration: none; outline: 0; color: #8C8185; }\
-              a#item { width: calc((100% - 32px) / 4); height: calc((100vw - 56px) / 4); border-radius: 16px; background:rgba(255,255,255,0.8) none repeat scroll; }\
-              a#item:active { transform: scale(1.1); }\
+        css: "a#item { -webkit-transition: transform 0.3s; padding-top: 4px; padding-bottom: 4px; height: 100%; -webkit-box-pack: justify; -ms-flex-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%; box-sizing: border-box; display: -webkit-box; display: -ms-flexbox; display: -webkit-flex; display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-box-align: center; -ms-flex-align: center; -webkit-align-items: center; align-items: center; overflow: visible; -webkit-box-flex: 1; -ms-flex: 1; -webkit-box-orient: vertical; -moz-box-orient: vertical; -ms-flex-direction: column; -webkit-flex-direction: column; flex-direction: column; color: #929292; -webkit-flex-shrink: 1; -ms-flex: 0 1 auto; flex-shrink: 1; position: relative; white-space: nowrap; text-overflow: ellipsis; text-decoration: none; outline: 0; color: #8C8185; cursor: pointer; }\
+              a#item { width: calc((100% - 32px) / 4); height: calc((100vw - 56px) / 4); max-height: 100px; border-radius: 16px; background:rgba(255,255,255,0.8) none repeat scroll; }\
+			  a#item:active { transform: scale(1.1); }\
               #label { margin: 4px 0 0; line-height: 1; display: block; letter-spacing: .01em; font-size: 11px; position: relative; text-overflow: ellipsis; white-space: nowrap; }\
               a#active { color: #FF6A00; }",
         xml: "<a id='item'>\
@@ -535,7 +551,13 @@ $_("content/index/apps").imports({
                 opts.online = value;
                 sys.item[value ? "addClass" : "removeClass"]("#active");
             }
-            return { online: online };
+			function type(value) {
+				if (value == undefined)
+                    return opts.type;
+				opts.type = value;
+				value == 1 && sys.label.text(`#${sys.label.text()}`);
+			}
+            return { online: online, type: type };
         }
     },
     Icon: {
@@ -620,7 +642,7 @@ $_("content/footer").imports({
         map: { appendTo: "inner" }
     },
     TabItem: {
-        css: "#tabitem { display: block; width: 100%; height: 100%; }\
+        css: "#tabitem { display: block; width: 100%; height: 100%; cursor: pointer; }\
               #tabitem > div { padding-top: 4px; padding-bottom: 4px; height: 100%; -webkit-box-pack: justify; -ms-flex-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%; box-sizing: border-box; display: -webkit-box; display: -ms-flexbox; display: -webkit-flex; display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-box-align: center; -ms-flex-align: center; -webkit-align-items: center; align-items: center; overflow: visible; -webkit-box-flex: 1; -ms-flex: 1; -webkit-box-orient: vertical; -moz-box-orient: vertical; -ms-flex-direction: column; -webkit-flex-direction: column; flex-direction: column; color: #929292; -webkit-flex-shrink: 1; -ms-flex: 0 1 auto; flex-shrink: 1; position: relative; white-space: nowrap; text-overflow: ellipsis; text-decoration: none; outline: 0; color: #8C8185; }\
               #label { margin: 0;line-height: 1; display: block; letter-spacing: .01em; font-size: 10px; position: relative; text-overflow: ellipsis; white-space: nowrap; }\
               #radio { display: none; } #radio:checked ~ div { color: #FF9501; }",
@@ -637,6 +659,27 @@ $_("content/footer").imports({
             return sys.radio;
         }
     },
+	AutoBtn: {
+		css: "#tabitem div:active { color: #FF9501; }",
+        xml: "<label id='tabitem'>\
+                <div>\
+                  <TabIcon id='icon'/>\
+                  <span id='label'/>\
+                </div>\
+              </label>",
+		map: { extend: {from: "TabItem"} },
+		fun: function (sys, items, opts) {
+			let app;
+			this.watch("/ui/apps", (e, p) => {
+				let i = p.apps.findIndex(i=>{return i.part == p.link});
+				app = p.apps[i];
+			});
+			this.on(Click, () => {
+				if (app && app.online)
+					this.trigger("/applet/open", app);
+			});
+		}
+	},
     TabIcon: {
         css: "#icon { fill: currentColor; height: 30px; display: block; width: 30px; vertical-align: middle; background-size: 100% auto; background-position: center; background-repeat: no-repeat; font-style: normal; position: relative; }",
         xml: "<span id='icon'/>",
@@ -660,10 +703,10 @@ $_("content/popup").imports({
         }
     },
     Item: {
-        css: "#item { cursor: pointer; height: 57px; line-height: 57px; font-size: 20px; color: #007aff; white-space: normal; text-overflow: ellipsis; }\
+        css: "#item { height: 57px; line-height: 57px; font-size: 20px; color: #007aff; white-space: normal; text-overflow: ellipsis; }\
               #item { width: 100%; text-align: center; font-weight: 400; margin: 0; background: rgba(255,255,255,.95); box-sizing: border-box; display: block; position: relative; overflow: hidden; }\
               #item:after { content: ''; position: absolute; left: 0; bottom: 0; right: auto; top: auto; height: 1px; width: 100%; background-color: rgba(0,0,0,.2); display: block; z-index: 15; -webkit-transform-origin: 50% 100%; transform-origin: 50% 100%;}\
-              #item label, #icon { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }\
+			  #item label, #icon { cursor: pointer; display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }\
               #radio { display: none; } #radio:checked ~ div { background: no-repeat center; background-image: url(\"data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2013%2010'%3E%3Cpolygon%20fill%3D'%23007aff'%20points%3D'11.6%2C0%204.4%2C7.2%201.4%2C4.2%200%2C5.6%204.4%2C10%204.4%2C10%204.4%2C10%2013%2C1.4%20'%2F%3E%3C%2Fsvg%3E\"); -webkit-background-size: 13px 10px; background-size: 13px 10px; background-position: calc(100% - 15px) center; }",
         xml: "<div id='item'>\
                 <span id='label'/>\
@@ -674,6 +717,8 @@ $_("content/popup").imports({
               </div>",
         map: { bind: {name: "label"} },
         fun: function (sys, items, opts) {
+			// 这里用于修补 click 事件调用两次的奇怪 bug
+			sys.radio.on("click", (e) => e.stopPropagation());
             return sys.radio.attr("name", opts.key).elem();
         }
     },
@@ -682,8 +727,8 @@ $_("content/popup").imports({
         xml: "<div id='group'/>"
     },
     Cancel: {
-        css: "#cancel { margin: 8px; position: relative; border-radius: 13px; overflow: hidden; -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}\
-              #label { border-radius: 13px; font-weight: 500; cursor: pointer; height: 57px; line-height: 57px; font-size: 20px; color: #007aff; white-space: normal; text-overflow: ellipsis; }\
+        css: "#cancel { cursor: pointer; margin: 8px; position: relative; border-radius: 13px; overflow: hidden; -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0);}\
+              #label { border-radius: 13px; font-weight: 500; height: 57px; line-height: 57px; font-size: 20px; color: #007aff; white-space: normal; text-overflow: ellipsis; }\
               #label { width: 100%; text-align: center; margin: 0; background: rgba(255,255,255,.95); box-sizing: border-box; display: block; position: relative; overflow: hidden; }",
         xml: "<div id='cancel'>\
                 <div id='label'>取消</div>\

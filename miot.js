@@ -435,7 +435,7 @@ $_("proxy/login").imports({
         xml: "<Crypto id='crypto' xmlns='/'/>",
         fun: function (sys, items, opts) {
             return async function (pass, realPass, salt) {
-                let strOk = typeof pass == "string" && 6 <= pass.length && pass.length <= 16;
+                let strOk = typeof pass == "string" && pass.length >= 5 && pass.length <= 16;
                 let inputPass = await items.crypto.encrypt(pass, salt);
                 return strOk && (inputPass == realPass);
             };

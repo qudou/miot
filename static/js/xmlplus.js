@@ -233,7 +233,8 @@ let $ = {
             if (target.push) return fromArray(target);
             return typeof target == "object" ? fromObject(target) : target;
         };
-    }())
+    }()),
+	delay: ms => new Promise((resolve, reject) => setTimeout(resolve, ms))
 };
 
 let ph = (function () {
@@ -719,7 +720,7 @@ let MessageModuleAPI = (function () {
                     let e = {type: type, target: that.api, currentTarget: item.watcher.api};
                     e.stopImmediateNotification = ()=> e.cancelImmediate = true;
                     e.stopNotification = ()=> e.cancel = true;
-                    item.fn.apply(e.currentTarget, [e].concat(data));
+                    item.fn.apply(e.currentTarget, [e,...data]);
                     if (e.cancelImmediate)
                         return !(cancel = true);
                     e.cancel && (cancel = e.cancel);
