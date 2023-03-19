@@ -19,9 +19,9 @@ $_().imports({
               input { user-select: text; } \
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
               #index { position: relative; background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; margin: 0 auto; max-width: 480px; }\
-              #stack, #mask { width: 100%; height: 100%; }\
-              #stack > * { transition-duration: 0s; }\
-              .dialog { border: 1px solid #CACDD1; }",
+              @media screen and (min-width: 480px) { #index { border: 1px solid #E4E3E6; border: 0 1px; } }\
+			  #stack, #mask { width: 100%; height: 100%; }\
+              #stack > * { transition-duration: 0s; }",
         xml: "<i:Applet id='index' xmlns:i='//xp'>\
                   <i:ViewStack id='stack'>\
                     <Content id='content'/>\
@@ -379,12 +379,12 @@ $_("content").imports({
         }
     },
     Message: {
-        css: "#info { position: absolute; top: 50%; width: 100%; padding: 8px; box-sizing: border-box; color: white; text-align: center; background: rgba(0, 0, 0, 0.4); border-radius: 5px; }\
-              #close { fill: #007aff; width: 22px; height: 22px; margin-bottom: -6px; }",
+        css: "#info { position: absolute; top: 40%; left: 20%; width: 60%; text-align: center; padding: 8px; box-sizing: border-box; color: white; text-align: center; background: rgba(0, 0, 0, 0.4); border-radius: 5px; }\
+              #close { fill: #CACDD1; width: 22px; height: 22px; margin-bottom: -6px; }",
         xml: "<div id='preload'>\
                 <div id='info'>\
                     <span id='label'/>\
-                    <a href='#'>\
+                    <a href='#' style='float: left'>\
                       <Close id='close' xmlns='//xp/assets'/>\
                     </a>\
                 </div>\
