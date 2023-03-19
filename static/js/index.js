@@ -676,8 +676,11 @@ $_("content/footer").imports({
                 app = p.apps[i];
             });
             this.on(ev.click, () => {
-                if (app && app.online)
-                    this.trigger("/applet/open", app);
+				if (app == null)
+					return this.trigger("message", ["msg", "当前网关无自动化应用"]);
+                if (app.online == 0)
+					return this.trigger("message", ["msg", "当前网关自动化应用已离线"]);
+                this.trigger("/applet/open", app);
             });
         }
     },
