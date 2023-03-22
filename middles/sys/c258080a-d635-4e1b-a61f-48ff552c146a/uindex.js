@@ -18,8 +18,7 @@ $_().imports({
                 <Signup id='signup'/>\
                 <Remove id='remove'/>\
                 <Update id='update'/>\
-                <ViewMiddle id='viewMiddle'/>\
-                <PartMiddle id='partMiddle'/>\
+                <Service id='service'/>\
               </main>"
     },
     Select: {
@@ -67,6 +66,12 @@ $_().imports({
             this.watch("/views/update", (e, p) => sys.validate.trigger("validate", p));
         }
     },
+	Service: {
+        xml: "<main xmlns:i='service'>\
+                <i:ViewMiddle id='viewMiddle'/>\
+                <i:PartMiddle id='partMiddle'/>\
+              </main>"
+	},
     Falls: {
         fun: function (sys, items, opts) {
             let kids = this.kids();
@@ -76,7 +81,7 @@ $_().imports({
     }
 });
 
-$_().imports({
+$_("service").imports({
     ViewMiddle: {
         xml: "<Common id='middle' xmlns='//miot'/>",
         fun: async function (sys, items, opts) {
@@ -89,6 +94,13 @@ $_().imports({
             this.watch("uindex", (e, mid, p) => {
                 table[mid] ? table[mid].notify(p) : this.trigger("to-local", p);
             });
+			this.watch("/views/reboot", async (e, p) => {
+				let mid = p.body;
+				if (!table[mid])
+					if (await items.middle.exists(`${cdir}/${mid}/uindex.js`))
+						table[mid] = sys.middle.append("Worder", {mid: mid, type: "uindex"}).val();
+				table[mid] && table[mid].terminate();
+			});
         }
     },
     PartMiddle: {
@@ -103,6 +115,13 @@ $_().imports({
             this.watch("pindex", (e, mid, p) => {
                 table[mid] ? table[mid].notify(p) : this.trigger("to-users", p);
             });
+			this.watch("/views/reboot", async (e, p) => {
+				let mid = p.body;
+				if (!table[mid])
+					if (await items.middle.exists(`${cdir}/${mid}/pindex.js`))
+						table[mid] = sys.middle.append("Worder", {mid: mid, type: "pindex"}).val();
+				table[mid] && table[mid].terminate();
+			});
         }
     },
     Worker: {
@@ -127,11 +146,14 @@ $_().imports({
                     items.logger.info(`middle ${opts.mid}/${opts.type} finished with exit code ${code}`);
                     setTimeout(()=> makeWorker(), 10*1000);
                 });
-            }())
+            }());
             function notify(payload) {
                 worker && worker.postMessage(payload);
             }
-            return { notify: notify };
+            function terminate() {
+                worker && worker.terminate();
+            }
+            return { notify: notify, terminate: terminate };
         }
     }
 });

@@ -215,6 +215,7 @@ $_("update").imports({
                       <i:Desc id='desc'/>\
                   </i:Form>\
                   <i:Button id='submit'>确定更新</i:Button>\
+				  <i:Button id='reboot'>重启服务</i:Button>\
               </Content>",
         fun: function (sys, items, opts) {
             sys.desc.watch("next", (e, p) => {
@@ -231,12 +232,19 @@ $_("update").imports({
                 }
             }
             this.watch("#/view/ready", (e, prev, data) => {
+				opts = data;
                 items.oldId.value = data.id;
                 items.newId.value = data.id;
                 items.view.value = data.name;
                 items.desc.value = data.desc;
             });
             sys.submit.on(ev.click, () => sys.update.notify("next", {}));
+            sys.reboot.on(ev.click, () => {
+				if (confirm("确定重启服务吗？")) {
+					this.trigger("publish", ["/views/reboot", opts.id]);
+					this.trigger("message", ["msg", "服务将在 10s 后重启"]);
+				}
+			});
         }
     },
     OldID: {
