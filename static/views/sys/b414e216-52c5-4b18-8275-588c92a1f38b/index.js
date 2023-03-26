@@ -121,9 +121,10 @@ $_("overview").imports({
         }
     },
     LinkItem: {
-        xml: "<ListItem xmlns='//xp/list'>\
+        css: "#icon { width: 28px; height: 28px; }",
+		xml: "<ListItem xmlns='//xp/list'>\
                 <Content style='link'>\
-                   <Media><Icon xmlns='.'/></Media>\
+                   <Media><Router id='icon' xmlns='//xp/assets'/></Media>\
                    <Inner id='inner' style='link'>\
                      <Title id='title'>\
                         <label id='label'/>\
@@ -139,11 +140,6 @@ $_("overview").imports({
             });
             this.on("$/before/bind", (e, value) => opts = value);
         }
-    },
-    Icon: {
-        xml: "<svg viewBox='0 0 1024 1024' width='28' height='28'>\
-                <path d='M768 864H256c-70.4 0-128-57.6-128-128v-128c0-70.4 57.6-128 128-128h64V192c0-17.6 14.4-32 32-32s32 14.4 32 32v288h256V192c0-17.6 14.4-32 32-32s32 14.4 32 32v288h64c70.4 0 128 57.6 128 128v128c0 70.4-57.6 128-128 128z m64-256c0-35.2-28.8-64-64-64H256c-35.2 0-64 28.8-64 64v128c0 35.2 28.8 64 64 64h512c35.2 0 64-28.8 64-64v-128z m-160 128c-35.2 0-64-28.8-64-64s28.8-64 64-64 64 28.8 64 64-28.8 64-64 64z m0-96c-17.6 0-32 14.4-32 32s14.4 32 32 32 32-14.4 32-32-14.4-32-32-32z m-320 96c-35.2 0-64-28.8-64-64s28.8-64 64-64 64 28.8 64 64-28.8 64-64 64z m0-96c-17.6 0-32 14.4-32 32s14.4 32 32 32 32-14.4 32-32-14.4-32-32-32z'/>\
-              </svg>"
     }
 });
 
@@ -180,9 +176,10 @@ $_("applist").imports({
         }
     },
     ListItem: {
+		css: "#icon { width: 28px; height: 28px; }",
         xml: "<i:Swipeout xmlns:i='//xp/swipeout'>\
                  <Content xmlns='//xp/list'>\
-                    <Media><Icon xmlns='.'/></Media>\
+                    <Media><Icon id='icon' xmlns='/'/></Media>\
                     <Inner id='inner'>\
                       <Title id='title'>\
                         <div id='label'/>\
@@ -201,11 +198,6 @@ $_("applist").imports({
             sys.edit.on(ev.click, () => this.trigger("goto", ["update", opts]));
             sys.remove.on(ev.click, () => this.trigger("remove", opts));
         }
-    },
-    Icon: {
-        xml: "<svg viewBox='0 0 1024 1024' width='28' height='28'>\
-                <path d='M921.6 435.2H896V326.4c0-57.6-44.8-102.4-102.4-102.4H204.8c-12.8 0-25.6-12.8-25.6-25.6V76.8H102.4v121.6c0 57.6 44.8 102.4 102.4 102.4h588.8c12.8 0 25.6 12.8 25.6 25.6v108.8H102.4C44.8 435.2 0 480 0 531.2v320c0 57.6 44.8 102.4 102.4 102.4h819.2c57.6 0 102.4-44.8 102.4-102.4v-320c0-51.2-44.8-96-102.4-96z m25.6 416c0 12.8-12.8 25.6-25.6 25.6H102.4c-12.8 0-25.6-12.8-25.6-25.6v-320c0-12.8 12.8-25.6 25.6-25.6h819.2c12.8 0 25.6 12.8 25.6 25.6v320zM147.2 620.8h76.8V704H147.2V620.8z m153.6 0h76.8V704H300.8V620.8z m153.6 0h76.8V704H454.4V620.8z m416 44.8c0 19.2-19.2 38.4-38.4 38.4h-51.2c-19.2 0-38.4-19.2-38.4-38.4s19.2-38.4 38.4-38.4h51.2c19.2-6.4 38.4 12.8 38.4 38.4z'/>\
-              </svg>"
     }
 });
 

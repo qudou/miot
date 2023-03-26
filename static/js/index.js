@@ -5,8 +5,8 @@
  * Released under the MIT license
  */
 
+let ev = xmlplus.events;
 const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
-const ev = xmlplus.events;
 const Server = document.querySelector("meta[name='mqtt-server']").getAttribute("content");
 
 xmlplus.debug = false;

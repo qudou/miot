@@ -112,9 +112,10 @@ $_("overview").imports({
         }
     },
     LinkItem: {
+		css: "#icon { width: 28px; height: 28px; }",
         xml: "<i:Swipeout id='item' xmlns:i='//xp/swipeout'>\
                  <Content id='content' xmlns='//xp/list'>\
-                    <Media><Icon xmlns='.'/></Media>\
+                    <Media><Icon id='icon' xmlns='/'/></Media>\
                     <Inner id='inner'>\
                       <Title id='title'>\
                         <div id='label'/>\
@@ -133,11 +134,6 @@ $_("overview").imports({
             sys.edit.on(ev.click, () => this.trigger("goto", ["update", opts]));
             sys.remove.on(ev.click, () => this.trigger("remove", opts));
         }
-    },
-    Icon: {
-        xml: "<svg viewBox='0 0 1024 1024' width='28' height='28'>\
-                <path d='M768 864H256c-70.4 0-128-57.6-128-128v-128c0-70.4 57.6-128 128-128h64V192c0-17.6 14.4-32 32-32s32 14.4 32 32v288h256V192c0-17.6 14.4-32 32-32s32 14.4 32 32v288h64c70.4 0 128 57.6 128 128v128c0 70.4-57.6 128-128 128z m64-256c0-35.2-28.8-64-64-64H256c-35.2 0-64 28.8-64 64v128c0 35.2 28.8 64 64 64h512c35.2 0 64-28.8 64-64v-128z m-160 128c-35.2 0-64-28.8-64-64s28.8-64 64-64 64 28.8 64 64-28.8 64-64 64z m0-96c-17.6 0-32 14.4-32 32s14.4 32 32 32 32-14.4 32-32-14.4-32-32-32z m-320 96c-35.2 0-64-28.8-64-64s28.8-64 64-64 64 28.8 64 64-28.8 64-64 64z m0-96c-17.6 0-32 14.4-32 32s14.4 32 32 32 32-14.4 32-32-14.4-32-32-32z'/>\
-              </svg>"
     }
 });
 

@@ -99,7 +99,7 @@ $_("overview").imports({
         css: "#icon { width: 28px; height: 28px; }",
         xml: "<i:Swipeout id='item' xmlns:i='//xp/swipeout'>\
                  <Content xmlns='//xp/list'>\
-                    <Media><Person id='icon' xmlns='//xp/assets'/></Media>\
+                    <Media><Icon id='icon' xmlns='/'/></Media>\
                     <Inner id='inner'>\
                       <Title id='title'>\
                         <Header id='header'>普通用户</Header>\
