@@ -341,7 +341,8 @@ $_("content").imports({
                 opts = app;
                 items.mask.show();
                 sys.applet.addClass("#modal-in");
-                require([`/views/${app.dir}/index.js`], () => load(app), () => {
+				let dir = app.type ? "user" : "sys";
+                require([`/views/${dir}/${app.view}/index.js`], () => load(app), () => {
                     items.mask.hide();
                     sys.applet.removeClass("#modal-in");
                     this.trigger("message", ["error", "应用打开失败，请稍后再试！"]);
@@ -487,7 +488,6 @@ $_("content/index").imports({
             let apps = sys.renderer.bind([]);
             this.watch("/ui/apps", (e, p) => {
                 link = p.link;
-                p.apps.forEach(i => i.dir = `${i.type ? "usr" : "sys"}/${i.view}`);
                 apps.model = _apps = p.apps;
             });
             this.watch("/stat/app", (e, p) => {
@@ -541,7 +541,7 @@ $_("content/index/apps").imports({
               #label { margin: 4px 0 0; line-height: 1; display: block; letter-spacing: .01em; font-size: 11px; position: relative; text-overflow: ellipsis; white-space: nowrap; }\
               a#active { color: #FF6A00; }",
         xml: "<a id='item'>\
-                <Icon id='dir'/>\
+                <Icon id='icon'/>\
                 <span id='label'/>\
               </a>",
         map: { bind: {"name": "label"} },
@@ -558,6 +558,11 @@ $_("content/index/apps").imports({
                 opts.type = value;
                 value == 1 && sys.label.text(`#${sys.label.text()}`);
             }
+			this.on("$/before/bind", (e, data) => {
+				let dir = data.type ? "user" : "sys";
+				let path = `/views/${dir}/${data.view}/icon.js`;
+				items.icon(path, data.view);
+			});
             return { online: online, type: type };
         }
     },
@@ -568,20 +573,16 @@ $_("content/index/apps").imports({
                 <span id='span'/>\
               </div>",
         fun: function (sys, items, opts) {
-            let tmp, icon = sys.span;
+            let icon = sys.span;
             function show(path) {
                 icon = icon.replace(path);
             }
-            function dir(value) {
-                if (value == undefined)
-                    return tmp;
-                tmp = value;
-                require([`/views/${tmp}/icon.js`], e => {
-                    let path = `//${tmp.split('/')[1]}/Icon`;
+            return function (path, klass) {
+                require([path], e => {
+                    let path = `//${klass}/Icon`;
                     show(xp.hasComponent(path) ? path : "//xp/assets/Unknow");
                 }, ()=> show("//xp/assets/Unknow"));
-            }
-            return { dir: dir };
+            };
         }
     }
 });
