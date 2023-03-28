@@ -341,7 +341,7 @@ $_("content").imports({
                 opts = app;
                 items.mask.show();
                 sys.applet.addClass("#modal-in");
-				let dir = app.type ? "user" : "sys";
+				let dir = app.type ? "usr" : "sys"; 
                 require([`/views/${dir}/${app.view}/index.js`], () => load(app), () => {
                     items.mask.hide();
                     sys.applet.removeClass("#modal-in");
@@ -559,7 +559,7 @@ $_("content/index/apps").imports({
                 value == 1 && sys.label.text(`#${sys.label.text()}`);
             }
 			this.on("$/before/bind", (e, data) => {
-				let dir = data.type ? "user" : "sys";
+				let dir = data.type ? "usr" : "sys";
 				let path = `/views/${dir}/${data.view}/icon.js`;
 				items.icon(path, data.view);
 			});
