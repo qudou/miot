@@ -786,7 +786,7 @@ $_("swipeout").imports({
         css: "#button { color: #FFF; padding: 0 30px; display: flex; align-items: center; position: relative; left: 0; outline: 0; cursor: pointer; text-decoration: none; }\
               #button:after { left: 100%; margin-left: -1px;content: ''; position: absolute; top: 0; width: 600%; height: 100%; background: inherit; z-index: -1; transform: translate3d(0,0,0); pointer-events: none; }\
               #button { transition-duration: .3s; transition-property: transform,left; }",
-        xml: "<a id='button' href='#'/>",
+        xml: "<span id='button'/>",
         fun: function (sys, items, opts) {
             let table = {red: "#ff3b30", blue: "#007aff", green: "#4cd964"};
             this.css("background-color", table[opts.color] || "#007aff");

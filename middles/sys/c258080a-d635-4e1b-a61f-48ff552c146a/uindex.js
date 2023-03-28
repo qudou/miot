@@ -9,7 +9,7 @@ const fs = require("fs");
 const xmlplus = require("xmlplus");
 const { Worker } = require('worker_threads');
 
-xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => { // 视图管理
+xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => { // 服务管理
 
 $_().imports({
     Index: {
@@ -144,7 +144,7 @@ $_("service").imports({
                 worker.on('exit', (code) => {
                     worker = null;
                     items.logger.info(`middle ${opts.mid}/${opts.type} finished with exit code ${code}`);
-                    setTimeout(()=> makeWorker(), 10*1000);
+                    setTimeout(()=> makeWorker(), 5000);
                 });
             }());
             function notify(payload) {

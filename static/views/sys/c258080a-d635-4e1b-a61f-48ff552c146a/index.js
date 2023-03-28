@@ -5,7 +5,7 @@
  * Released under the MIT license
  */
 
-xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => { // 视图管理
+xmlplus("c258080a-d635-4e1b-a61f-48ff552c146a", (xp, $_) => { // 服务管理
 
 $_().imports({
     Index: {
@@ -32,7 +32,7 @@ $_().imports({
     },
     Overview: {
         xml: "<div xmlns:i='//xp'>\
-                <i:Navbar id='navbar' title='视图管理' menu='注册'/>\
+                <i:Navbar id='navbar' title='服务管理' menu='注册'/>\
                 <Content xmlns='overview'/>\
               </div>",
         fun: function (sys, items, opts) { 
@@ -42,7 +42,7 @@ $_().imports({
     },
     Signup: {
         xml: "<div xmlns:i='//xp'>\
-                <i:Navbar id='navbar' icon='Backward' title='视图注册'/>\
+                <i:Navbar id='navbar' icon='Backward' title='服务注册'/>\
                 <Content xmlns='signup'/>\
               </div>",
         fun: function (sys, items, opts) { 
@@ -51,7 +51,7 @@ $_().imports({
     },
     Update: {
         xml: "<div xmlns:i='//xp'>\
-                <i:Navbar id='navbar' icon='Backward' title='视图修改'/>\
+                <i:Navbar id='navbar' icon='Backward' title='服务修改'/>\
                 <Content xmlns='update'/>\
               </div>",
         fun: function (sys, items, opts) { 
@@ -71,7 +71,7 @@ $_("overview").imports({
             let proxy = sys.item.bind([]);
             sys.list.on("remove", (e, p) => {
                 e.stopPropagation();
-                if (confirm("确定删除该视图吗？")) {
+                if (confirm("确定删除该服务吗？")) {
                     this.trigger("publish", ["/views/remove", {id: p.id}]);
                     this.glance("/views/remove", (ev, p) => {
                         this.trigger("message", ["msg", p.desc]);
@@ -158,14 +158,14 @@ $_("signup/form").imports({
         }
     },
     View: {
-        xml: "<Input id='view' label='名称' placeholder='请输入视图名称' maxlength='32'/>",
+        xml: "<Input id='view' label='名称' placeholder='请输入服务名称' maxlength='32'/>",
         fun: function (sys, items, opts) {
             this.watch("next", (e, o) => {
                 o.name = items.view.value;
                 if (o.name === "") {
-                    this.trigger("error", [e, "请输入视图名称"]);
+                    this.trigger("error", [e, "请输入服务名称"]);
                 } else if (o.name.length < 2) {
-                    this.trigger("error", [e, "视图名称至少需要2个字符"]);
+                    this.trigger("error", [e, "服务名称至少需要2个字符"]);
                 }
             });
             return items.view;
@@ -225,7 +225,7 @@ $_("update").imports({
                     sys.content.trigger("publish", "/views/select");
                 }
             }
-            this.watch("#/view/ready", (e, prev, data) => {
+            this.watch("#/view/ready", (e, prev, data) => { 
 				opts = data;
                 items.oldId.value = data.id;
                 items.newId.value = data.id;
@@ -236,7 +236,7 @@ $_("update").imports({
             sys.reboot.on(ev.click, () => {
 				if (confirm("确定重启服务吗？")) {
 					this.trigger("publish", ["/views/reboot", opts.id]);
-					this.trigger("message", ["msg", "服务将在 10s 后重启"]);
+					this.trigger("message", ["msg", "请稍后，服务将在 5s 后重启"]);
 				}
 			});
         }
