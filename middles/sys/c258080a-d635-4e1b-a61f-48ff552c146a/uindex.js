@@ -91,8 +91,9 @@ $_("service").imports({
             for (let mid of mids)
                 if (await items.middle.exists(`${cdir}/${mid}/uindex.js`))
                     table[mid] = sys.middle.append("Worker", {mid: mid, type: "uindex"}).val();
+			let topic = "to-local";
             this.watch("uindex", (e, mid, p) => {
-                table[mid] ? table[mid].notify(p) : this.trigger("to-local", p);
+                table[mid] ? table[mid].notify({topic: topic, payload: p}) : this.trigger(topic, p);
             });
 			this.watch("/views/reboot", async (e, p) => {
 				let mid = p.body;
@@ -112,8 +113,9 @@ $_("service").imports({
             for (let mid of mids)
                 if (await items.middle.exists(`${cdir}/${mid}/pindex.js`))
                     table[mid] = sys.middle.append("Worder", {mid: mid, type: "pindex"}).val();
+			let topic = "to-users";
             this.watch("pindex", (e, mid, p) => {
-                table[mid] ? table[mid].notify(p) : this.trigger("to-users", p);
+                table[mid] ? table[mid].notify({topic: topic, payload: p}) : this.trigger(topic, p);
             });
 			this.watch("/views/reboot", async (e, p) => {
 				let mid = p.body;

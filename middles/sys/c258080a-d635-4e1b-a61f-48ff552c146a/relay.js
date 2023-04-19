@@ -3,10 +3,11 @@ const xmlplus = require("xmlplus");
 require(workerData);
 const middle = xmlplus.startup(`//middle/Index`);
 
-parentPort.on("message", p => {
+parentPort.on("message", d => {
     let msgs = middle.messages();
+	let p = d.payload;
     if(msgs.indexOf(p.topic) == -1) {
-        return parentPort.postMessage({topic: "to-users", payload: p});
+        return parentPort.postMessage({topic: d.topic, payload: p});
     }
     middle.notify(p.topic, p);
 });

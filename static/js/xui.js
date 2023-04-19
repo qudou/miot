@@ -410,7 +410,7 @@ $_("form").imports({
         css: "#button { padding: 0 15px; text-align: center; color: #007aff; line-height: 44px; display: block; border: 1px solid #E4E3E6; border-style: solid none; background: #FFF; outline: 0; cursor: pointer; text-decoration: none; }\
               #button { transition-duration: .3s; transition-property: background-color,color; }\
               #active { transition-duration: 0s; background-color: rgba(0, 0, 0, 0.15); }",
-        xml: "<a id='button' href='#'/>",
+        xml: "<span id='button'/>",
         fun: function (sys, items, opts) {
             this.on(ev.touchstart, () => sys.button.addClass("#active"));
             this.on(ev.touchend, (e) => {

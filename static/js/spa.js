@@ -120,7 +120,7 @@ $_().imports({
                 c.map.msgFilter = /[^]*/;
                 sys.mask.before(applet, app);
                 items.mask.hide();
-                sys.mask.prev().notify(`//${opts.view}`);
+				loaded(sys.mask.prev());
             }
             function loaded(page) {
                 if (opts.online == 0)

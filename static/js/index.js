@@ -35,6 +35,7 @@ $_().imports({
             let q = xp.create("//miot/Query");
             q.mw && sys.index.css("max-width", q.mw);
             this.on("connect", function (e, cfg) {
+				cfg.keepalive = 30;
                 items.mask.show();
                 client = mqtt.connect(Server, cfg);
                 client.on("connect", function (e) {
