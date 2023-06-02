@@ -702,7 +702,7 @@ MqttClient.prototype._handleConnack = function (packet) {
       'Unacceptable protocol version',
       'Identifier rejected',
       'Server unavailable',
-      'Bad username or password',
+      '用户名或者密码有误', // 'Bad username or password'
       'Not authorized'
     ];
 
@@ -712,7 +712,8 @@ MqttClient.prototype._handleConnack = function (packet) {
     this.emit('connect', packet);
   } else if (0 < rc) {
     this.emit('error',
-        new Error('Connection refused: ' + errors[rc]));
+        //new Error('Connection refused: ' + errors[rc]));
+        new Error(errors[rc]));
   }
 };
 

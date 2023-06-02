@@ -67,7 +67,7 @@ $_().imports({
             });
             this.on("to-local", (e, topic, payload) => {
                 payload = JSON.stringify(payload);
-                server.publish({topic: topic, payload: payload, qos: 1, retain: false});
+                server.publish({topic: topic, payload: payload});
             });
         }
     },
@@ -92,7 +92,7 @@ $_().imports({
                 let s = await items.common.getUserByClient(client.id);
                 let p = {topic: "/ui/session", data: {session: s.session, username: s.name}};
                 p = JSON.stringify(p);
-                server.publish({topic: client.id, payload: p, qos: 1, retain: false});
+                server.publish({topic: client.id, payload: p});
             });
             server.on("clientDisconnected", async client => items.users.disconnected(client));
             server.on("published", async (packet, client) => {
@@ -108,7 +108,7 @@ $_().imports({
             this.watch("to-user", (e, topic, p) => {
                 p = (p.mid == uid) ? p : {topic: p.topic ? "/ui/app" : "/stat/app", data: p};
                 p = JSON.stringify(p);
-                server.publish({topic: topic, payload: p, qos: 1, retain: false});
+                server.publish({topic: topic, payload: p});
             });
             this.watch("to-users", async (e, payload) => {
                 let users = await items.users.getUsersByMiddle(payload.mid);

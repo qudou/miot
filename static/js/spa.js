@@ -5,7 +5,7 @@
  * Released under the MIT license
  */
 
-let ev = xmlplus.events;
+const ev = xmlplus.events;
 const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
 const Server = document.querySelector("meta[name='mqtt-server']").getAttribute("content");
 
@@ -15,9 +15,9 @@ $_().imports({
     Index: {
         css: "* { user-select: none; -webkit-tap-highlight-color: transparent; }\
               input { user-select: text; }\
-              html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; font-size: 100%; overflow: hidden; }\
-              #index { position: relative; background: url(/img/background.jpg) no-repeat; background-size: 100% 100%; margin: 0 auto; max-width: 480px; }\
-			  @media screen and (min-width: 480px) { #index { border: 1px solid #E4E3E6; border: 0 1px; } }\
+              html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; }\
+              #index { position: relative; background: url(/img/background.jpg) center 100% 100%; margin: 0 auto; max-width: 480px; }\
+			  @media screen and (min-width: 480px) { #index { border: 1px solid #E4E3E6; } }\
               #stack, #mask { width: 100%; height: 100%; }\
               #stack > * { transition-duration: 0s; }",
         xml: "<div id='index' xmlns:i='//xp'>\
@@ -52,8 +52,7 @@ $_().imports({
                 client.on("error", (e) => {
                     items.mask.hide();
                     sys.index.trigger("message", ["error", e.message]);
-                    if (e.message == "Connection refused: Bad username or password")
-                         sys.applet.trigger("/ui/logout");
+                    sys.applet.trigger("/ui/logout");
                 });
                 client.on("close", () => sys.applet.notify("/stat/ui/0"));
             });
