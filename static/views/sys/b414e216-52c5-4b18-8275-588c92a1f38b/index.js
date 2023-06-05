@@ -85,7 +85,7 @@ $_().imports({
                 items.content.text(`${data}不存在,请先添加${data}`);
             });
             this.watch("/apps/views", (e, views) => {
-                views.length ? this.trigger("publish", "/apps/areas") : this.trigger("goto", ["guide", "视图"]);
+                views.length ? this.trigger("publish", "/apps/areas") : this.trigger("goto", ["guide", "服务"]);
             });
             this.watch("/apps/areas", (e, areas) => {
                 areas.length || this.trigger("goto", ["guide", "区域"]);
@@ -321,7 +321,7 @@ $_("signup/form").imports({
         }
     },
     View: {
-        xml: "<Select id='view' label='视图'>\
+        xml: "<Select id='view' label='服务'>\
                  <Option id='option'/>\
               </Select>",
         fun: function (sys, items, opts) {

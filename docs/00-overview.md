@@ -42,12 +42,12 @@ miot/
 
 ```js
 {
-    "view": {
+    "gw_view": {
         "http": {"port": 8080, "static": "dir/static"}
         //"https": { "port": 443, bundle: true, "static": "dir/static" }, 
         //"secure": { "keyPath": "dir/secure/tls-key.pem", "certPath": "dir/secure/tls-cert.pem" } },
     },
-    "gateway": {
+    "gw_local": {
         "port": 1883
         //"secure": { "port": 8443, "keyPath": "dir/secure/tls-key.pem",  "certPath": "dir/secure/tls-cert.pem" }
     },
@@ -58,7 +58,7 @@ miot/
 }
 ```
 
-上面配置中，`view` 是提供给视图连接的配置，你可以根据需要来决定是否提供 https 服务。`gateway` 是提供给内网网关连接的配置，你可以根据需要来决定是否启用 lts 安全连接。`logger` 是日志打印配置。
+上面配置中，`gw_view` 是提供给视图连接的配置，你可以根据需要来决定是否提供 https 服务。`gw_local` 是提供给内网网关连接的配置，你可以根据需要来决定是否启用 lts 安全连接。`logger` 是日志打印配置。
 
 ## 视图层与中间件
 

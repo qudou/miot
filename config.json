@@ -1,8 +1,8 @@
 {
-    "view": {
-        "http": {"port": 8080, "static": "dir/static"}
+    "gw_view": {
+        "http": {"port": 8080, "static": "__dirname/static"}
     },
-    "gateway": {
+    "gw_local": {
         "port": 1883
     },
     "logger": {

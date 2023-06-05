@@ -9,7 +9,8 @@ const mosca = require("mosca");
 const xmlplus = require("xmlplus");
 const uid = "5ab6f0a1-e2b5-4390-80ae-3adf2b4ffd40";
 const fs = require("fs");
-const config = JSON.parse(fs.readFileSync(`${__dirname}/config.json`).toString().replace(/dir/g, __dirname));
+const config = JSON.parse(fs.readFileSync(`${__dirname}/config.json`).toString().replace(/__dirname/g, __dirname));
+
 xmlplus("miot", (xp, $_) => {
 
 $_().imports({
@@ -39,7 +40,7 @@ $_().imports({
                 <Logger id='logger'/>\
               </main>",
         fun: function (sys, items, opts) {
-            let server = new mosca.Server(config.gateway);
+            let server = new mosca.Server(config.gw_local);
             server.on("ready", async () => {
                 await items.links.offlineAll();
                 await items.apps.offlineAll();
@@ -82,7 +83,7 @@ $_().imports({
               </main>",
         map: { share: "proxy/Session" },
         fun: function (sys, items, opts) {
-            let server = new mosca.Server(config.view);
+            let server = new mosca.Server(config.gw_view);
             server.on("ready", async () => {
                 await items.users.offlineAll();
                 Object.keys(items.auth).forEach(k => server[k] = items.auth[k]);
