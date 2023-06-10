@@ -102,10 +102,11 @@ $_("overview").imports({
                     <Media><Icon id='icon' xmlns='/'/></Media>\
                     <Inner id='inner'>\
                       <Title id='title'>\
+					    <Header>livetime: <span id='livetime'/> day</Header>\
                         <div id='label'/>\
                         <Footer id='last_login'/>\
                       </Title>\
-					  <After id='after'>普通用户</After>\
+					  <After id='after'/>\
                     </Inner>\
                  </Content>\
                  <i:Actions>\
@@ -121,6 +122,7 @@ $_("overview").imports({
             function id(value) {
                 if (value == undefined)
                     return opts.id;
+				sys.after.text("");
                 if (value == 0)
                     sys.after.text("管理员") && sys.remove && sys.remove.remove();
             }
