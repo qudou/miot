@@ -147,7 +147,6 @@ $_().imports({
                 localStorage.setItem("session", p.session);
                 localStorage.setItem("username", p.username);
             });
-            this.watch("#/view/ready", () => items.footer.changePage("home"));
         }
     },
     Query: {
@@ -267,11 +266,12 @@ $_("content").imports({
                 let id = this.toString();
                 id == 'auto' || this.trigger("switch", id);
             });
-            function changePage(page) {
-                sys[page].trigger(ev.click);
-                items[page].prop("checked", "true");
-            }
-            return { changePage: changePage };
+			this.watch("#/view/ready", () => {
+				if (items.about.prop("checked")) {
+					sys.home.trigger(ev.click);
+					items.home.prop("checked", "true");
+				}
+            });
         }
     },
     Popup: {
@@ -597,7 +597,7 @@ $_("content/about").imports({
                 <Logo id='logo' xmlns='/login'/>\
                 <div id='title'>马蹄莲</div>\
                 <div id='user'>当前用户：1001</div>\
-                <div id='version'>版本号：1.1.7</div>\
+                <div id='version'>版本号：1.1.8</div>\
                 <Logout id='logout'/>\
               </div>",
         fun: function (sys, items, opts) {

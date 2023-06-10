@@ -43,13 +43,13 @@ miot/
 ```js
 {
     "gw_view": {
-        "http": {"port": 8080, "static": "dir/static"}
-        //"https": { "port": 443, bundle: true, "static": "dir/static" }, 
-        //"secure": { "keyPath": "dir/secure/tls-key.pem", "certPath": "dir/secure/tls-cert.pem" } },
+        "http": {"port": 8080, "static": "__dirname/static"}
+        //"https": { "port": 443, bundle: true, "static": "__dirname/static" }, 
+        //"secure": { "keyPath": "__dirname/secure/tls-key.pem", "certPath": "__dirname/secure/tls-cert.pem" } },
     },
     "gw_local": {
         "port": 1883
-        //"secure": { "port": 8443, "keyPath": "dir/secure/tls-key.pem",  "certPath": "dir/secure/tls-cert.pem" }
+        //"secure": { "port": 8443, "keyPath": "__dirname/secure/tls-key.pem",  "certPath": "__dirname/secure/tls-cert.pem" }
     },
     "logger": {
         "lever": "info",

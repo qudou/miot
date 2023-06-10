@@ -102,10 +102,10 @@ $_("overview").imports({
                     <Media><Icon id='icon' xmlns='/'/></Media>\
                     <Inner id='inner'>\
                       <Title id='title'>\
-                        <Header id='header'>普通用户</Header>\
                         <div id='label'/>\
                         <Footer id='last_login'/>\
                       </Title>\
+					  <After id='after'>普通用户</After>\
                     </Inner>\
                  </Content>\
                  <i:Actions>\
@@ -122,7 +122,7 @@ $_("overview").imports({
                 if (value == undefined)
                     return opts.id;
                 if (value == 0)
-                    sys.header.text("管理员") && sys.remove && sys.remove.remove();
+                    sys.after.text("管理员") && sys.remove && sys.remove.remove();
             }
             return { id: id };
         }

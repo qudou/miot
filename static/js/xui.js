@@ -204,6 +204,7 @@ $_().imports({
                 kids[to].css("transition-duration") == "0s" && kids[to].trigger("transitionend", [], false);
             });
             this.on("back", function (e) {
+				// if len <= 1, keep bubbling
                 if (stack.length <= 1) return;
                 e.stopPropagation();
                 let old = stack.pop();
