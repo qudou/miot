@@ -119,7 +119,7 @@ $_("signup").imports({
               </Content>",
         fun: function (sys, items, opts) {
             sys.desc.watch("next", (e, p) => {
-                this.trigger("//mask/show");
+                this.trigger("/mask/show");
                 this.trigger("publish", ["/areas/signup", p]);
                 this.glance("/areas/signup", callback);
             });

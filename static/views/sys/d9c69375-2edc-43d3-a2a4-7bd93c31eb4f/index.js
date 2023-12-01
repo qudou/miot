@@ -102,7 +102,7 @@ $_("overview").imports({
                     <Media><Icon id='icon' xmlns='/'/></Media>\
                     <Inner id='inner'>\
                       <Title id='title'>\
-					    <Header>livetime: <span id='livetime'/> day</Header>\
+					    <Header>livetime: <span id='livetime'/> days</Header>\
                         <div id='label'/>\
                         <Footer id='last_login'/>\
                       </Title>\

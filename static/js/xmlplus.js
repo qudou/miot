@@ -1,7 +1,7 @@
 /*!
- * xmlplus.js v1.7.18
+ * xmlplus.js v1.7.27
  * https://xmlplus.cn
- * (c) 2017-2022 qudou
+ * (c) 2017-2023 qudou
  * Released under the MIT license
  */
  (function (inBrowser, undefined) {
@@ -14,9 +14,9 @@
 //const ENTITY_NODE                 = 6;
 //const PROCESSING_INSTRUCTION_NODE = 7;
 //const COMMENT_NODE                = 8;
-//const DOCUMENT_NODE               = 9;
-  const DOCUMENT_TYPE_NODE          = 10;
-//const DOCUMENT_FRAGMENT_NODE      = 11;
+  const DOCUMENT_NODE               = 9;
+//const DOCUMENT_TYPE_NODE          = 10;
+  const DOCUMENT_FRAGMENT_NODE      = 11;
 //const NOTATION_NODE               = 12;
 
 const svgns = "http://www.w3.org/2000/svg";
@@ -56,19 +56,6 @@ let Global = {};
 
 let $ = {
     debug: true,
-    events: (function() {
-        let ev = {};
-        if ("ontouchend" in document.documentElement) {
-            ev.touchstart = "touchstart";
-            ev.touchmove = "touchmove";
-            ev.touchend = ev.click = "touchend";
-        } else {
-            ev.touchstart = "mousedown";
-            ev.touchmove = "mousemove";
-            ev.touchend = ev.click = "mouseup";
-        }
-        return ev;
-    }()),
     startup: startup,
     create: function (path, options) {
         let widget = $.hasComponent(path);
@@ -775,6 +762,7 @@ let MessageModuleAPI = (function () {
 let EventModuleAPI = (function () {
     let eventTable = {},
         listeners = {},
+        topElements = {},
         ignoreProps = /^([A-Z]|returnValue$|layer[XY]$|keyLocation$)/,
         specialEvents={ click: "MouseEvents", mousedown: "MouseEvents", mouseup: "MouseEvents", mousemove: "MouseEvents" };
     function assert(type, selector, fn) {
@@ -804,9 +792,13 @@ let EventModuleAPI = (function () {
         eventTable[uid] = eventTable[uid] || {};
         eventTable[uid][type] = eventTable[uid][type] || [];
         eventTable[uid][type].push({selector: selector, fn: fn, handler: handler});
-        if (!listeners[type]) {
-            listeners[type] = type;
-            rdoc.addEventListener(type, eventHandler)
+        let aid = this.env.aid;
+        listeners[aid] = listeners[aid] || {};
+        if (!listeners[aid][type]) {
+            listeners[aid][type] = type;
+            if (!topElements[aid])
+                topElements[aid] = topElement(this.elem());
+            topElements[aid].addEventListener(type, eventHandler)
         }
         return this;
     }
@@ -896,6 +888,13 @@ let EventModuleAPI = (function () {
             if (cancelBubble || event.bubbles === false || event.bubble_ === false) 
                 break;
             target = target.parentNode;
+        }
+    }
+    function topElement(node) {
+        while (node) {
+            if ( node.nodeType == DOCUMENT_FRAGMENT_NODE || node.nodeType == DOCUMENT_NODE )
+                return node.lastChild;
+            node = node.parentNode;
         }
     }
     return { on: on, once: once, off: off, trigger: trigger, remove: remove };
@@ -1569,14 +1568,18 @@ function StyleManager() {
             delete table[key];
         }
     }
-    function style() {
+    function reset(realParent) {
+        if (parent.nodeName != "void") return;
+        let head = realParent.getElementsByTagName("head")[0];
+        if (!head) return;
         let i, temp = [], kids = parent.childNodes;
         for (i = 0; i < kids.length; i++)
-            if (kids[i].nodeType == 1)
-                temp.push(kids[i].textContent);
-        return temp.join("");
+            temp.push(kids[i]);
+        for (i = 0; i < temp.length; i++)
+            head.appendChild(temp[i]);
+        parent = head;
     }
-    return { create: create, remove: remove, style: style };
+    return { create: create, remove: remove, reset: reset };
 }
 
 function PackageManager() {
@@ -1846,17 +1849,19 @@ function startup(xml, parent, param) {
         throw Error("Target type must be ELEMENT_NODE");
     if ($.isPlainObject(parent)) {
         param = parent;
-        parent = rdoc.body || rdoc.lastChild;
+        parent = rdoc.body || rdoc.cloneNode();
     } else if (parent === undefined) {
-        parent = rdoc.body || rdoc.lastChild;
+        parent = rdoc.body || rdoc.cloneNode();
     } else if (typeof parent == "string") {
         parent = rdoc.getElementById(parent);
         if (!parent)
             throw Error(`Parent element ${parent} not found`);
-    }
+    } else if (parent.nodeType != ELEMENT_NODE) {
+		throw Error(`Invalid parent`);
+	}
     env.fdr = Finder(env);
     env.smr = StyleManager();
-    env.aid = inBrowser ? $.guid() : "";
+    env.aid = $.guid();
     env.api = hp.build(env, NodeElementAPI);
     if ($.isPlainObject(param)) {
         env.xml.getAttribute("id") || env.xml.setAttribute("id", $.guid());
@@ -1866,7 +1871,8 @@ function startup(xml, parent, param) {
     let fragment = rdoc.createDocumentFragment();
     let instance = parseEnvXML(env, fragment, env.xml.lastChild);
     parent.appendChild(fragment);
-    return $.extend(hp.create(instance).api, {style: env.smr.style});
+    env.smr.reset(parent);
+    return hp.create(instance).api;
 }
 
 (function () {
@@ -1877,6 +1883,16 @@ function startup(xml, parent, param) {
         rdoc = document;
         vdoc = $.parseXML("<void/>");
         NodeElementAPI = $.extend(ClientElementAPI, EventModuleAPI, MessageModuleAPI, CommonElementAPI);
+        let e = $.events = {};
+        if ("ontouchend" in rdoc.documentElement) {
+            e.touchstart = "touchstart";
+            e.touchmove = "touchmove";
+            e.touchend = e.click = "touchend";
+        } else {
+            e.touchstart = "mousedown";
+            e.touchmove = "mousemove";
+            e.touchend = e.click = "mouseup";
+        }
         window.xmlplus = window.xp = $.extend(xmlplus, $);
         if (typeof define === "function" && define.amd)
             define("xmlplus", [], () => { return xmlplus });

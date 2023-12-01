@@ -5,6 +5,21 @@
  * Released under the MIT license
  */
 
+Date.prototype.format = function (fmt) {
+	var o = {
+		"y+" : this.getFullYear(),
+		"M+" : this.getMonth() + 1,
+		"d+" : this.getDate(),
+		"h+" : this.getHours(),
+		"m+" : this.getMinutes(),
+		"s+" : this.getSeconds()
+	};
+	var z = { "y+" : '0000', 'M+': '00', 'd+': '00' };
+	for (var k in o)
+		if (new RegExp("(" + k + ")").test(fmt))
+			fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : ((z[k] + o[k]).substr(("" + o[k]).length)));
+	return fmt;
+};
 
 xmlplus("xp", (xp, $_) => {
 
