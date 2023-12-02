@@ -1,5 +1,5 @@
 /*!
- * miot.js v1.2.01
+ * miot.js v1.2.02
  * https://github.com/qudou/miot
  * (c) 2009-2017 qudou
  * Released under the MIT license
@@ -20,7 +20,7 @@ $_().imports({
               html, body, #index { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; }\
               #index { position: relative; background: url(/img/background.jpg) center/100% 100%; margin: 0 auto; max-width: 480px; }\
               @media screen and (min-width: 480px) { #index { border: 1px solid #E4E3E6; } }\
-			  #stack, #mask { width: 100%; height: 100%; }\
+              #stack, #mask { width: 100%; height: 100%; }\
               #stack > * { transition-duration: 0s; }",
         xml: "<i:Applet id='index' xmlns:i='//xp'>\
                   <i:ViewStack id='stack'>\
@@ -35,7 +35,7 @@ $_().imports({
             let q = xp.create("//miot/Query");
             q.mw && sys.index.css("max-width", q.mw);
             this.on("connect", function (e, cfg) {
-				cfg.keepalive = 30;
+                cfg.keepalive = 30;
                 items.mask.show();
                 client = mqtt.connect(Server, cfg);
                 client.on("connect", function (e) {
@@ -44,7 +44,7 @@ $_().imports({
                         sys.content.trigger("publish", {topic: "/ui/areas"});
                         items.mask.hide();
                     });
-                    sys.content.notify("/stat/ui/1");
+                    sys.content.notify("/stat/ui", 1);
                     localStorage.setItem("online", 1);
                     sys.stack.trigger("goto", "content");
                     console.log("connected to " + Server);
@@ -54,7 +54,7 @@ $_().imports({
                     sys.content.notify(p.topic, [p.data]);
                 });
                 client.on("close", function (e) {
-                    sys.content.notify("/stat/ui/0");
+                    sys.content.notify("/stat/ui", 0);
                     localStorage.setItem("online", 0);
                 });
                 client.on("error", function (e) {
@@ -266,11 +266,11 @@ $_("content").imports({
                 let id = this.toString();
                 id == 'auto' || this.trigger("switch", id);
             });
-			this.watch("#/view/ready", () => {
-				if (items.about.prop("checked")) {
-					sys.home.trigger(ev.click);
-					items.home.prop("checked", "true");
-				}
+            this.watch("#/view/ready", () => {
+                if (items.about.prop("checked")) {
+                    sys.home.trigger(ev.click);
+                    items.home.prop("checked", "true");
+                }
             });
         }
     },
@@ -340,7 +340,7 @@ $_("content").imports({
                 opts = app;
                 items.mask.show();
                 sys.applet.addClass("#modal-in");
-				let dir = app.type ? "usr" : "sys"; 
+                let dir = app.type ? "usr" : "sys"; 
                 require([`/views/${dir}/${app.view}/index.js`], () => load(app), () => {
                     items.mask.hide();
                     sys.applet.removeClass("#modal-in");
@@ -361,9 +361,9 @@ $_("content").imports({
                 if (view && opts.link == p.mid && p.data == 0)
                     items.info.show("应用已离线-[02]");
             });
-            this.watch("/stat/ui/0", () => {
+            this.watch("/stat/ui", (e, online) => {
                 let view = sys.mask.prev();
-                view && items.info.show("应用已离线-[03]");
+                view && !online && items.info.show("应用已离线-[03]");
             });
             this.watch("/ui/apps", (e, p) => {
                 let view = sys.mask.prev();
@@ -446,7 +446,9 @@ $_("content/index").imports({
                     link.id == p.mid && (link.online = p.data);
                 }); 
             });
-            this.watch("/stat/ui/0", e => table = {});
+            this.watch("/stat/ui", (e, online) => {
+                online || (table = {});
+            });
             this.watch("/ui/links", (e, p) => (table[p.area] = p));
         }
     },
@@ -505,7 +507,7 @@ $_("content/index").imports({
                     if(_apps[i].type > type)
                         apps.model[i].online = _apps[i].online = 0;
             }
-            this.watch("/stat/ui/0", () => offlineAll(-1));
+            this.watch("/stat/ui", (e, online) => online || offlineAll(-1));
         }
     }
 });
@@ -526,8 +528,9 @@ $_("content/index/head").imports({
     Stat: {
         xml: "<Text id='stat'>在线</Text>",
         fun: function (sys, items, opts) {
-            this.watch("/stat/ui/1", e => this.text("在线"));
-            this.watch("/stat/ui/0", e => this.text("离线"));
+            this.watch("/stat/ui", (e, online) => {
+                this.text(online ? "在线" : "离线")
+            });
         }
     }
 });
@@ -557,11 +560,11 @@ $_("content/index/apps").imports({
                 opts.type = value;
                 value == 1 && sys.label.text(`#${sys.label.text()}`);
             }
-			this.on("$/before/bind", (e, data) => {
-				let dir = data.type ? "usr" : "sys";
-				let path = `/views/${dir}/${data.view}/icon.js`;
-				items.icon(path, data.view);
-			});
+            this.on("$/before/bind", (e, data) => {
+                let dir = data.type ? "usr" : "sys";
+                let path = `/views/${dir}/${data.view}/icon.js`;
+                items.icon(path, data.view);
+            });
             return { online: online, type: type };
         }
     },
@@ -676,10 +679,10 @@ $_("content/footer").imports({
                 app = p.apps[i];
             });
             this.on(ev.click, () => {
-				if (app == null)
-					return this.trigger("message", ["msg", "当前网关无自动化应用"]);
+                if (app == null)
+                    return this.trigger("message", ["msg", "当前网关无自动化应用"]);
                 if (app.online == 0)
-					return this.trigger("message", ["msg", "当前网关自动化应用已离线"]);
+                    return this.trigger("message", ["msg", "当前网关自动化应用已离线"]);
                 this.trigger("/applet/open", app);
             });
         }

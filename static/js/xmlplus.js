@@ -1186,7 +1186,7 @@ let CommonElementAPI = {
         function setter(target, propKey, value) {
             if (!proxy || propKey !== "model")
                 return Reflect.set(target, propKey, value);
-			let isArray = $.isArray(value);
+            let isArray = $.isArray(value);
             isArray || view.api.trigger("$/before/bind", [value], false);
             if (model) {
                 // nothing to do.
@@ -1858,8 +1858,8 @@ function startup(xml, parent, param) {
         if (!parent)
             throw Error(`Parent element ${parent} not found`);
     } else if (parent.nodeType != ELEMENT_NODE) {
-		throw Error(`Invalid parent`);
-	}
+        throw Error(`Invalid parent`);
+    }
     env.fdr = Finder(env);
     env.smr = StyleManager();
     env.aid = $.guid();
